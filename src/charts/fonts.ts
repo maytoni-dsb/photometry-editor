@@ -1,6 +1,6 @@
 /**
- * Шрифты для векторного экспорта: разбор (fontkit), метрики, контуры глифов,
- * подмножество TrueType для встраивания в EPS (Type 42).
+ * Шрифты для векторного экспорта: разбор (fontkit), метрики, контуры глифов
+ * (текст кривыми в EPS и по выбору в PDF).
  *
  * По умолчанию — Roboto (Apache 2.0), файлы лежат в public/fonts.
  * Пользователь может подключить свой TTF/OTF (фирменный шрифт).
@@ -43,7 +43,7 @@ export function openFont(bytes: Uint8Array): FkFont {
   return f;
 }
 
-/** Шрифт с контурами CFF (OTF): в EPS его нельзя встроить как Type 42. */
+/** Шрифт с контурами CFF (OTF). */
 export function isCff(f: FkFont): boolean {
   return 'CFF ' in f.directory.tables || 'CFF2' in f.directory.tables;
 }
@@ -114,28 +114,4 @@ export function textOutline(f: FkFont, text: string, x: number, y: number, sizeP
     pen += g.advanceWidth;
   }
   return segs;
-}
-
-/** Собирает подмножество шрифта (TrueType) с заданными глифами. Возвращает байты и новые номера глифов. */
-export async function subsetFont(f: FkFont, glyphIds: number[]): Promise<{ bytes: Uint8Array; map: Map<number, number> }> {
-  const subset = f.createSubset();
-  const map = new Map<number, number>();
-  for (const id of glyphIds) if (!map.has(id)) map.set(id, subset.includeGlyph(f.getGlyph(id)));
-  const parts: Uint8Array[] = [];
-  const bytes = await new Promise<Uint8Array>((resolve, reject) => {
-    const st = subset.encodeStream();
-    st.on('data', (b) => parts.push(b as Uint8Array));
-    st.on('end', () => {
-      const len = parts.reduce((s, p) => s + p.length, 0);
-      const out = new Uint8Array(len);
-      let o = 0;
-      for (const p of parts) {
-        out.set(p, o);
-        o += p.length;
-      }
-      resolve(out);
-    });
-    st.on('error', (e) => reject(e));
-  });
-  return { bytes, map };
 }

@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { fontMeasure } from '../../charts/fonts';
 import { buildLinear } from '../../charts/linear';
 import { buildPolar } from '../../charts/polar';
+import { CATALOG_WIDTH } from '../../charts/polar-catalog';
 import { renderSvg } from '../../charts/render-svg';
 import { approxTextWidth } from '../../charts/scene';
 import { defaultPlanes, type IntensityUnit } from '../../charts/series';
-import type { ChartStyle } from '../../charts/style';
+import { catalogStyle, type ChartStyle } from '../../charts/style';
 import type { ColorMode } from '../../charts/vector';
 import type { Lang } from '../../core/issues';
 import type { ChartSettings } from '../App';
@@ -22,13 +23,14 @@ interface Props {
   settings: ChartSettings;
   onSettings: (s: ChartSettings) => void;
   style: ChartStyle;
+  onStyle: (s: ChartStyle) => void;
   fonts: LoadedFonts | null;
 }
 
 /** Ширина превью на экране, пикселей на миллиметр. */
 const PX_PER_MM = 6.5;
 
-export function ChartPanel({ kind, file, settings, onSettings, style, fonts }: Props) {
+export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, fonts }: Props) {
   const { t } = useTranslation();
   const p = file.parse.photometry;
   const axial = file.summary.asC.symmetry === 'axial' || file.summary.asC.hAngles.length === 1;
@@ -40,10 +42,11 @@ export function ChartPanel({ kind, file, settings, onSettings, style, fonts }: P
   const [error, setError] = useState<string | null>(null);
 
   const set = (patch: Partial<ChartSettings>) => onSettings({ ...settings, ...patch });
+  const catalog = kind === 'polar' && settings.layout === 'catalog';
 
   const measure = useMemo(() => (fonts ? fontMeasure(fonts.set) : approxTextWidth), [fonts]);
   const scene = useMemo(() => {
-    const opts = { ...settings, planes };
+    const opts = { ...settings, planes, width: kind === 'polar' ? settings.width : settings.linearWidth };
     return kind === 'polar' ? buildPolar(p, file.summary, opts, style, measure) : buildLinear(p, file.summary, opts, style, measure);
   }, [kind, p, file.summary, settings, planes, style, measure]);
   const svg = useMemo(() => renderSvg(scene), [scene]);
@@ -110,6 +113,24 @@ export function ChartPanel({ kind, file, settings, onSettings, style, fonts }: P
         </fieldset>
 
         <div className="form-grid">
+          {kind === 'polar' && (
+            <>
+              <label>{t('chart.layout')}</label>
+              <select
+                value={settings.layout}
+                onChange={(e) => {
+                  const layout = e.target.value as ChartSettings['layout'];
+                  // ширина по умолчанию для оформления
+                  const width = layout === 'catalog' ? (settings.width > 60 ? CATALOG_WIDTH : settings.width) : settings.width < 60 ? 100 : settings.width;
+                  set({ layout, width });
+                }}
+              >
+                <option value="catalog">{t('chart.layoutCatalog')}</option>
+                <option value="standard">{t('chart.layoutStandard')}</option>
+              </select>
+            </>
+          )}
+
           <label>{t('chart.unit')}</label>
           <select value={settings.unit} onChange={(e) => set({ unit: e.target.value as IntensityUnit })}>
             <option value="cdklm">{t('unit.cdklm')}</option>
@@ -144,7 +165,11 @@ export function ChartPanel({ kind, file, settings, onSettings, style, fonts }: P
           </select>
 
           <label>{t('chart.width')}</label>
-          <input type="number" min={40} max={400} value={settings.width} onChange={(e) => set({ width: Math.min(400, Math.max(40, Number(e.target.value) || 100)) })} />
+          {kind === 'polar' ? (
+            <input type="number" min={20} max={400} step={0.1} value={settings.width} onChange={(e) => set({ width: Math.min(400, Math.max(20, Number(e.target.value) || CATALOG_WIDTH)) })} />
+          ) : (
+            <input type="number" min={40} max={400} value={settings.linearWidth} onChange={(e) => set({ linearWidth: Math.min(400, Math.max(40, Number(e.target.value) || 100)) })} />
+          )}
 
           {kind === 'linear' && (
             <>
@@ -159,13 +184,24 @@ export function ChartPanel({ kind, file, settings, onSettings, style, fonts }: P
 
         <fieldset>
           <legend>{t('chart.show')}</legend>
-          {(['title', 'info', 'legend'] as const).map((k) => (
+          {(catalog ? (['title'] as const) : (['title', 'info', 'legend'] as const)).map((k) => (
             <label key={k} className="check">
               <input type="checkbox" checked={settings.show[k]} onChange={(e) => set({ show: { ...settings.show, [k]: e.target.checked } })} />
               {t(`chart.show${k[0].toUpperCase()}${k.slice(1)}`)}
             </label>
           ))}
         </fieldset>
+
+        {catalog && (
+          <div className="note small">
+            <p className="muted">{t('chart.catalogNote')}</p>
+            {!style.colors.fill && (
+              <button className="btn small" onClick={() => onStyle({ ...catalogStyle(), font: { ...catalogStyle().font, family: style.font.family } })}>
+                {t('chart.applyCatalogStyle')}
+              </button>
+            )}
+          </div>
+        )}
 
         <fieldset className="export">
           <legend>{t('export.title')}</legend>
@@ -193,7 +229,8 @@ export function ChartPanel({ kind, file, settings, onSettings, style, fonts }: P
       </aside>
 
       <div className="chart-stage">
-        <div className="paper" style={{ width: scene.width * PX_PER_MM }} dangerouslySetInnerHTML={{ __html: svg }} />
+        {/* узкие графики (каталог 39 мм) показываем крупнее, но не шире 600 px */}
+        <div className="paper" style={{ width: Math.max(scene.width * PX_PER_MM, Math.min(600, scene.width * 15)) }} dangerouslySetInnerHTML={{ __html: svg }} />
         <p className="muted small center">{t('chart.size', { w: Math.round(scene.width), h: Math.round(scene.height) })}</p>
       </div>
     </div>

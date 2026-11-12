@@ -11,3 +11,4 @@ export { renderPdf, type VectorExportOptions } from './render-pdf';
 export { renderEps } from './render-eps';
 export { fontMeasure, openFont, isCff, type FontSet } from './fonts';
 export type { ColorMode } from './vector';
+export { buildPolarCatalog, CATALOG_WIDTH } from './polar-catalog';

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Color } from '../../charts/scene';
-import { defaultStyle, hexToRgb, naiveCmyk, rgbHex, sanitizeStyle, type ChartStyle } from '../../charts/style';
+import { defaultStyle, hexToRgb, naiveCmyk, rgbHex, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../../charts/style';
 import { clearCustomFont, loadFonts, setCustomFont, type LoadedFonts } from '../fonts';
 import { saveFile, safeFileName } from '../save-file';
 
@@ -96,6 +96,22 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
         </header>
         <div className="modal-body">
           <div className="form-grid">
+            <label>{t('style.preset')}</label>
+            <select
+              value=""
+              onChange={(e) => {
+                const pr = STYLE_PRESETS.find((x) => x.id === e.target.value);
+                if (pr) {
+                  const n = pr.make();
+                  onChange({ ...n, font: { ...n.font, family: s.font.family } });
+                }
+              }}
+            >
+              <option value="">…</option>
+              {STYLE_PRESETS.map((x) => (
+                <option key={x.id} value={x.id}>{t(`style.preset${x.id[0].toUpperCase()}${x.id.slice(1)}`)}</option>
+              ))}
+            </select>
             <label>{t('style.name')}</label>
             <input type="text" value={s.name} onChange={(e) => set({ name: e.target.value })} />
           </div>
@@ -110,7 +126,6 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
               )}
               <input ref={fontInput} type="file" accept=".ttf,.otf,.woff" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadFont(f); e.target.value = ''; }} />
             </div>
-            {fonts?.cff && <p className="muted small">{t('style.fontCff')}</p>}
             <div className="row">
               <span>{t('style.sizes')}:</span>
               <label>{t('style.sizeTitle')} {numIn(s.font.title, (x) => set({ font: { ...s.font, title: x } }), 0.5, 3)}</label>
@@ -136,6 +151,18 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
               </label>
             </div>
             {s.colors.background && <ColorRow label="" value={s.colors.background} onChange={(c) => setColors({ background: c })} />}
+            <div className="color-row">
+              <span className="color-label">{t('style.fill')}</span>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={s.colors.fill === null}
+                  onChange={(e) => setColors({ fill: e.target.checked ? null : { rgb: [255, 255, 204], cmyk: [0, 0, 20, 0] } })}
+                />
+                {t('style.noFill')}
+              </label>
+            </div>
+            {s.colors.fill && <ColorRow label="" value={s.colors.fill} onChange={(c) => setColors({ fill: c })} />}
             {s.colors.series.map((c, i) => (
               <ColorRow
                 key={i}
@@ -169,6 +196,22 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
               <label>{t('style.widthCurve')} {numIn(s.widths.curve, (x) => set({ widths: { ...s.widths, curve: x } }))}</label>
               <label>{t('style.widthGrid')} {numIn(s.widths.grid, (x) => set({ widths: { ...s.widths, grid: x } }))}</label>
               <label>{t('style.widthGridMajor')} {numIn(s.widths.gridMajor, (x) => set({ widths: { ...s.widths, gridMajor: x } }))}</label>
+            </div>
+            <div className="row">
+              <label>
+                {t('style.gridDash')}{' '}
+                <input
+                  key={s.gridDash.join(' ')}
+                  className="dash"
+                  type="text"
+                  title={t('style.dashHint')}
+                  defaultValue={s.gridDash.map((v) => Math.round(v * 1000) / 1000).join(' ')}
+                  onBlur={(e) => {
+                    const d = e.target.value.trim().split(/[\s;]+/).map((x) => Number(x.replace(',', '.'))).filter((x) => Number.isFinite(x) && x > 0);
+                    set({ gridDash: d });
+                  }}
+                />
+              </label>
             </div>
           </fieldset>
 

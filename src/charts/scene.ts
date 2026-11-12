@@ -24,6 +24,15 @@ export interface Stroke {
 
 export type TextAnchor = 'start' | 'middle' | 'end';
 
+/** Кусок текста другого размера / смещённый по вертикали (нижний индекс «max» в Iₘₐₓ). */
+export interface TextRun {
+  text: string;
+  /** Доля кегля (1 — основной). */
+  scale: number;
+  /** Смещение базовой линии вниз, мм. */
+  dy: number;
+}
+
 export type Prim =
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number; stroke: Stroke }
   | { t: 'polyline'; pts: Array<[number, number]>; closed?: boolean; stroke?: Stroke; fill?: Color }
@@ -34,8 +43,9 @@ export type Prim =
   /**
    * Текст: (x, y) — точка на базовой линии, size — кегль в пт.
    * rotate — поворот в градусах против часовой стрелки вокруг (x, y).
+   * runs — текст из кусков (тогда text = их склейка, для поиска и метаданных).
    */
-  | { t: 'text'; x: number; y: number; text: string; size: number; color: Color; anchor: TextAnchor; bold?: boolean; rotate?: number }
+  | { t: 'text'; x: number; y: number; text: string; size: number; color: Color; anchor: TextAnchor; bold?: boolean; rotate?: number; runs?: TextRun[] }
   /** Группа (в SVG-редакторах становится слоем / группой с именем). */
   | { t: 'group'; id: string; children: Prim[] };
 

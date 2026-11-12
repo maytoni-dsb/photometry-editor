@@ -155,7 +155,7 @@ table.grid tbody tr:hover td { background: var(--hover); }
 
 /* --- графики */
 .chart-view { display: flex; gap: 16px; align-items: flex-start; }
-.chart-settings { width: 300px; flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 12px; }
+.chart-settings { width: 330px; flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 12px; }
 .chart-settings h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0; padding: 8px 10px 10px; display: grid; gap: 6px; }
 legend { padding: 0 4px; color: var(--muted); font-size: 12.5px; }
@@ -212,3 +212,5 @@ legend { padding: 0 4px; color: var(--muted); font-size: 12.5px; }
   .tabs { overflow-x: auto; }
   .tabs-file { display: none; }
 }
+.note { display: grid; gap: 6px; padding: 8px 10px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); }
+.note p { margin: 0; }

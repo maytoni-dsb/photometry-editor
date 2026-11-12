@@ -27,6 +27,8 @@ export interface ChartStyle {
     background: Color | null;
     /** Цвета кривых по порядку плоскостей. */
     series: Color[];
+    /** Заливка под первой кривой полярной КСС; null — без заливки. */
+    fill: Color | null;
   };
   /** Толщины, мм. */
   widths: {
@@ -36,6 +38,8 @@ export interface ChartStyle {
   };
   /** Штрихи кривых по порядку, мм; пустой массив — сплошная. */
   dashes: number[][];
+  /** Штрих линий сетки, мм; пустой — сплошные. */
+  gridDash: number[];
   grid: {
     /** Шаг лучей полярной сетки и шаг оси γ линейной КСС, °. */
     angleStep: number;
@@ -85,12 +89,50 @@ export function defaultStyle(): ChartStyle {
         c([120, 60, 160], [60, 80, 0, 0]),
         c([90, 90, 90], [0, 0, 0, 75]),
       ],
+      fill: null,
     },
     widths: { curve: 0.35, grid: 0.1, gridMajor: 0.2 },
     dashes: [[], [1.6, 0.8], [0.4, 0.6], [2.4, 0.8, 0.4, 0.8], [], []],
+    gridDash: [],
     grid: { angleStep: 15, angleLabelEvery: 2 },
   };
 }
+
+const PT = 25.4 / 72;
+
+/**
+ * Стиль каталога MAYTONI — по образцу «LIC eps stage2» (12.11.2026):
+ * кегль 6 пт, линии 0,3 пт, сетка пунктиром 0,43 / 1,29 пт, всё чёрное (K100),
+ * заливка под кривой CMYK 0/0/20/0 (RGB 255/255/204), лучи через 30°.
+ * Шрифт образца — Helvetica (MATLAB); у нас по умолчанию Roboto, свой шрифт можно загрузить.
+ */
+export function catalogStyle(): ChartStyle {
+  const black = c([0, 0, 0], [0, 0, 0, 100]);
+  const w = 0.3 * PT;
+  return {
+    version: 1,
+    name: 'MAYTONI каталог',
+    font: { family: 'Roboto', title: 6, label: 6, tick: 6 },
+    colors: {
+      text: black,
+      grid: black,
+      gridMajor: black,
+      background: null,
+      series: [black, c([0, 94, 170], [100, 55, 0, 5]), c([215, 38, 50], [0, 95, 80, 5]), c([0, 140, 70], [90, 10, 100, 5])],
+      fill: c([255, 255, 204], [0, 0, 20, 0]),
+    },
+    widths: { curve: w, grid: w, gridMajor: w },
+    dashes: [[], [1.2, 0.6], [0.3, 0.5], [1.6, 0.5, 0.3, 0.5]],
+    gridDash: [(3 / 7) * PT, (9 / 7) * PT],
+    grid: { angleStep: 30, angleLabelEvery: 1 },
+  };
+}
+
+/** Готовые стили. */
+export const STYLE_PRESETS: Array<{ id: string; make: () => ChartStyle }> = [
+  { id: 'default', make: defaultStyle },
+  { id: 'catalog', make: catalogStyle },
+];
 
 function isColor(x: unknown): x is Color {
   const o = x as Color;
@@ -121,6 +163,7 @@ export function sanitizeStyle(input: unknown): ChartStyle {
       gridMajor: col(s.colors?.gridMajor, d.colors.gridMajor),
       background: s.colors?.background === null ? null : isColor(s.colors?.background) ? col(s.colors!.background, d.colors.text) : d.colors.background,
       series: series.length ? series.map((x) => col(x, x)) : d.colors.series,
+      fill: s.colors?.fill === null || s.colors?.fill === undefined ? null : isColor(s.colors.fill) ? col(s.colors.fill, s.colors.fill) : null,
     },
     widths: {
       curve: num(s.widths?.curve, d.widths.curve, 0.01, 3),
@@ -130,6 +173,7 @@ export function sanitizeStyle(input: unknown): ChartStyle {
     dashes: Array.isArray(s.dashes)
       ? s.dashes.map((x) => (Array.isArray(x) ? x.filter((v) => typeof v === 'number' && v >= 0) : []))
       : d.dashes,
+    gridDash: Array.isArray(s.gridDash) ? s.gridDash.filter((v) => typeof v === 'number' && v > 0) : d.gridDash,
     grid: {
       angleStep: [5, 10, 15, 30].includes(s.grid?.angleStep as number) ? (s.grid!.angleStep as number) : d.grid.angleStep,
       angleLabelEvery: num(s.grid?.angleLabelEvery, d.grid.angleLabelEvery, 1, 6),

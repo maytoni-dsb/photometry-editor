@@ -11,13 +11,15 @@ export interface ChartLabels {
   w: string;
   flux: string;
   imax: string;
+  /** Нижний индекс в Iₘₐₓ. */
+  maxSub: string;
   gammaAxis: string;
 }
 
 export const chartLabels: Record<Lang, ChartLabels> = {
-  ru: { cdklm: 'кд/клм', cd: 'кд', lm: 'лм', w: 'Вт', flux: 'Φ', imax: 'Iмакс', gammaAxis: 'γ, °' },
-  en: { cdklm: 'cd/klm', cd: 'cd', lm: 'lm', w: 'W', flux: 'Φ', imax: 'Imax', gammaAxis: 'γ, °' },
-  de: { cdklm: 'cd/klm', cd: 'cd', lm: 'lm', w: 'W', flux: 'Φ', imax: 'Imax', gammaAxis: 'γ, °' },
+  ru: { cdklm: 'кд/клм', cd: 'кд', lm: 'лм', w: 'Вт', flux: 'Φ', imax: 'Iмакс', maxSub: 'макс', gammaAxis: 'γ, °' },
+  en: { cdklm: 'cd/klm', cd: 'cd', lm: 'lm', w: 'W', flux: 'Φ', imax: 'Imax', maxSub: 'max', gammaAxis: 'γ, °' },
+  de: { cdklm: 'cd/klm', cd: 'cd', lm: 'lm', w: 'W', flux: 'Φ', imax: 'Imax', maxSub: 'max', gammaAxis: 'γ, °' },
 };
 
 /** Число в записи языка подписей: десятичная запятая для ru / de, разряды через узкий пробел от 10 000. */

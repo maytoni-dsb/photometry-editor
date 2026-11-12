@@ -32,7 +32,7 @@ import {
 } from 'pdf-lib';
 import { openFont, textOutline, type FontSet } from './fonts';
 import type { Color, Scene } from './scene';
-import { colorComponents, pageSizePt, walkVector, type ColorMode, type Seg } from './vector';
+import { colorComponents, pageSizePt, placeRuns, walkVector, type ColorMode, type Seg } from './vector';
 
 export interface VectorExportOptions {
   color: ColorMode;
@@ -111,28 +111,25 @@ export async function renderPdf(scene: Scene, opts: VectorExportOptions): Promis
     text(t) {
       const fk = t.bold ? fkBold : fkRegular;
       if (opts.textAsPaths || !regular) {
-        const wEm = fk.glyphsForString(t.text).reduce((s, g) => s + g.advanceWidth, 0) / fk.unitsPerEm;
-        const w = wEm * t.size;
-        const k = t.anchor === 'start' ? 0 : t.anchor === 'middle' ? 0.5 : 1;
-        const a = (t.rotate * Math.PI) / 180;
-        const x = t.x - k * w * Math.cos(a);
-        const y = t.y - k * w * Math.sin(a);
-        const segs = textOutline(fk, t.text, x, y, t.size, t.rotate);
-        if (segs.length) page.pushOperators(fillColorOp(t.color, mode), ...segOps(segs), fill());
+        const w = (text: string, size: number) => (fk.glyphsForString(text).reduce((s, g) => s + g.advanceWidth, 0) / fk.unitsPerEm) * size;
+        for (const r of placeRuns(t, w)) {
+          const segs = textOutline(fk, r.text, r.x, r.y, r.size, t.rotate);
+          if (segs.length) page.pushOperators(fillColorOp(t.color, mode), ...segOps(segs), fill());
+        }
         return;
       }
       const font = t.bold ? bold! : regular;
-      const w = font.widthOfTextAtSize(t.text, t.size);
-      const k = t.anchor === 'start' ? 0 : t.anchor === 'middle' ? 0.5 : 1;
-      const a = (t.rotate * Math.PI) / 180;
-      page.drawText(t.text, {
-        x: t.x - k * w * Math.cos(a),
-        y: t.y - k * w * Math.sin(a),
-        size: t.size,
-        font,
-        color: pdfColor(t.color, mode),
-        rotate: t.rotate ? degrees(t.rotate) : undefined,
-      });
+      for (const r of placeRuns(t, (text, size) => font.widthOfTextAtSize(text, size))) {
+        if (!r.text) continue;
+        page.drawText(r.text, {
+          x: r.x,
+          y: r.y,
+          size: r.size,
+          font,
+          color: pdfColor(t.color, mode),
+          rotate: t.rotate ? degrees(t.rotate) : undefined,
+        });
+      }
     },
   });
   page.pushOperators(popGraphicsState());

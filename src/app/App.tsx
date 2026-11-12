@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CATALOG_WIDTH } from '../charts/polar-catalog';
 import { defaultChartOptions, type ChartOptions } from '../charts/series';
-import { sanitizeStyle, type ChartStyle } from '../charts/style';
+import { catalogStyle, sanitizeStyle, type ChartStyle } from '../charts/style';
 import { ChartPanel } from './components/ChartPanel';
 import { IntensityTable } from './components/IntensityTable';
 import { Passport } from './components/Passport';
@@ -17,12 +18,24 @@ const TABS: Tab[] = ['passport', 'table', 'polar', 'linear'];
 /** Настройки графиков, общие для всех файлов. planes = null — плоскости по умолчанию для файла. */
 export interface ChartSettings extends Omit<ChartOptions, 'planes'> {
   planes: number[] | null;
+  /** Ширина линейной КСС, мм (width — ширина полярной). */
+  linearWidth: number;
 }
 
+/** По умолчанию — оформление каталога MAYTONI (образец 12.11.2026). */
 function initialSettings(): ChartSettings {
-  const d = defaultChartOptions();
+  const d: ChartSettings = { ...defaultChartOptions(), layout: 'catalog', width: CATALOG_WIDTH, linearWidth: 100, planes: null };
   const saved = load<Partial<ChartSettings>>('chart-settings', {});
-  return { ...d, ...saved, show: { ...d.show, ...(saved.show ?? {}) }, planes: saved.planes ?? null, title: '' };
+  // настройки v0.2 (без оформления) — переходим на каталог, ширину берём новую
+  const migrated = saved.layout ? saved : { ...saved, layout: undefined, width: undefined };
+  const clean = Object.fromEntries(Object.entries(migrated).filter(([, v]) => v !== undefined)) as Partial<ChartSettings>;
+  return { ...d, ...clean, show: { ...d.show, ...(saved.show ?? {}) }, planes: saved.planes ?? null, title: '' };
+}
+
+/** Стиль: сохранённый (v0.2.1+, с пунктиром сетки) или стиль каталога. */
+function initialStyle(): ChartStyle {
+  const saved = load<Record<string, unknown> | null>('chart-style', null);
+  return saved && 'gridDash' in saved ? sanitizeStyle(saved) : catalogStyle();
 }
 
 export default function App() {
@@ -33,7 +46,7 @@ export default function App() {
   const [errors, setErrors] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [settings, setSettings] = useState<ChartSettings>(initialSettings);
-  const [style, setStyle] = useState<ChartStyle>(() => sanitizeStyle(load('chart-style', null)));
+  const [style, setStyle] = useState<ChartStyle>(initialStyle);
   const [styleOpen, setStyleOpen] = useState(false);
   const [fonts, setFonts] = useState<LoadedFonts | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -202,6 +215,7 @@ export default function App() {
                     settings={settings}
                     onSettings={setSettings}
                     style={style}
+                    onStyle={setStyle}
                     fonts={fonts}
                   />
                 )}

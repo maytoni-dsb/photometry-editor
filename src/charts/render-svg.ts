@@ -56,7 +56,21 @@ function prim(p: Prim, indent: string, top: boolean): string {
       const anchor = p.anchor === 'start' ? '' : ` text-anchor="${p.anchor}"`;
       const weight = p.bold ? ' font-weight="500"' : '';
       const rot = p.rotate ? ` transform="rotate(${n(-p.rotate)} ${n(p.x)} ${n(p.y)})"` : '';
-      return `${indent}<text x="${n(p.x)}" y="${n(p.y)}" font-size="${n(p.size * PT_TO_MM)}"${anchor}${weight} fill="${rgbHex(p.color)}"${rot}>${escapeXml(p.text)}</text>\n`;
+      let body = escapeXml(p.text);
+      if (p.runs?.length) {
+        // tspan с относительным dy: каждый кусок сдвигается от предыдущего
+        let prev = 0;
+        body = p.runs
+          .map((r) => {
+            const dy = r.dy - prev;
+            prev = r.dy;
+            const size = r.scale !== 1 ? ` font-size="${n(p.size * r.scale * PT_TO_MM)}"` : '';
+            const shift = Math.abs(dy) > 1e-9 ? ` dy="${n(dy)}"` : '';
+            return `<tspan${size}${shift}>${escapeXml(r.text)}</tspan>`;
+          })
+          .join('');
+      }
+      return `${indent}<text x="${n(p.x)}" y="${n(p.y)}" font-size="${n(p.size * PT_TO_MM)}"${anchor}${weight} fill="${rgbHex(p.color)}"${rot}>${body}</text>\n`;
     }
   }
 }

@@ -131,12 +131,17 @@
     "showLegend": "легенду",
     "titleText": "Заголовок",
     "titlePlaceholder": "артикул из файла",
-    "size": "{{w}} × {{h}} мм"
+    "size": "{{w}} × {{h}} мм",
+    "layout": "Оформление",
+    "layoutStandard": "стандартное",
+    "layoutCatalog": "каталог MAYTONI",
+    "applyCatalogStyle": "Применить стиль «MAYTONI каталог»",
+    "catalogNote": "Как в образце: Iмакс в заголовке, кольца без подписей, шкала по правилу каталога."
   },
   "export": {
     "title": "Экспорт",
     "color": "Цвет",
-    "textAsPaths": "Текст кривыми (PDF, EPS)",
+    "textAsPaths": "Текст кривыми в PDF (в EPS — всегда)",
     "svgRgb": "SVG всегда в RGB",
     "busy": "Готовлю файл…",
     "error": "Не удалось сохранить: {{msg}}",
@@ -150,7 +155,7 @@
     "fontUpload": "Загрузить TTF/OTF…",
     "fontCustom": "Свой шрифт: {{name}}",
     "fontReset": "Вернуть Roboto",
-    "fontCff": "Шрифт OTF с контурами CFF: в EPS текст будет кривыми",
+    "fontCff": "Шрифт OTF с контурами CFF",
     "sizes": "Кегль, пт",
     "sizeTitle": "заголовок",
     "sizeLabel": "подписи",
@@ -176,7 +181,13 @@
     "export": "Сохранить стиль",
     "reset": "Сбросить",
     "close": "Готово",
-    "badFile": "Это не файл стиля"
+    "badFile": "Это не файл стиля",
+    "preset": "Готовый стиль",
+    "presetDefault": "нейтральный",
+    "presetCatalog": "MAYTONI каталог",
+    "fill": "Заливка под кривой",
+    "noFill": "без заливки",
+    "gridDash": "Пунктир сетки, мм"
   },
   "severity": {
     "error": "ошибка",

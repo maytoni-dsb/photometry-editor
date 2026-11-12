@@ -131,12 +131,17 @@
     "showLegend": "legend",
     "titleText": "Title",
     "titlePlaceholder": "article from file",
-    "size": "{{w}} × {{h}} mm"
+    "size": "{{w}} × {{h}} mm",
+    "layout": "Layout",
+    "layoutStandard": "standard",
+    "layoutCatalog": "MAYTONI catalog",
+    "applyCatalogStyle": "Apply “MAYTONI catalog” style",
+    "catalogNote": "As in the sample: Imax in the title, unlabelled rings, catalog scale rule."
   },
   "export": {
     "title": "Export",
     "color": "Color",
-    "textAsPaths": "Text as outlines (PDF, EPS)",
+    "textAsPaths": "Text as outlines in PDF (always in EPS)",
     "svgRgb": "SVG is always RGB",
     "busy": "Preparing file…",
     "error": "Could not save: {{msg}}",
@@ -150,7 +155,7 @@
     "fontUpload": "Load TTF/OTF…",
     "fontCustom": "Custom font: {{name}}",
     "fontReset": "Back to Roboto",
-    "fontCff": "OTF font with CFF outlines: text in EPS will be outlines",
+    "fontCff": "OTF font with CFF outlines",
     "sizes": "Font size, pt",
     "sizeTitle": "title",
     "sizeLabel": "labels",
@@ -176,7 +181,13 @@
     "export": "Save style",
     "reset": "Reset",
     "close": "Done",
-    "badFile": "Not a style file"
+    "badFile": "Not a style file",
+    "preset": "Preset",
+    "presetDefault": "neutral",
+    "presetCatalog": "MAYTONI catalog",
+    "fill": "Fill under curve",
+    "noFill": "no fill",
+    "gridDash": "Grid dash, mm"
   },
   "severity": {
     "error": "error",

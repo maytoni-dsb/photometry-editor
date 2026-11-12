@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLinear,
   buildPolar,
+  CATALOG_WIDTH,
+  catalogStyle,
   defaultChartOptions,
   defaultPlanes,
   defaultStyle,
@@ -68,7 +70,8 @@ describe.skipIf(!dir)('библиотека заказчика', () => {
         const { photometry } = parseFile(new Uint8Array(readFileSync(f)), f);
         const s = summarize(photometry);
         const opts = { ...defaultChartOptions(), planes: defaultPlanes(photometry) };
-        for (const scene of [buildPolar(photometry, s, opts, style, measure), buildLinear(photometry, s, opts, style, measure)]) {
+        const catalog = buildPolar(photometry, s, { ...opts, layout: 'catalog', width: CATALOG_WIDTH }, catalogStyle(), measure);
+        for (const scene of [buildPolar(photometry, s, opts, style, measure), buildLinear(photometry, s, opts, style, measure), catalog]) {
           const svg = renderSvg(scene);
           if (/NaN|undefined|Infinity/.test(svg)) failures.push(`${f}: плохие числа в SVG`);
           if (i % 50 === 0) {

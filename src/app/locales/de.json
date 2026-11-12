@@ -131,12 +131,17 @@
     "showLegend": "Legende",
     "titleText": "Titel",
     "titlePlaceholder": "Artikel aus der Datei",
-    "size": "{{w}} × {{h}} mm"
+    "size": "{{w}} × {{h}} mm",
+    "layout": "Gestaltung",
+    "layoutStandard": "Standard",
+    "layoutCatalog": "MAYTONI-Katalog",
+    "applyCatalogStyle": "Stil „MAYTONI-Katalog“ anwenden",
+    "catalogNote": "Wie im Muster: Imax im Titel, Ringe ohne Beschriftung, Skalenregel des Katalogs."
   },
   "export": {
     "title": "Export",
     "color": "Farbe",
-    "textAsPaths": "Text in Pfade (PDF, EPS)",
+    "textAsPaths": "Text in Pfade im PDF (im EPS immer)",
     "svgRgb": "SVG ist immer RGB",
     "busy": "Datei wird erstellt…",
     "error": "Speichern fehlgeschlagen: {{msg}}",
@@ -150,7 +155,7 @@
     "fontUpload": "TTF/OTF laden…",
     "fontCustom": "Eigene Schrift: {{name}}",
     "fontReset": "Zurück zu Roboto",
-    "fontCff": "OTF-Schrift mit CFF-Konturen: Text im EPS wird in Pfade umgewandelt",
+    "fontCff": "OTF-Schrift mit CFF-Konturen",
     "sizes": "Schriftgrad, pt",
     "sizeTitle": "Titel",
     "sizeLabel": "Beschriftung",
@@ -176,7 +181,13 @@
     "export": "Stil speichern",
     "reset": "Zurücksetzen",
     "close": "Fertig",
-    "badFile": "Keine Stildatei"
+    "badFile": "Keine Stildatei",
+    "preset": "Vorlage",
+    "presetDefault": "neutral",
+    "presetCatalog": "MAYTONI-Katalog",
+    "fill": "Füllung unter der Kurve",
+    "noFill": "keine Füllung",
+    "gridDash": "Rasterstrich, mm"
   },
   "severity": {
     "error": "Fehler",

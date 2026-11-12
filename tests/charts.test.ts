@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLinear,
   buildPolar,
+  CATALOG_WIDTH,
+  catalogScale,
+  catalogStyle,
   chartData,
   defaultChartOptions,
   defaultStyle,
@@ -191,26 +194,17 @@ describe('экспорт', () => {
     expect(new TextDecoder('latin1').decode(curves)).not.toContain('/FontFile2');
   });
 
-  it('EPS: Type 42 со своей кодировкой, CMYK без RGB', async () => {
+  it('EPS: текст кривыми, 7-битный, CMYK без RGB', async () => {
     const eps = await renderEps(scene, { color: 'cmyk', fonts });
     expect(eps.startsWith('%!PS-Adobe-3.0 EPSF-3.0\n')).toBe(true);
     expect(eps).toContain(`%%BoundingBox: 0 0 ${Math.ceil(scene.width * MM_TO_PT)} ${Math.ceil(scene.height * MM_TO_PT)}`);
-    expect(eps).toContain('/FontType 42 def');
-    expect(eps).toMatch(/\/sfnts \[\n</);
+    expect(eps).not.toMatch(/findfont|FontType|show\b/);
+    expect(eps).toContain('% text: ????-001'); // строка текста в комментарии, только ASCII
+    expect(/[^\x00-\x7f]/.test(eps)).toBe(false);
     expect(eps).toContain('setcmykcolor');
     expect(eps).not.toContain('setrgbcolor');
-    expect(eps).toContain('% ????-001'); // строка текста в комментарии, только ASCII
-    expect(/[^\x00-\x7f]/.test(eps)).toBe(false);
     expect(eps).not.toMatch(/NaN|undefined/);
-    // каждая строка sfnts — чётной длины, не длиннее 65535 байт
-    const sfnts = eps.slice(eps.indexOf('/sfnts ['), eps.indexOf('] def', eps.indexOf('/sfnts [')));
-    for (const m of sfnts.matchAll(/<([0-9a-f\s]+)>/g)) {
-      const hex = m[1].replace(/\s/g, '');
-      expect(hex.length % 2).toBe(0);
-      expect(hex.length / 2).toBeLessThanOrEqual(65535);
-    }
-    const rgb = await renderEps(scene, { color: 'rgb', fonts, textAsPaths: true });
-    expect(rgb).not.toContain('/FontType 42');
+    const rgb = await renderEps(scene, { color: 'rgb', fonts });
     expect(rgb).toContain('setrgbcolor');
   });
 });
@@ -224,5 +218,54 @@ describe('стиль', () => {
     expect(s.colors.series.length).toBe(6);
     expect(s.grid.angleStep).toBe(15);
     expect(sanitizeStyle(JSON.parse(JSON.stringify(defaultStyle())))).toEqual(defaultStyle());
+  });
+});
+
+describe('оформление «каталог MAYTONI» (образец LIC eps stage2)', () => {
+  it('шкала каталога совпадает с образцами', () => {
+    // [Iмакс кд/клм, максимум шкалы, шаг колец] — сняты с EPS образца
+    const cases: Array<[number, number, number]> = [
+      [1033, 1200, 500], [1338, 1400, 500], [1421, 1500, 500], [1513, 1600, 500], [1700, 1800, 500],
+      [1969, 2000, 500], [971, 1000, 200], [442, 450, 100], [376, 400, 100], [2065, 2500, 1000],
+      [3088, 3500, 1000], [3561, 4000, 1000], [23960, 25000, 10000], [30340, 35000, 10000], [38980, 40000, 10000],
+    ];
+    for (const [imax, max, step] of cases) {
+      const s = catalogScale(imax);
+      expect([imax, s.max, s.step]).toEqual([imax, max, step]);
+      expect(s.ticks.every((v) => v < max)).toBe(true);
+    }
+    expect(catalogScale(442).ticks).toEqual([100, 200, 300, 400]);
+  });
+
+  it('размеры как у образца: 39,1 × 22,3 мм, R ≈ 15,3 мм, заголовок с индексом', () => {
+    const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, lang: 'en' }), catalogStyle(), fontMeasure(fonts));
+    expect(scene.width).toBeCloseTo(39.1, 6);
+    expect(Math.abs(scene.height - 22.27)).toBeLessThan(0.3);
+    const outer = prims(scene, 'grid').filter((x) => x.t === 'arc').reduce((a, b) => ((a as { r: number }).r > (b as { r: number }).r ? a : b)) as { r: number };
+    expect(Math.abs(outer.r - 15.27)).toBeLessThan(0.4);
+    // 1000 кд/клм → шкала 1000, кольца 200…800
+    expect(prims(scene, 'grid').filter((x) => x.t === 'arc')).toHaveLength(5);
+    const title = prims(scene, 'title')[0];
+    expect(title.t === 'text' && title.runs?.map((r) => r.text)).toEqual(['I', 'max', ' = 1000 cd/klm']);
+    // заливка первой кривой — CMYK 0/0/20/0
+    const fillPrim = prims(scene, 'curves').find((x) => x.t === 'polyline' && x.fill);
+    expect(fillPrim && fillPrim.t === 'polyline' && fillPrim.fill?.cmyk).toEqual([0, 0, 20, 0]);
+    // нет подписей колец и легенды
+    expect(prims(scene, 'legend')).toHaveLength(0);
+    const svg = renderSvg(scene);
+    expect(svg).toContain('<tspan font-size=');
+    expect(svg).toContain('stroke-dasharray');
+  });
+
+  it('заголовок с индексом в PDF и EPS', async () => {
+    const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, lang: 'ru' }), catalogStyle(), fontMeasure(fonts));
+    const eps = await renderEps(scene, { color: 'cmyk', fonts });
+    expect(eps).toContain('0 0 0.2 0 setcmykcolor');
+    expect((eps.match(/% text: /g) ?? []).length).toBe(8); // 7 подписей углов + заголовок
+    expect(eps).toContain('% text: I???? = 1000 ??/???');
+    const pdf = await renderPdf(scene, { color: 'cmyk', fonts });
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
   });
 });

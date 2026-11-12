@@ -12,7 +12,12 @@ export type IntensityUnit = 'cdklm' | 'cd';
 /** auto — нижняя полусфера, если вверх идёт меньше 0,5 % от максимума; full — вся сфера; lower — только нижняя. */
 export type AngleRange = 'auto' | 'full' | 'lower';
 
+/** Оформление полярной КСС: standard — полная сетка с подписями; catalog — компактная, как в каталоге MAYTONI. */
+export type PolarLayout = 'standard' | 'catalog';
+
 export interface ChartOptions {
+  /** Оформление полярной КСС. */
+  layout: PolarLayout;
   /** Плоскости C; каждая рисуется парой C / C + 180°. */
   planes: number[];
   unit: IntensityUnit;
@@ -34,6 +39,7 @@ export interface ChartOptions {
 
 export function defaultChartOptions(): ChartOptions {
   return {
+    layout: 'standard',
     planes: [0, 90],
     unit: 'cdklm',
     scaleMax: null,
@@ -130,4 +136,30 @@ export function niceScale(maxValue: number, fixedMax: number | null = null, targ
   if (fixedMax && ticks[ticks.length - 1] < max - step * 1e-6) ticks.push(max);
   const decimals = Math.max(0, -Math.floor(Math.log10(step) + 1e-9) + (String(step / mag).includes('.') ? 1 : 0));
   return { max, step, ticks, decimals };
+}
+
+/**
+ * Шкала каталога MAYTONI (выведена из 90 образцов «LIC eps stage2»):
+ *  - максимум (внешняя дуга) — Iмакс, округлённое вверх до кратного 0,5·10ⁿ;
+ *    если первая цифра 1 — ещё и до кратного 0,2·10ⁿ, берётся меньшее
+ *    (1033 → 1200, 1421 → 1500, 2065 → 2500, 442 → 450, 38980 → 40000);
+ *  - шаг колец — наибольший из 1, 2, 5·10ⁿ, при котором на максимум приходится не меньше 2,4 шага
+ *    (1200 → 500, 1000 → 200, 450 → 100, 2500 → 1000).
+ * Кольца рисуются на кратных шага меньше максимума.
+ */
+export function catalogScale(imax: number, fixedMax: number | null = null): { max: number; step: number; ticks: number[] } {
+  const top = imax > 0 ? imax : 1;
+  let max = fixedMax && fixedMax > 0 ? fixedMax : 0;
+  if (!max) {
+    const mag = Math.pow(10, Math.floor(Math.log10(top) + 1e-12));
+    const up = (q: number) => Math.ceil(top / q - 1e-9) * q;
+    max = up(0.5 * mag);
+    if (top / mag < 2) max = Math.min(max, up(0.2 * mag));
+    max = Math.round(max / (0.1 * mag)) * (0.1 * mag);
+  }
+  const m = Math.pow(10, Math.floor(Math.log10(max / 2.4)));
+  const step = [5, 2, 1].map((k) => k * m).find((s) => max / s >= 2.4 - 1e-9) ?? m;
+  const ticks: number[] = [];
+  for (let v = step; v < max - step * 1e-6; v += step) ticks.push(Math.round(v / step) * step);
+  return { max, step, ticks };
 }

@@ -3,7 +3,7 @@
  * (пункты, ось Y вверх), окружности и дуги — кривыми Безье, текст — отдельным вызовом.
  */
 
-import { MM_TO_PT, type Color, type Prim, type Scene, type Stroke, type TextAnchor } from './scene';
+import { MM_TO_PT, type Color, type Prim, type Scene, type Stroke, type TextAnchor, type TextRun } from './scene';
 
 export type Seg = ['M', number, number] | ['L', number, number] | ['C', number, number, number, number, number, number] | ['Z'];
 
@@ -19,6 +19,36 @@ export interface VectorText {
   bold: boolean;
   /** Поворот против часовой стрелки, °. */
   rotate: number;
+  /** Куски текста (dy — в пунктах, вниз). */
+  runs: TextRun[];
+}
+
+/** Кусок текста, готовый к выводу: точка начала на базовой линии (пт, Y вверх) и кегль. */
+export interface PlacedRun {
+  text: string;
+  x: number;
+  y: number;
+  size: number;
+}
+
+/**
+ * Раскладывает текст по кускам с учётом выравнивания и поворота.
+ * width(text, size) — ширина в пунктах по шрифту рендера.
+ */
+export function placeRuns(t: VectorText, width: (text: string, size: number) => number): PlacedRun[] {
+  const sized = t.runs.map((r) => ({ ...r, size: t.size * r.scale, w: width(r.text, t.size * r.scale) }));
+  const total = sized.reduce((s, r) => s + r.w, 0);
+  const k = t.anchor === 'start' ? 0 : t.anchor === 'middle' ? 0.5 : 1;
+  const a = (t.rotate * Math.PI) / 180;
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  let u = -k * total;
+  return sized.map((r) => {
+    const v = -r.dy; // вниз по странице = минус по Y
+    const out = { text: r.text, size: r.size, x: t.x + u * ca - v * sa, y: t.y + u * sa + v * ca };
+    u += r.w;
+    return out;
+  });
 }
 
 export interface VectorSink {
@@ -113,6 +143,7 @@ function walkPrim(p: Prim, H: number, sink: VectorSink): void {
         anchor: p.anchor,
         bold: !!p.bold,
         rotate: p.rotate ?? 0,
+        runs: p.runs?.length ? p.runs.map((r) => ({ ...r, dy: r.dy * MM_TO_PT })) : [{ text: p.text, scale: 1, dy: 0 }],
       });
       return;
   }

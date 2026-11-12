@@ -11,6 +11,7 @@ import type { PhotometrySummary } from '../core/summary';
 import { capHeight, header, legend, makeContext, seriesStroke, type BuildContext } from './common';
 import { fmtNum } from './labels';
 import type { MeasureText, Prim, Scene, Stroke } from './scene';
+import { buildPolarCatalog } from './polar-catalog';
 import { chartData, niceScale, type ChartOptions } from './series';
 import type { ChartStyle } from './style';
 
@@ -23,6 +24,7 @@ export function buildPolar(
   style: ChartStyle,
   measure?: MeasureText,
 ): Scene {
+  if (opts.layout === 'catalog') return buildPolarCatalog(p, s, opts, style, measure);
   const ctx: BuildContext = makeContext(style, opts, measure);
   const data = chartData(p, s, opts);
   const scale = niceScale(data.maxValue, opts.scaleMax);
@@ -43,8 +45,9 @@ export function buildPolar(
   const cy = full ? top + capT + labelGap + 1 + R : top + capT + 1;
   const bottom = cy + R + labelGap + capT + 1.5;
 
-  const gridStroke: Stroke = { color: style.colors.grid, width: style.widths.grid };
-  const majorStroke: Stroke = { color: style.colors.gridMajor, width: style.widths.gridMajor };
+  const dash = style.gridDash.length ? style.gridDash : undefined;
+  const gridStroke: Stroke = { color: style.colors.grid, width: style.widths.grid, dash };
+  const majorStroke: Stroke = { color: style.colors.gridMajor, width: style.widths.gridMajor, dash };
 
   // направление на угол γ: side = +1 справа, −1 слева
   const pt = (g: number, r: number, side: number): [number, number] => [cx + side * r * Math.sin(g * RAD), cy + r * Math.cos(g * RAD)];
@@ -104,7 +107,10 @@ export function buildPolar(
     const right = sr.main.map(([g, v]) => pt(g, rad(v), sideMain));
     const pts = [...left, ...right];
     const lastG = sr.main[sr.main.length - 1]?.[0] ?? 0;
-    curves.push({ t: 'polyline', pts, closed: lastG >= 180 - 1e-9, stroke: seriesStroke(style, i) });
+    const closed = lastG >= 180 - 1e-9;
+    // заливка под первой кривой (если задана в стиле): контур замыкается через центр
+    if (i === 0 && style.colors.fill) curves.push({ t: 'polyline', pts: closed ? pts : [...pts, [cx, cy]], closed: true, fill: style.colors.fill });
+    curves.push({ t: 'polyline', pts, closed, stroke: seriesStroke(style, i) });
   });
 
   const leg = legend(ctx, data, pad, bottom + 1, W - 2 * pad);

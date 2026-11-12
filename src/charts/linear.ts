@@ -44,8 +44,9 @@ export function buildLinear(
   const X = (g: number) => x0 + ((g + gLim) / (2 * gLim)) * pw;
   const Y = (v: number) => y1 - (Math.min(v, scale.max) / scale.max) * ph;
 
-  const gridStroke: Stroke = { color: style.colors.grid, width: style.widths.grid };
-  const majorStroke: Stroke = { color: style.colors.gridMajor, width: style.widths.gridMajor };
+  const dash = style.gridDash.length ? style.gridDash : undefined;
+  const gridStroke: Stroke = { color: style.colors.grid, width: style.widths.grid, dash };
+  const majorStroke: Stroke = { color: style.colors.gridMajor, width: style.widths.gridMajor, dash };
 
   const grid: Prim[] = [];
   const labels: Prim[] = [];
