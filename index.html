@@ -7,7 +7,23 @@
     <title>Photometry Editor</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Текст ниже виден, только если приложение не запустилось (React заменяет содержимое #root) -->
+    <div id="root">
+      <div id="boot" style="font: 15px/1.5 system-ui, sans-serif; max-width: 640px; margin: 15vh auto; padding: 0 16px; color: #444">
+        <p>Загрузка… / Loading…</p>
+        <p id="boot-help" hidden>
+          Приложение не запустилось. Если сайт открыт с GitHub Pages, проверьте настройку
+          <b>Settings → Pages → Build and deployment → Source: GitHub Actions</b>
+          и что последний запуск «Pages» на вкладке Actions зелёный.
+        </p>
+      </div>
+    </div>
+    <script>
+      setTimeout(function () {
+        var h = document.getElementById('boot-help');
+        if (h) h.hidden = false;
+      }, 4000);
+    </script>
     <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>
