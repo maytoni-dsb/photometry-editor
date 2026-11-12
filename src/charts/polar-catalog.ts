@@ -11,7 +11,7 @@
 import { intensityC } from '../core/angles';
 import type { Photometry } from '../core/model';
 import type { PhotometrySummary } from '../core/summary';
-import { capHeight, makeContext, seriesStroke } from './common';
+import { capHeight, overlapPolygon, makeContext, seriesStroke } from './common';
 import { chartLabels } from './labels';
 import { PT_TO_MM, type MeasureText, type Prim, type Scene, type Stroke } from './scene';
 import { catalogScale, chartData, type ChartOptions } from './series';
@@ -70,6 +70,8 @@ export function buildPolarCatalog(
   const rad = (v: number) => (Math.min(v, scale.max) / scale.max) * R;
   const curves: Prim[] = [];
   const fills: Prim[] = [];
+  const shapes: Array<Array<[number, number]>> = [];
+  let closedAll = true;
   data.series.forEach((sr, i) => {
     const val = (cc: number, g: number) => intensityC(c, cc, g) * data.factor;
     const left = gs.slice().reverse().map((g) => pt(g, rad(val(sr.c + 180, g)), -sideMain));
@@ -78,8 +80,15 @@ export function buildPolarCatalog(
     const closed = gEnd >= 180 - 1e-9;
     // заливка под каждой кривой (решение заказчика 12.11.2026); все заливки — под всеми контурами
     if (style.colors.fill) fills.push({ t: 'polyline', pts: closed ? pts : [...pts, [cx, cy]], closed: true, fill: style.colors.fill });
+    shapes.push(pts);
+    closedAll = closedAll && closed;
     curves.push({ t: 'polyline', pts, closed, stroke: seriesStroke(style, i) });
   });
+  // перекрытие кривых — плотнее (CMYK 0/0/36/0 в каталоге), как в образце TR106
+  if (style.colors.fill && style.colors.fillOverlap && shapes.length > 1) {
+    const ov = overlapPolygon(cx, cy, shapes);
+    if (ov.length > 2) fills.push({ t: 'polyline', pts: closedAll ? ov : [...ov, [cx, cy]], closed: true, fill: style.colors.fillOverlap });
+  }
 
   // --- сетка: лучи, кольца, внешняя дуга (поверх заливки, как в образце)
   const grid: Prim[] = [];

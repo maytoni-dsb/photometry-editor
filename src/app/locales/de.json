@@ -183,7 +183,9 @@
     "presetCatalog": "MAYTONI-Katalog",
     "fill": "Füllung unter der Kurve",
     "noFill": "keine Füllung",
-    "gridDash": "Rasterstrich, mm"
+    "gridDash": "Rasterstrich, mm",
+    "fillOverlap": "Überlappung",
+    "noOverlap": "nicht hervorheben"
   },
   "severity": {
     "error": "Fehler",

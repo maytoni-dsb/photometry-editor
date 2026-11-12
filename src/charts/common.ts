@@ -94,3 +94,37 @@ export function legend(ctx: BuildContext, data: ChartData, x: number, y: number,
   });
   return { prims, height: (row + 1) * rowH - (rowH - capHeight(size)) };
 }
+
+/**
+ * Область, где перекрываются две и больше полярных кривых (как в образце каталога TR106:
+ * перекрытие заливается плотнее). Кривые заданы точками на одних и тех же направлениях
+ * (одинаковые γ и стороны), поэтому на каждом направлении берётся второй по величине радиус;
+ * для двух кривых в местах пересечения добавляются точки пересечения.
+ */
+export function overlapPolygon(cx: number, cy: number, curves: Array<Array<[number, number]>>): Array<[number, number]> {
+  const n = Math.min(...curves.map((c) => c.length));
+  if (curves.length < 2 || n < 2) return [];
+  const r = (p: [number, number]) => Math.hypot(p[0] - cx, p[1] - cy);
+  const pick = (i: number): [number, number] => {
+    const pts = curves.map((c) => c[i]).sort((a, b) => r(b) - r(a));
+    return pts[1];
+  };
+  const out: Array<[number, number]> = [];
+  for (let i = 0; i < n; i++) {
+    out.push(pick(i));
+    if (curves.length === 2 && i < n - 1) {
+      const [a, b] = curves;
+      const d0 = r(a[i]) - r(b[i]);
+      const d1 = r(a[i + 1]) - r(b[i + 1]);
+      if (d0 * d1 < 0) {
+        // пересечение: радиусы сравниваются по линейной интерполяции между соседними точками
+        const t = d0 / (d0 - d1);
+        const lerp = (p: [number, number], q: [number, number]): [number, number] => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+        const pa = lerp(a[i], a[i + 1]);
+        const pb = lerp(b[i], b[i + 1]);
+        out.push([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2]);
+      }
+    }
+  }
+  return out;
+}

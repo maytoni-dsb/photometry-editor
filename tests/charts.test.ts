@@ -278,8 +278,8 @@ describe('решения заказчика 12.11.2026', () => {
     const curves = prims(scene, 'curves');
     const fills = curves.filter((x) => x.t === 'polyline' && x.fill);
     const lines = curves.filter((x) => x.t === 'polyline' && x.stroke) as Array<{ stroke: { dash?: number[] } }>;
-    expect(fills).toHaveLength(2);
-    expect(curves.indexOf(fills[1])).toBeLessThan(curves.indexOf(lines[0] as never)); // заливки под контурами
+    expect(fills).toHaveLength(3); // две кривые + перекрытие
+    expect(curves.indexOf(fills[2])).toBeLessThan(curves.indexOf(lines[0] as never)); // заливки под контурами
     expect(lines[0].stroke.dash).toBeUndefined();
     const dash = lines[1].stroke.dash!;
     expect(dash[0]).toBeGreaterThan(style.gridDash[0] * 4); // штрих заметно длиннее точки сетки
@@ -293,5 +293,25 @@ describe('решения заказчика 12.11.2026', () => {
     const pdf = await renderPdf(scene, { color: 'cmyk', fonts: f });
     expect(new TextDecoder('latin1').decode(pdf)).not.toContain('/FontFile');
     expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
+  });
+});
+
+describe('перекрытие кривых (образец TR106-2, 12.11.2026)', () => {
+  it('область перекрытия — меньший радиус на каждом направлении, CMYK 0/0/36/0', () => {
+    const p = makeC(asym, { flux: 1000 });
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, planes: [0, 90] }), catalogStyle());
+    const fills = prims(scene, 'curves').filter((x) => x.t === 'polyline' && x.fill) as Array<{ pts: Array<[number, number]>; fill: { cmyk: number[] } }>;
+    expect(fills).toHaveLength(3);
+    expect(fills[2].fill.cmyk).toEqual([0, 0, 36, 0]);
+    // перекрытие целиком внутри обеих кривых: его площадь не больше меньшей из двух
+    const area = (pts: Array<[number, number]>) => Math.abs(pts.reduce((s, [x, y], i) => { const [x2, y2] = pts[(i + 1) % pts.length]; return s + x * y2 - x2 * y; }, 0)) / 2;
+    expect(area(fills[2].pts)).toBeLessThanOrEqual(Math.min(area(fills[0].pts), area(fills[1].pts)) + 1e-6);
+    expect(area(fills[2].pts)).toBeGreaterThan(0);
+  });
+
+  it('у осесимметричного перекрытия нет', () => {
+    const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH }), catalogStyle());
+    expect(prims(scene, 'curves').filter((x) => x.t === 'polyline' && x.fill)).toHaveLength(1);
   });
 });

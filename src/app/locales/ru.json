@@ -183,7 +183,9 @@
     "presetCatalog": "MAYTONI каталог",
     "fill": "Заливка под кривой",
     "noFill": "без заливки",
-    "gridDash": "Пунктир сетки, мм"
+    "gridDash": "Пунктир сетки, мм",
+    "fillOverlap": "Перекрытие кривых",
+    "noOverlap": "не выделять"
   },
   "severity": {
     "error": "ошибка",

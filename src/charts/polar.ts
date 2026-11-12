@@ -8,7 +8,7 @@
 
 import type { Photometry } from '../core/model';
 import type { PhotometrySummary } from '../core/summary';
-import { capHeight, header, legend, makeContext, seriesStroke, type BuildContext } from './common';
+import { capHeight, overlapPolygon, header, legend, makeContext, seriesStroke, type BuildContext } from './common';
 import { fmtNum } from './labels';
 import type { MeasureText, Prim, Scene, Stroke } from './scene';
 import { buildPolarCatalog } from './polar-catalog';
@@ -101,6 +101,8 @@ export function buildPolar(
   // --- кривые
   const curves: Prim[] = [];
   const fills: Prim[] = [];
+  const shapes: Array<Array<[number, number]>> = [];
+  let closedAll = true;
   const sideMain = opts.cSide === 'right' ? 1 : -1;
   data.series.forEach((sr, i) => {
     const rad = (v: number) => (Math.min(v, scale.max) / scale.max) * R;
@@ -112,8 +114,15 @@ export function buildPolar(
     // заливка под первой кривой (если задана в стиле): контур замыкается через центр
     // заливка под каждой кривой (решение заказчика 12.11.2026); все заливки — под всеми контурами
     if (style.colors.fill) fills.push({ t: 'polyline', pts: closed ? pts : [...pts, [cx, cy]], closed: true, fill: style.colors.fill });
+    shapes.push(pts);
+    closedAll = closedAll && closed;
     curves.push({ t: 'polyline', pts, closed, stroke: seriesStroke(style, i) });
   });
+  // перекрытие кривых — плотнее (CMYK 0/0/36/0 в каталоге), как в образце TR106
+  if (style.colors.fill && style.colors.fillOverlap && shapes.length > 1) {
+    const ov = overlapPolygon(cx, cy, shapes);
+    if (ov.length > 2) fills.push({ t: 'polyline', pts: closedAll ? ov : [...ov, [cx, cy]], closed: true, fill: style.colors.fillOverlap });
+  }
 
   const leg = legend(ctx, data, pad, bottom + 1, W - 2 * pad);
   const H = bottom + (leg.height > 0 ? leg.height + 2 : 0) + pad;

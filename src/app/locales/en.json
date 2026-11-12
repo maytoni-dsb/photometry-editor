@@ -183,7 +183,9 @@
     "presetCatalog": "MAYTONI catalog",
     "fill": "Fill under curve",
     "noFill": "no fill",
-    "gridDash": "Grid dash, mm"
+    "gridDash": "Grid dash, mm",
+    "fillOverlap": "Curve overlap",
+    "noOverlap": "do not highlight"
   },
   "severity": {
     "error": "error",

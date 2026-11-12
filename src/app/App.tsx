@@ -36,7 +36,11 @@ function initialSettings(): ChartSettings {
 /** Стиль: сохранённый (v0.2.1+, с пунктиром сетки) или стиль каталога. */
 function initialStyle(): ChartStyle {
   const saved = load<Record<string, unknown> | null>('chart-style', null);
-  return saved && 'gridDash' in saved ? sanitizeStyle(saved) : catalogStyle();
+  if (!saved || !('gridDash' in saved)) return catalogStyle();
+  // стиль каталога из v0.3 без цвета перекрытия — обновляем до текущего
+  const colors = saved.colors as Record<string, unknown> | undefined;
+  if (saved.name === catalogStyle().name && colors && !('fillOverlap' in colors)) return catalogStyle();
+  return sanitizeStyle(saved);
 }
 
 export default function App() {

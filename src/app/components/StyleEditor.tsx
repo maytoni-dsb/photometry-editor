@@ -146,6 +146,22 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
               </label>
             </div>
             {s.colors.fill && <ColorRow label="" value={s.colors.fill} onChange={(c) => setColors({ fill: c })} />}
+            {s.colors.fill && (
+              <>
+                <div className="color-row">
+                  <span className="color-label">{t('style.fillOverlap')}</span>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={s.colors.fillOverlap === null}
+                      onChange={(e) => setColors({ fillOverlap: e.target.checked ? null : { rgb: [255, 255, 163], cmyk: [0, 0, 36, 0] } })}
+                    />
+                    {t('style.noOverlap')}
+                  </label>
+                </div>
+                {s.colors.fillOverlap && <ColorRow label="" value={s.colors.fillOverlap} onChange={(c) => setColors({ fillOverlap: c })} />}
+              </>
+            )}
             {s.colors.series.map((c, i) => (
               <ColorRow
                 key={i}

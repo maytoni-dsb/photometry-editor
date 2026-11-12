@@ -27,8 +27,10 @@ export interface ChartStyle {
     background: Color | null;
     /** Цвета кривых по порядку плоскостей. */
     series: Color[];
-    /** Заливка под первой кривой полярной КСС; null — без заливки. */
+    /** Заливка под кривыми полярной КСС; null — без заливки. */
     fill: Color | null;
+    /** Заливка области, где кривые перекрываются; null — не выделять. */
+    fillOverlap: Color | null;
   };
   /** Толщины, мм. */
   widths: {
@@ -90,6 +92,7 @@ export function defaultStyle(): ChartStyle {
         c([90, 90, 90], [0, 0, 0, 75]),
       ],
       fill: null,
+      fillOverlap: null,
     },
     widths: { curve: 0.35, grid: 0.1, gridMajor: 0.2 },
     dashes: [[], [1.6, 0.8], [0.4, 0.6], [2.4, 0.8, 0.4, 0.8], [], []],
@@ -122,6 +125,8 @@ export function catalogStyle(): ChartStyle {
       // все кривые чёрные; вторая (C90–C270) — длинным штрихом, чтобы не сливаться с точечной сеткой
       series: [black, black, black, black],
       fill: c([255, 255, 204], [0, 0, 20, 0]),
+      // перекрытие — как в образце TR106-2 (MATLAB): CMYK 0/0/36/0
+      fillOverlap: c([255, 255, 163], [0, 0, 36, 0]),
     },
     widths: { curve: w, grid: w, gridMajor: w },
     dashes: [[], [1.2, 0.6], [2.4, 0.6, 0.4, 0.6], [0.6, 0.6]],
@@ -166,6 +171,7 @@ export function sanitizeStyle(input: unknown): ChartStyle {
       background: s.colors?.background === null ? null : isColor(s.colors?.background) ? col(s.colors!.background, d.colors.text) : d.colors.background,
       series: series.length ? series.map((x) => col(x, x)) : d.colors.series,
       fill: s.colors?.fill === null || s.colors?.fill === undefined ? null : isColor(s.colors.fill) ? col(s.colors.fill, s.colors.fill) : null,
+      fillOverlap: isColor(s.colors?.fillOverlap) ? col(s.colors!.fillOverlap, s.colors!.fillOverlap) : null,
     },
     widths: {
       curve: num(s.widths?.curve, d.widths.curve, 0.01, 3),
