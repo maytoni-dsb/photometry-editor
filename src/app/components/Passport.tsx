@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { formatIssue, typeBToC, writeIES, writeLDT, type Dimensions, type Lang } from '../../core/index';
-import { baseName, type OpenFile } from '../doc';
-import { safeFileName, saveFile } from '../save-file';
+import { formatIssue, type Dimensions, type Lang } from '../../core/index';
+import { saveAs } from '../actions';
+import type { OpenFile } from '../doc';
 
 function num(lang: string, x: number | null | undefined, digits = 1): string {
   if (x == null || !Number.isFinite(x)) return '—';
@@ -35,15 +35,6 @@ export function Passport({ file }: { file: OpenFile }) {
   const vName = isB ? 'V' : 'γ';
   const version = p.source.format === 'IES' ? p.ies?.versionLine || 'LM-63-1986' : p.source.format === 'LDT' ? 'EULUMDAT' : '';
 
-  const saveAs = async (fmt: 'ies' | 'ldt') => {
-    const name = `${safeFileName(baseName(file.name))}.${fmt}`;
-    await saveFile(name, 'text/plain', fmt, () => {
-      if (fmt === 'ies') return writeIES(p, { lineEnding: p.source.lineEnding });
-      const c = isB ? typeBToC(p).photometry : p;
-      return writeLDT(c, { lineEnding: 'CRLF', fileName: name }).text;
-    });
-  };
-
   const section = (title: string, items: Array<[string, React.ReactNode]>) => (
     <section className="card" key={title}>
       <h3>{title}</h3>
@@ -64,8 +55,8 @@ export function Passport({ file }: { file: OpenFile }) {
   return (
     <div className="passport">
       <div className="toolbar">
-        <button className="btn" onClick={() => void saveAs('ies')}>{t('passport.saveIes')}</button>
-        <button className="btn" onClick={() => void saveAs('ldt')}>{t('passport.saveLdt')}</button>
+        <button className="btn" onClick={() => void saveAs(file, 'ies')}>{t('passport.saveIes')}</button>
+        <button className="btn" onClick={() => void saveAs(file, 'ldt')}>{t('passport.saveLdt')}</button>
       </div>
 
       <section className="card issues">

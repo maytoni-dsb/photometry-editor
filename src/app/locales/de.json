@@ -211,5 +211,30 @@
     "error": "Schrift konnte nicht geladen werden: {{msg}}",
     "noLocalApi": "Dieser Browser kann keine lokalen Schriften lesen (Chrome und Edge können es) — laden Sie die Schriftdateien.",
     "missing": "Hausschrift Suisse Intl ist nicht verbunden — Diagramme verwenden vorerst Roboto."
+  },
+  "menu": {
+    "file": "Datei",
+    "view": "Ansicht",
+    "format": "Format",
+    "window": "Fenster",
+    "help": "Hilfe",
+    "open": "Öffnen…",
+    "exportChart": "Diagramm exportieren",
+    "fileList": "Dateiliste",
+    "theme": "Design",
+    "theme_system": "Wie im System",
+    "theme_light": "Hell",
+    "theme_dark": "Dunkel",
+    "nextFile": "Nächste Datei",
+    "prevFile": "Vorherige Datei",
+    "noFiles": "Keine Dateien geöffnet",
+    "about": "Über das Programm"
+  },
+  "about": {
+    "version": "Version",
+    "build": "Build (Commit)",
+    "keys": "Tastenkürzel",
+    "keyTabs": "Reiter: Datenblatt, Tabelle, Polar, Linear",
+    "keyFiles": "Nächste / vorherige Datei"
   }
 }

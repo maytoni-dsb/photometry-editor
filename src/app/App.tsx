@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CATALOG_WIDTH } from '../charts/polar-catalog';
 import { defaultChartOptions, type ChartOptions } from '../charts/series';
-import { catalogStyle, sanitizeStyle, type ChartStyle } from '../charts/style';
+import { catalogStyle, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../charts/style';
+import { requestChartExport, saveAs } from './actions';
+import { About } from './components/About';
+import { MenuBar, type Menu, type MenuItem } from './components/MenuBar';
 import { ChartPanel } from './components/ChartPanel';
 import { IntensityTable } from './components/IntensityTable';
 import { Passport } from './components/Passport';
@@ -14,6 +17,7 @@ import { LANGS } from './i18n';
 import { load, save } from './storage';
 
 type Tab = 'passport' | 'table' | 'polar' | 'linear';
+type Theme = 'system' | 'light' | 'dark';
 const TABS: Tab[] = ['passport', 'table', 'polar', 'linear'];
 
 /** Настройки графиков, общие для всех файлов. planes = null — плоскости по умолчанию для файла. */
@@ -54,6 +58,9 @@ export default function App() {
   const [style, setStyle] = useState<ChartStyle>(initialStyle);
   const [styleOpen, setStyleOpen] = useState(false);
   const [fonts, setFonts] = useState<LoadedFonts | null>(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [showFiles, setShowFiles] = useState(() => load('show-files', true));
+  const [theme, setTheme] = useState<Theme>(() => load<Theme | null>('theme', null) ?? 'system');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -121,12 +128,149 @@ export default function App() {
 
   const active = files.find((f) => f.id === activeId) ?? null;
 
-  const toggleTheme = () => {
-    const root = document.documentElement;
-    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.dataset.theme = dark ? 'light' : 'dark';
-    save('theme', root.dataset.theme);
+  // тема: system — как в системе, light / dark — выбрана явно
+  const applyTheme = (th: Theme) => {
+    setTheme(th);
+    save('theme', th === 'system' ? null : th);
+    if (th === 'system') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = th;
   };
+  const toggleTheme = () => {
+    const dark = theme === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches : theme === 'dark';
+    applyTheme(dark ? 'light' : 'dark');
+  };
+
+  const openDialog = () => inputRef.current?.click();
+  const closeAll = () => {
+    setFiles([]);
+    setActiveId(null);
+  };
+  const step = (d: number) => {
+    if (!files.length) return;
+    const i = Math.max(0, files.findIndex((f) => f.id === activeId));
+    setActiveId(files[(i + d + files.length) % files.length].id);
+  };
+  const isChart = !!active && (tab === 'polar' || tab === 'linear');
+  const applyPreset = (id: string) => {
+    const pr = STYLE_PRESETS.find((x) => x.id === id);
+    if (pr) {
+      const n = pr.make();
+      setStyle({ ...n, font: { ...n.font, family: style.font.family } });
+    }
+  };
+
+  // горячие клавиши (Ctrl на Windows / Linux, ⌘ на Mac)
+  const hotkeys = useRef<(e: KeyboardEvent) => void>(() => {});
+  hotkeys.current = (e: KeyboardEvent) => {
+    const mod = e.ctrlKey || e.metaKey;
+    const target = e.target as HTMLElement;
+    // в полях ввода клавиши работают как обычно (кроме скрытого выбора файлов и флажков)
+    if (target.matches?.('input:not([type=file]):not([type=checkbox]), select, textarea')) return;
+    if (mod && !e.shiftKey && e.key.toLowerCase() === 'o') {
+      e.preventDefault();
+      openDialog();
+    } else if (mod && !e.shiftKey && ['1', '2', '3', '4'].includes(e.key) && active) {
+      e.preventDefault();
+      setTab(TABS[Number(e.key) - 1]);
+    } else if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      step(e.key === 'ArrowDown' ? 1 : -1);
+    } else if (e.key === 'F1') {
+      e.preventDefault();
+      setAboutOpen(true);
+    }
+  };
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => hotkeys.current(e);
+    window.addEventListener('keydown', on);
+    return () => window.removeEventListener('keydown', on);
+  }, []);
+
+  const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
+  const menus: Menu[] = [
+    {
+      id: 'file',
+      label: t('menu.file'),
+      items: [
+        { label: t('menu.open'), shortcut: `${mod}O`, onClick: openDialog },
+        'sep',
+        { label: t('passport.saveIes'), disabled: !active, onClick: () => active && void saveAs(active, 'ies') },
+        { label: t('passport.saveLdt'), disabled: !active, onClick: () => active && void saveAs(active, 'ldt') },
+        'sep',
+        {
+          label: t('menu.exportChart'),
+          disabled: !isChart,
+          submenu: [
+            { label: 'SVG', onClick: () => requestChartExport('svg') },
+            { label: 'PDF', disabled: !fonts, onClick: () => requestChartExport('pdf') },
+            { label: 'EPS', disabled: !fonts, onClick: () => requestChartExport('eps') },
+          ],
+        },
+        'sep',
+        { label: t('files.close'), disabled: !active, onClick: () => active && close(active.id) },
+        { label: t('files.closeAll'), disabled: !files.length, onClick: closeAll },
+      ],
+    },
+    {
+      id: 'view',
+      label: t('menu.view'),
+      items: [
+        ...TABS.map((k, i): MenuItem => ({ label: t(`tabs.${k}`), shortcut: `${mod}${i + 1}`, checked: tab === k, disabled: !active, onClick: () => setTab(k) })),
+        'sep',
+        { label: t('menu.fileList'), checked: showFiles, onClick: () => { setShowFiles(!showFiles); save('show-files', !showFiles); } },
+        'sep',
+        {
+          label: t('menu.theme'),
+          submenu: (['system', 'light', 'dark'] as Theme[]).map((th) => ({ label: t(`menu.theme_${th}`), checked: theme === th, onClick: () => applyTheme(th) })),
+        },
+        {
+          label: t('app.language'),
+          submenu: LANGS.map((l) => ({ label: { ru: 'Русский', en: 'English', de: 'Deutsch' }[l], checked: i18n.language === l, onClick: () => void i18n.changeLanguage(l) })),
+        },
+      ],
+    },
+    {
+      id: 'format',
+      label: t('menu.format'),
+      items: [
+        { label: `${t('app.style')}…`, onClick: () => setStyleOpen(true) },
+        {
+          label: t('style.preset'),
+          submenu: STYLE_PRESETS.map((x) => ({ label: t(`style.preset${x.id[0].toUpperCase()}${x.id.slice(1)}`), checked: style.name === x.make().name, onClick: () => applyPreset(x.id) })),
+        },
+        'sep',
+        {
+          label: t('chart.layout'),
+          submenu: (['catalog', 'standard'] as const).map((l) => ({
+            label: t(l === 'catalog' ? 'chart.layoutCatalog' : 'chart.layoutStandard'),
+            checked: settings.layout === l,
+            onClick: () => setSettings({ ...settings, layout: l, width: l === 'catalog' ? CATALOG_WIDTH : Math.max(100, settings.width) }),
+          })),
+        },
+        {
+          label: t('chart.labelLang'),
+          submenu: LANGS.map((l) => ({ label: l.toUpperCase(), checked: settings.lang === l, onClick: () => setSettings({ ...settings, lang: l }) })),
+        },
+      ],
+    },
+    {
+      id: 'window',
+      label: t('menu.window'),
+      items: files.length
+        ? [
+            { label: t('menu.nextFile'), shortcut: 'Alt+↓', disabled: files.length < 2, onClick: () => step(1) },
+            { label: t('menu.prevFile'), shortcut: 'Alt+↑', disabled: files.length < 2, onClick: () => step(-1) },
+            'sep',
+            ...files.slice(0, 30).map((f): MenuItem => ({ label: f.name, checked: f.id === activeId, onClick: () => setActiveId(f.id) })),
+          ]
+        : [{ label: t('menu.noFiles'), disabled: true }],
+    },
+    {
+      id: 'help',
+      label: t('menu.help'),
+      items: [{ label: t('menu.about'), shortcut: 'F1', onClick: () => setAboutOpen(true) }],
+    },
+  ];
 
   return (
     <div className="app">
@@ -138,17 +282,8 @@ export default function App() {
           {t('app.title')}
           <span className="appver" title={`commit ${__APP_COMMIT__}`}>v{__APP_VERSION__} · {__APP_COMMIT__}</span>
         </span>
-        {active && (
-          <nav className="stnav" role="tablist" aria-label={t('app.title')}>
-            {TABS.map((k) => (
-              <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'gsst cur' : 'gsst'} onClick={() => setTab(k)}>
-                {t(`tabs.${k}`)}
-              </button>
-            ))}
-          </nav>
-        )}
+        <MenuBar menus={menus} />
         <div className="sbtools">
-          <button className="gsbtn" onClick={() => inputRef.current?.click()}>{t('app.open')}</button>
           <input
             ref={inputRef}
             type="file"
@@ -160,12 +295,6 @@ export default function App() {
               e.target.value = '';
             }}
           />
-          <button className="sbbtn" onClick={() => setStyleOpen(true)}>{t('app.style')}</button>
-          <select className="langsel" aria-label={t('app.language')} value={i18n.language} onChange={(e) => void i18n.changeLanguage(e.target.value)}>
-            {LANGS.map((l) => (
-              <option key={l} value={l}>{l.toUpperCase()}</option>
-            ))}
-          </select>
           <button className="themebtn" onClick={toggleTheme} aria-label={t('app.theme')} title={t('app.theme')}>
             <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
               <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -183,7 +312,7 @@ export default function App() {
       )}
 
       <div className="body">
-        {files.length > 0 && (
+        {files.length > 0 && showFiles && (
           <aside className="sidebar">
             <div className="sidebar-head">
               <span>{t('files.title')} ({files.length})</span>
@@ -221,12 +350,20 @@ export default function App() {
               <h1>{t('drop.title')}</h1>
               <p>{t('drop.hint')}</p>
               <p className="muted">{t('app.privacy')}</p>
+              <button className="gsbtn" onClick={(e) => { e.stopPropagation(); openDialog(); }}>{t('app.open')}</button>
             </div>
           ) : (
             <>
               <div className="mainhead">
                 <span className={`fmt fmt-${active.parse.photometry.source.format.toLowerCase()}`}>{active.parse.photometry.source.format}</span>
                 <b title={active.name}>{active.name}</b>
+                <nav className="stnav" role="tablist">
+                  {TABS.map((k) => (
+                    <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'gsst cur' : 'gsst'} onClick={() => setTab(k)}>
+                      {t(`tabs.${k}`)}
+                    </button>
+                  ))}
+                </nav>
               </div>
               <div className="tab-body">
                 {tab === 'passport' && <Passport file={active} />}
@@ -249,6 +386,7 @@ export default function App() {
         </main>
       </div>
 
+      {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
       {styleOpen && (
         <StyleEditor
           style={style}

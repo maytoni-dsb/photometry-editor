@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fontMeasure } from '../../charts/fonts';
 import { buildLinear } from '../../charts/linear';
@@ -75,6 +75,15 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
       setBusy(false);
     }
   };
+
+  // экспорт по команде из меню «Файл»
+  const exportRef = useRef(doExport);
+  exportRef.current = doExport;
+  useEffect(() => {
+    const on = (e: Event) => void exportRef.current((e as CustomEvent<'svg' | 'pdf' | 'eps'>).detail);
+    window.addEventListener('pe:export', on);
+    return () => window.removeEventListener('pe:export', on);
+  }, []);
 
   const addPlane = () => {
     const v = Number(newPlane.replace(',', '.'));
@@ -239,7 +248,7 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
 
       <div className="chart-stage">
         {/* узкие графики (каталог 39 мм) показываем крупнее, но не шире 600 px */}
-        <div className="paper" style={{ width: Math.max(scene.width * PX_PER_MM, Math.min(520, scene.width * 12)) }} dangerouslySetInnerHTML={{ __html: svg }} />
+        <div className="paper" style={{ width: Math.max(scene.width * PX_PER_MM, Math.min(680, scene.width * 16)) }} dangerouslySetInnerHTML={{ __html: svg }} />
         <p className="muted small center">{t('chart.size', { w: Math.round(scene.width), h: Math.round(scene.height) })}</p>
       </div>
     </div>

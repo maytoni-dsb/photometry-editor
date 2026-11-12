@@ -211,5 +211,30 @@
     "error": "Could not load the font: {{msg}}",
     "noLocalApi": "This browser cannot read local fonts (Chrome and Edge can) — load the font files.",
     "missing": "Brand font Suisse Intl is not connected — charts use Roboto for now."
+  },
+  "menu": {
+    "file": "File",
+    "view": "View",
+    "format": "Format",
+    "window": "Window",
+    "help": "Help",
+    "open": "Open…",
+    "exportChart": "Export chart",
+    "fileList": "File list",
+    "theme": "Theme",
+    "theme_system": "System",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "nextFile": "Next file",
+    "prevFile": "Previous file",
+    "noFiles": "No open files",
+    "about": "About"
+  },
+  "about": {
+    "version": "Version",
+    "build": "Build (commit)",
+    "keys": "Keyboard shortcuts",
+    "keyTabs": "Tabs: data sheet, table, polar, linear",
+    "keyFiles": "Next / previous file"
   }
 }
