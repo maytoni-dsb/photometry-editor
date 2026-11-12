@@ -125,19 +125,8 @@ export function buildPolarCatalog(
   // --- заголовок «Iₘₐₓ = 442 cd/klm»
   const title: Prim[] = [];
   if (showTitle) {
-    const size = style.font.title;
-    // как в образце: целое число без разделителя разрядов («38980»)
-    const value = (imax >= 10 ? Math.round(imax).toString() : imax.toFixed(imax >= 1 ? 1 : 2)).replace('.', opts.lang === 'en' ? '.' : ',');
-    const custom = opts.title?.trim();
-    const runs = custom
-      ? [{ text: custom, scale: 1, dy: 0 }]
-      : [
-          { text: L.imax.slice(0, 1), scale: 1, dy: 0 },
-          { text: L.maxSub, scale: 0.714, dy: 0.18 * size * PT_TO_MM },
-          { text: ` = ${value} ${data.unitLabel}`, scale: 1, dy: 0 },
-        ];
     const top = full ? cy - R - gap - below - capT - 0.6 * capTitle : cy - 1.25 * capTitle;
-    title.push({ t: 'text', x: cx, y: top, text: runs.map((r) => r.text).join(''), runs, size, color: style.colors.text, anchor: 'middle' });
+    title.push({ ...catalogTitle(opts, imax, data.unitLabel, style.font.title), x: cx, y: top, color: style.colors.text });
   }
 
   return {
@@ -153,4 +142,22 @@ export function buildPolarCatalog(
       ...(title.length ? [{ t: 'group', id: 'title', children: title } as Prim] : []),
     ],
   };
+}
+
+/**
+ * Заголовок каталога «Iₘₐₓ = 442 cd/klm» (или свой заголовок из настроек): текст из кусков
+ * с нижним индексом. Iₘₐₓ — целое без разделителя разрядов, как в образце («38980»).
+ */
+export function catalogTitle(opts: ChartOptions, imax: number, unit: string, size: number): Omit<Extract<Prim, { t: 'text' }>, 'color'> {
+  const L = chartLabels[opts.lang];
+  const value = (imax >= 10 ? Math.round(imax).toString() : imax.toFixed(imax >= 1 ? 1 : 2)).replace('.', opts.lang === 'en' ? '.' : ',');
+  const custom = opts.title?.trim();
+  const runs = custom
+    ? [{ text: custom, scale: 1, dy: 0 }]
+    : [
+        { text: L.imax.slice(0, 1), scale: 1, dy: 0 },
+        { text: L.maxSub, scale: 0.714, dy: 0.18 * size * PT_TO_MM },
+        { text: ` = ${value} ${unit}`, scale: 1, dy: 0 },
+      ];
+  return { t: 'text', x: 0, y: 0, text: runs.map((r) => r.text).join(''), runs, size, anchor: 'middle' };
 }

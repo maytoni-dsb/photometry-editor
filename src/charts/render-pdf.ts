@@ -30,7 +30,7 @@ import {
   type PDFFont,
   type PDFOperator,
 } from 'pdf-lib';
-import { canEmbed, openFont, textOutline, type FontSet } from './fonts';
+import { canEmbed, hasAllGlyphs, openFont, textOutline, textWidthEm, type FontSet } from './fonts';
 import { walk, type Color, type Scene } from './scene';
 import { colorComponents, pageSizePt, placeRuns, walkVector, type ColorMode, type Seg } from './vector';
 
@@ -110,6 +110,7 @@ async function renderPdfOnce(scene: Scene, opts: VectorExportOptions): Promise<U
   let bold: PDFFont | null = null;
   const fkRegular = openFont(opts.fonts.regular);
   const fkBold = opts.fonts.bold ? openFont(opts.fonts.bold) : fkRegular;
+  const fb = opts.fonts.fallback ? openFont(opts.fonts.fallback) : null;
   if (!opts.textAsPaths) {
     // начертание встраивается, только если им что-то написано: пустое подмножество CFF fontkit не собирает
     const used = sceneTexts(scene, !!opts.fonts.bold);
@@ -135,10 +136,11 @@ async function renderPdfOnce(scene: Scene, opts: VectorExportOptions): Promise<U
     },
     text(t) {
       const fk = t.bold ? fkBold : fkRegular;
-      if (opts.textAsPaths || !regular) {
-        const w = (text: string, size: number) => (fk.glyphsForString(text).reduce((s, g) => s + g.advanceWidth, 0) / fk.unitsPerEm) * size;
+      // кривыми: по выбору, для шрифтов CFF и для строк с символами, которых нет в шрифте (берутся из запасного)
+      if (opts.textAsPaths || !regular || (fb && !hasAllGlyphs(fk, t.text))) {
+        const w = (text: string, size: number) => textWidthEm(fk, text, fb) * size;
         for (const r of placeRuns(t, w)) {
-          const segs = textOutline(fk, r.text, r.x, r.y, r.size, t.rotate);
+          const segs = textOutline(fk, r.text, r.x, r.y, r.size, t.rotate, fb);
           if (segs.length) page.pushOperators(fillColorOp(t.color, mode), ...segOps(segs), fill());
         }
         return;

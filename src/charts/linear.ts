@@ -7,6 +7,7 @@ import type { Photometry } from '../core/model';
 import type { PhotometrySummary } from '../core/summary';
 import { capHeight, header, legend, makeContext, seriesStroke, type BuildContext } from './common';
 import { chartLabels, fmtAngle, fmtNum } from './labels';
+import { buildLinearCatalog } from './linear-catalog';
 import type { MeasureText, Prim, Scene, Stroke } from './scene';
 import { chartData, niceScale, type ChartOptions } from './series';
 import type { ChartStyle } from './style';
@@ -18,6 +19,7 @@ export function buildLinear(
   style: ChartStyle,
   measure?: MeasureText,
 ): Scene {
+  if (opts.layout === 'catalog') return buildLinearCatalog(p, s, opts, style, measure);
   const ctx: BuildContext = makeContext(style, opts, measure);
   const data = chartData(p, s, opts);
   const scale = niceScale(data.maxValue, opts.scaleMax);

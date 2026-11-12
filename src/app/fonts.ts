@@ -97,7 +97,8 @@ async function apply(regular: FaceInfo, bold?: FaceInfo): Promise<LoadedFonts> {
   await register(regular.family, regular.bytes, '400');
   if (bold) await register(regular.family, bold.bytes, '500');
   return {
-    set: { regular: regular.bytes, bold: bold?.bytes },
+    // символы, которых нет в своём шрифте (Φ, γ в Suisse Intl), берутся из встроенного Roboto
+    set: { regular: regular.bytes, bold: bold?.bytes, fallback: (await loadBuiltinFonts()).regular },
     family: regular.family,
     custom: true,
     cff: isCff(openFont(regular.bytes)),

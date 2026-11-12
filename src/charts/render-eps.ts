@@ -8,7 +8,7 @@
  * Цвета — setrgbcolor или setcmykcolor.
  */
 
-import { openFont, textOutline, type FkFont } from './fonts';
+import { openFont, textOutline, textWidthEm, type FkFont } from './fonts';
 import type { VectorExportOptions } from './render-pdf';
 import type { Color, Scene } from './scene';
 import { colorComponents, pageSizePt, placeRuns, walkVector, type ColorMode, type Seg } from './vector';
@@ -45,8 +45,8 @@ function pathOps(segs: Seg[]): string {
   return lines.join('\n');
 }
 
-function textWidth(f: FkFont, text: string, size: number): number {
-  return (f.glyphsForString(text).reduce((s, g) => s + g.advanceWidth, 0) / f.unitsPerEm) * size;
+function textWidth(f: FkFont, text: string, size: number, fallback: FkFont | null): number {
+  return textWidthEm(f, text, fallback) * size;
 }
 
 const ascii = (s: string) => s.replace(/[^\x20-\x7e]/g, '?');
@@ -56,6 +56,7 @@ export async function renderEps(scene: Scene, opts: VectorExportOptions): Promis
   const [W, H] = pageSizePt(scene);
   const fkRegular = openFont(opts.fonts.regular);
   const fkBold = opts.fonts.bold ? openFont(opts.fonts.bold) : fkRegular;
+  const fb = opts.fonts.fallback ? openFont(opts.fonts.fallback) : null;
 
   const body: string[] = [];
   body.push('1 setlinejoin 0 setlinecap 10 setmiterlimit');
@@ -77,8 +78,8 @@ export async function renderEps(scene: Scene, opts: VectorExportOptions): Promis
     text(t) {
       const fk = t.bold ? fkBold : fkRegular;
       const segs: Seg[] = [];
-      for (const r of placeRuns(t, (text, size) => textWidth(fk, text, size))) {
-        segs.push(...textOutline(fk, r.text, r.x, r.y, r.size, t.rotate));
+      for (const r of placeRuns(t, (text, size) => textWidth(fk, text, size, fb))) {
+        segs.push(...textOutline(fk, r.text, r.x, r.y, r.size, t.rotate, fb));
       }
       // строка текста — комментарием (только ASCII: файл объявлен Clean7Bit)
       if (segs.length) body.push(`% text: ${ascii(t.text)}\n${colorOp(t.color, mode)}\n${pathOps(segs)}\nfill`);

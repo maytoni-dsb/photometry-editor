@@ -146,7 +146,9 @@
     "svgRgb": "SVG is always RGB",
     "busy": "Preparing file…",
     "error": "Could not save: {{msg}}",
-    "fontLoading": "Loading font…"
+    "fontLoading": "Loading font…",
+    "dpi": "PNG resolution",
+    "pngSize": "{{w}} × {{h}} px"
   },
   "style": {
     "title": "Chart style",

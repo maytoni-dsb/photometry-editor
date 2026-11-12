@@ -146,7 +146,9 @@
     "svgRgb": "SVG ist immer RGB",
     "busy": "Datei wird erstellt…",
     "error": "Speichern fehlgeschlagen: {{msg}}",
-    "fontLoading": "Schrift wird geladen…"
+    "fontLoading": "Schrift wird geladen…",
+    "dpi": "PNG-Auflösung",
+    "pngSize": "{{w}} × {{h}} px"
   },
   "style": {
     "title": "Diagrammstil",

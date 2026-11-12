@@ -14,6 +14,8 @@ import type { ChartSettings } from '../App';
 import { baseName, type OpenFile } from '../doc';
 import type { LoadedFonts } from '../fonts';
 import { FontConnect } from './FontConnect';
+import type { ExportFormat } from '../actions';
+import { renderPng } from '../png';
 import { LANGS } from '../i18n';
 import { safeFileName, saveFile } from '../save-file';
 import { load, save } from '../storage';
@@ -29,6 +31,13 @@ interface Props {
   onFonts: (f: LoadedFonts) => void;
 }
 
+/** Смена оформления: ширины обоих графиков — по умолчанию для оформления (каталог — 39,1 мм). */
+export function layoutPatch(s: ChartSettings, layout: ChartSettings['layout']): Partial<ChartSettings> {
+  return layout === 'catalog'
+    ? { layout, width: CATALOG_WIDTH, linearWidth: CATALOG_WIDTH }
+    : { layout, width: s.width < 60 ? 100 : s.width, linearWidth: s.linearWidth < 60 ? 100 : s.linearWidth };
+}
+
 /** Ширина превью на экране, пикселей на миллиметр. */
 const PX_PER_MM = 6.5;
 
@@ -40,11 +49,12 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
   const [newPlane, setNewPlane] = useState('45');
   const [color, setColor] = useState<ColorMode>(() => load<ColorMode>('export-color', 'rgb'));
   const [textAsPaths, setTextAsPaths] = useState(() => load('export-text-paths', false));
+  const [dpi, setDpi] = useState(() => load('export-dpi', 300));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const set = (patch: Partial<ChartSettings>) => onSettings({ ...settings, ...patch });
-  const catalog = kind === 'polar' && settings.layout === 'catalog';
+  const catalog = settings.layout === 'catalog';
 
   const measure = useMemo(() => (fonts ? fontMeasure(fonts.set) : approxTextWidth), [fonts]);
   const scene = useMemo(() => {
@@ -55,15 +65,16 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
 
   const fileBase = safeFileName(`${baseName(file.name)}_${kind}`);
 
-  const doExport = async (fmt: 'svg' | 'pdf' | 'eps') => {
+  const doExport = async (fmt: ExportFormat) => {
     setError(null);
     setBusy(true);
     try {
-      const mime = fmt === 'svg' ? 'image/svg+xml' : fmt === 'pdf' ? 'application/pdf' : 'application/postscript';
-      const suffix = fmt !== 'svg' && color === 'cmyk' ? '_cmyk' : '';
+      const mime = { svg: 'image/svg+xml', pdf: 'application/pdf', eps: 'application/postscript', png: 'image/png' }[fmt];
+      const suffix = (fmt === 'pdf' || fmt === 'eps') && color === 'cmyk' ? '_cmyk' : '';
       await saveFile(`${fileBase}${suffix}.${fmt}`, mime, fmt, async () => {
         if (fmt === 'svg') return renderSvg(scene, { xmlDeclaration: true });
         if (!fonts) throw new Error(t('export.fontLoading'));
+        if (fmt === 'png') return renderPng(scene, fonts.set, dpi);
         const o = { color, fonts: fonts.set, textAsPaths };
         // PDF и EPS-рендеры (pdf-lib) грузятся только при первом экспорте
         if (fmt === 'pdf') return (await import('../../charts/render-pdf')).renderPdf(scene, o);
@@ -80,7 +91,7 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
   const exportRef = useRef(doExport);
   exportRef.current = doExport;
   useEffect(() => {
-    const on = (e: Event) => void exportRef.current((e as CustomEvent<'svg' | 'pdf' | 'eps'>).detail);
+    const on = (e: Event) => void exportRef.current((e as CustomEvent<ExportFormat>).detail);
     window.addEventListener('pe:export', on);
     return () => window.removeEventListener('pe:export', on);
   }, []);
@@ -124,23 +135,11 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
         </fieldset>
 
         <div className="form-grid">
-          {kind === 'polar' && (
-            <>
-              <label>{t('chart.layout')}</label>
-              <select
-                value={settings.layout}
-                onChange={(e) => {
-                  const layout = e.target.value as ChartSettings['layout'];
-                  // ширина по умолчанию для оформления
-                  const width = layout === 'catalog' ? (settings.width > 60 ? CATALOG_WIDTH : settings.width) : settings.width < 60 ? 100 : settings.width;
-                  set({ layout, width });
-                }}
-              >
-                <option value="catalog">{t('chart.layoutCatalog')}</option>
-                <option value="standard">{t('chart.layoutStandard')}</option>
-              </select>
-            </>
-          )}
+          <label>{t('chart.layout')}</label>
+          <select value={settings.layout} onChange={(e) => set(layoutPatch(settings, e.target.value as ChartSettings['layout']))}>
+            <option value="catalog">{t('chart.layoutCatalog')}</option>
+            <option value="standard">{t('chart.layoutStandard')}</option>
+          </select>
 
           <label>{t('chart.unit')}</label>
           <select value={settings.unit} onChange={(e) => set({ unit: e.target.value as IntensityUnit })}>
@@ -179,10 +178,10 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
           {kind === 'polar' ? (
             <input type="number" min={20} max={400} step={0.1} value={settings.width} onChange={(e) => set({ width: Math.min(400, Math.max(20, Number(e.target.value) || CATALOG_WIDTH)) })} />
           ) : (
-            <input type="number" min={40} max={400} value={settings.linearWidth} onChange={(e) => set({ linearWidth: Math.min(400, Math.max(40, Number(e.target.value) || 100)) })} />
+            <input type="number" min={20} max={400} step={0.1} value={settings.linearWidth} onChange={(e) => set({ linearWidth: Math.min(400, Math.max(20, Number(e.target.value) || CATALOG_WIDTH)) })} />
           )}
 
-          {kind === 'linear' && (
+          {kind === 'linear' && !catalog && (
             <>
               <label>{t('chart.height')}</label>
               <input type="number" min={15} max={400} value={settings.height} onChange={(e) => set({ height: Math.min(400, Math.max(15, Number(e.target.value) || 60)) })} />
@@ -239,6 +238,13 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
             <button className="btn" disabled={busy} onClick={() => void doExport('svg')} title={t('export.svgRgb')}>SVG</button>
             <button className="btn" disabled={busy || !fonts} onClick={() => void doExport('pdf')}>PDF</button>
             <button className="btn" disabled={busy || !fonts} onClick={() => void doExport('eps')}>EPS</button>
+          </div>
+          <div className="row">
+            <button className="btn" disabled={busy || !fonts} onClick={() => void doExport('png')}>PNG</button>
+            <select value={dpi} aria-label={t('export.dpi')} onChange={(e) => { setDpi(Number(e.target.value)); save('export-dpi', Number(e.target.value)); }}>
+              {[150, 300, 600].map((d) => <option key={d} value={d}>{d} dpi</option>)}
+            </select>
+            <span className="muted small">{t('export.pngSize', { w: Math.round((scene.width / 25.4) * dpi), h: Math.round((scene.height / 25.4) * dpi) })}</span>
           </div>
           {!fonts && <p className="muted small">{t('export.fontLoading')}</p>}
           {busy && <p className="muted small">{t('export.busy')}</p>}

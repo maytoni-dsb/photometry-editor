@@ -14,6 +14,7 @@ import {
   fontMeasure,
   MM_TO_PT,
   niceScale,
+  openFont,
   planeLabel,
   renderEps,
   renderPdf,
@@ -26,6 +27,7 @@ import {
   type Scene,
 } from '../src/charts/index';
 import { summarize } from '../src/core/index';
+import { textOutline } from '../src/charts/fonts';
 import { asym, lambert, makeC } from './helpers';
 
 const fonts: FontSet = {
@@ -313,5 +315,51 @@ describe('перекрытие кривых (образец TR106-2, 12.11.2026)
     const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
     const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH }), catalogStyle());
     expect(prims(scene, 'curves').filter((x) => x.t === 'polyline' && x.fill)).toHaveLength(1);
+  });
+});
+
+describe('v0.6: запасной шрифт, PNG, линейная КСС каталога', () => {
+  const noGreek = '/usr/share/fonts/truetype/google-fonts/Lora-Variable.ttf';
+  it.skipIf(!existsSync(noGreek))('символы, которых нет в шрифте (Φ, γ), берутся из запасного', async () => {
+    const f = { regular: new Uint8Array(readFileSync(noGreek)), fallback: fonts.regular };
+    const lora = openFont(f.regular);
+    expect(lora.hasGlyphForCodePoint(0x3a6)).toBe(false);
+    const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
+    const scene = buildLinear(p, summarize(p), opts(), catalogStyle(), fontMeasure(f));
+    // без запасного шрифта Φ и γ — пустые глифы (.notdef), с ним — настоящие контуры
+    const withFb = textOutline(lora, 'Φγ', 0, 0, 10, 0, openFont(fonts.regular));
+    const without = textOutline(lora, 'Φγ', 0, 0, 10, 0);
+    expect(withFb.length).toBeGreaterThan(without.length);
+    const eps = await renderEps(scene, { color: 'cmyk', fonts: f });
+    expect(eps).toContain('% text: ? = ');
+    const pdf = await renderPdf(scene, { color: 'cmyk', fonts: f });
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
+  });
+
+  it('SVG для PNG: текст кривыми, фон', () => {
+    const p = makeC(asym, { flux: 1000 });
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH }), catalogStyle(), fontMeasure(fonts));
+    const svg = renderSvg(scene, { textAsPaths: fonts, background: { rgb: [255, 255, 255], cmyk: [0, 0, 0, 0] } });
+    expect(svg).not.toContain('<text');
+    expect(svg).toContain('<title>90°</title>');
+    expect(svg).toContain('fill="#ffffff"');
+    expect(svg).not.toMatch(/NaN|undefined/);
+  });
+
+  it('линейная КСС каталога: размер как у полярной, заливки, подписи не теснятся', () => {
+    const p = makeC(asym, { flux: 1000 });
+    const s = summarize(p);
+    const o = opts({ layout: 'catalog', width: CATALOG_WIDTH, planes: [0, 90] });
+    const lin = buildLinear(p, s, o, catalogStyle(), fontMeasure(fonts));
+    const pol = buildPolar(p, s, o, catalogStyle(), fontMeasure(fonts));
+    expect(lin.width).toBe(pol.width);
+    expect(Math.abs(lin.height - pol.height)).toBeLessThan(0.5);
+    expect(prims(lin, 'curves').filter((x) => x.t === 'polyline' && x.fill)).toHaveLength(3);
+    // вся сфера (±180°) — подписи реже, чем через 30°
+    const up = makeC((c, g) => 100 + 50 * Math.cos((g * Math.PI) / 180) + 10 * Math.cos((c * Math.PI) / 180), { flux: 1000 });
+    const full = buildLinear(up, summarize(up), opts({ layout: 'catalog', width: CATALOG_WIDTH, range: 'full' }), catalogStyle(), fontMeasure(fonts));
+    const xs = prims(full, 'labels').map((x) => (x as { x: number }).x).sort((a, b) => a - b);
+    const minGap = Math.min(...xs.slice(1).map((x, i) => x - xs[i]));
+    expect(minGap).toBeGreaterThan(fontMeasure(fonts)('180°', 6) * 1.3);
   });
 });

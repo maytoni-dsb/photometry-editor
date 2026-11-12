@@ -6,7 +6,7 @@ import { catalogStyle, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../
 import { requestChartExport, saveAs } from './actions';
 import { About } from './components/About';
 import { MenuBar, type Menu, type MenuItem } from './components/MenuBar';
-import { ChartPanel } from './components/ChartPanel';
+import { ChartPanel, layoutPatch } from './components/ChartPanel';
 import { IntensityTable } from './components/IntensityTable';
 import { Passport } from './components/Passport';
 import { MaytoniLogo } from './components/MaytoniLogo';
@@ -29,7 +29,7 @@ export interface ChartSettings extends Omit<ChartOptions, 'planes'> {
 
 /** По умолчанию — оформление каталога MAYTONI (образец 12.11.2026). */
 function initialSettings(): ChartSettings {
-  const d: ChartSettings = { ...defaultChartOptions(), layout: 'catalog', width: CATALOG_WIDTH, linearWidth: 100, planes: null };
+  const d: ChartSettings = { ...defaultChartOptions(), layout: 'catalog', width: CATALOG_WIDTH, linearWidth: CATALOG_WIDTH, planes: null };
   const saved = load<Partial<ChartSettings>>('chart-settings', {});
   // настройки v0.2 (без оформления) — переходим на каталог, ширину берём новую
   const migrated = saved.layout ? saved : { ...saved, layout: undefined, width: undefined };
@@ -204,6 +204,7 @@ export default function App() {
             { label: 'SVG', onClick: () => requestChartExport('svg') },
             { label: 'PDF', disabled: !fonts, onClick: () => requestChartExport('pdf') },
             { label: 'EPS', disabled: !fonts, onClick: () => requestChartExport('eps') },
+            { label: 'PNG', disabled: !fonts, onClick: () => requestChartExport('png') },
           ],
         },
         'sep',
@@ -244,7 +245,7 @@ export default function App() {
           submenu: (['catalog', 'standard'] as const).map((l) => ({
             label: t(l === 'catalog' ? 'chart.layoutCatalog' : 'chart.layoutStandard'),
             checked: settings.layout === l,
-            onClick: () => setSettings({ ...settings, layout: l, width: l === 'catalog' ? CATALOG_WIDTH : Math.max(100, settings.width) }),
+            onClick: () => setSettings({ ...settings, ...layoutPatch(settings, l) }),
           })),
         },
         {

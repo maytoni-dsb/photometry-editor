@@ -15,6 +15,11 @@ export interface FontSet {
   regular: Uint8Array;
   /** Для заголовка; если нет — используется regular. */
   bold?: Uint8Array;
+  /**
+   * Запасной шрифт для символов, которых нет в основном (например, Φ и γ в Suisse Intl).
+   * В приложении — встроенный Roboto.
+   */
+  fallback?: Uint8Array;
 }
 
 // Типы fontkit (минимально необходимые)
@@ -28,6 +33,8 @@ export interface FkFont {
   bbox: { minX: number; minY: number; maxX: number; maxY: number };
   directory: { tables: Record<string, unknown> };
   glyphsForString(s: string): FkGlyph[];
+  glyphForCodePoint(cp: number): FkGlyph;
+  hasGlyphForCodePoint(cp: number): boolean;
   getGlyph(id: number): FkGlyph;
   createSubset(): FkSubset;
 }
@@ -48,35 +55,62 @@ export function isCff(f: FkFont): boolean {
   return 'CFF ' in f.directory.tables || 'CFF2' in f.directory.tables;
 }
 
-/** Ширина строки в единицах em (без кернинга — так же, как её рисует PostScript show). */
-export function textWidthEm(f: FkFont, text: string): number {
-  return f.glyphsForString(text).reduce((s, g) => s + g.advanceWidth, 0) / f.unitsPerEm;
+export interface PlacedGlyph {
+  font: FkFont;
+  glyph: FkGlyph;
+}
+
+/**
+ * Глифы строки: символ берётся из основного шрифта, а если его там нет — из запасного.
+ * Кернинг и лигатуры не применяются (так же текст рисует PostScript show и SVG без шейпинга).
+ */
+export function glyphsFor(f: FkFont, text: string, fallback?: FkFont | null): PlacedGlyph[] {
+  const out: PlacedGlyph[] = [];
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!;
+    const font = !f.hasGlyphForCodePoint(cp) && fallback && fallback.hasGlyphForCodePoint(cp) ? fallback : f;
+    out.push({ font, glyph: font.glyphForCodePoint(cp) });
+  }
+  return out;
+}
+
+/** Есть ли в шрифте все символы строки. */
+export function hasAllGlyphs(f: FkFont, text: string): boolean {
+  for (const ch of text) if (!f.hasGlyphForCodePoint(ch.codePointAt(0)!)) return false;
+  return true;
+}
+
+/** Ширина строки в единицах em основного шрифта (с учётом запасного). */
+export function textWidthEm(f: FkFont, text: string, fallback?: FkFont | null): number {
+  return glyphsFor(f, text, fallback).reduce((s, g) => s + g.glyph.advanceWidth / g.font.unitsPerEm, 0);
 }
 
 /** Функция измерения текста (мм) по реальным метрикам шрифтов. */
 export function fontMeasure(fonts: FontSet): MeasureText {
   const reg = openFont(fonts.regular);
   const bold = fonts.bold ? openFont(fonts.bold) : reg;
-  return (text, sizePt, isBold) => textWidthEm(isBold ? bold : reg, text) * sizePt * PT_TO_MM;
+  const fb = fonts.fallback ? openFont(fonts.fallback) : null;
+  return (text, sizePt, isBold) => textWidthEm(isBold ? bold : reg, text, fb) * sizePt * PT_TO_MM;
 }
 
 /**
  * Контуры текста в пунктах (Y вверх): база (x, y), кегль, поворот против часовой стрелки.
  * Квадратичные сегменты TrueType переводятся в кубические.
  */
-export function textOutline(f: FkFont, text: string, x: number, y: number, sizePt: number, rotateDeg: number): Seg[] {
-  const s = sizePt / f.unitsPerEm;
+export function textOutline(f: FkFont, text: string, x: number, y: number, sizePt: number, rotateDeg: number, fallback?: FkFont | null): Seg[] {
+  let s = sizePt / f.unitsPerEm;
   const a = (rotateDeg * Math.PI) / 180;
   const ca = Math.cos(a);
   const sa = Math.sin(a);
   const segs: Seg[] = [];
-  let pen = 0;
+  let pen = 0; // в пунктах
   const T = (px: number, py: number): [number, number] => {
-    const u = (pen + px) * s;
+    const u = pen + px * s;
     const v = py * s;
     return [x + u * ca - v * sa, y + u * sa + v * ca];
   };
-  for (const g of f.glyphsForString(text)) {
+  for (const { font, glyph: g } of glyphsFor(f, text, fallback)) {
+    s = sizePt / font.unitsPerEm;
     let cx = 0;
     let cy = 0;
     let open = false;
@@ -111,7 +145,7 @@ export function textOutline(f: FkFont, text: string, x: number, y: number, sizeP
       }
     }
     if (open) segs.push(['Z']);
-    pen += g.advanceWidth;
+    pen += g.advanceWidth * s;
   }
   return segs;
 }

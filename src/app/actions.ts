@@ -15,7 +15,7 @@ export async function saveAs(file: OpenFile, fmt: 'ies' | 'ldt'): Promise<void> 
   });
 }
 
-export type ExportFormat = 'svg' | 'pdf' | 'eps';
+export type ExportFormat = 'svg' | 'pdf' | 'eps' | 'png';
 
 /** Просит открытую вкладку графика выгрузить его (вызов из меню). */
 export function requestChartExport(fmt: ExportFormat): void {
