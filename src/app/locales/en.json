@@ -4,7 +4,8 @@
     "open": "Open files",
     "language": "Language",
     "style": "Chart style",
-    "privacy": "Files are processed in the browser and never uploaded."
+    "privacy": "Files are processed in the browser and never uploaded.",
+    "theme": "Light or dark theme"
   },
   "drop": {
     "title": "Drop IES or LDT files here",
@@ -151,11 +152,6 @@
     "title": "Chart style",
     "name": "Style name",
     "font": "Font",
-    "fontBuiltin": "Roboto (built-in)",
-    "fontUpload": "Load TTF/OTF…",
-    "fontCustom": "Custom font: {{name}}",
-    "fontReset": "Back to Roboto",
-    "fontCff": "OTF font with CFF outlines",
     "sizes": "Font size, pt",
     "sizeTitle": "title",
     "sizeLabel": "labels",
@@ -201,5 +197,17 @@
     "none": "—",
     "yes": "yes",
     "no": "no"
+  },
+  "font": {
+    "builtin": "Now: built-in Roboto. Brand font is Suisse Intl.",
+    "current": "Now: {{name}} ({{styles}})",
+    "fromComputer": "Use {{name}} from this computer",
+    "upload": "Load OTF/TTF files…",
+    "reset": "Back to Roboto",
+    "notFound": "{{name}} is not installed on this computer. Load the font files (Regular and Medium).",
+    "denied": "The browser denied access to local fonts. Allow it or load the files.",
+    "error": "Could not load the font: {{msg}}",
+    "noLocalApi": "This browser cannot read local fonts (Chrome and Edge can) — load the font files.",
+    "missing": "Brand font Suisse Intl is not connected — charts use Roboto for now."
   }
 }

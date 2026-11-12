@@ -115,3 +115,12 @@ export function textOutline(f: FkFont, text: string, x: number, y: number, sizeP
   }
   return segs;
 }
+
+/**
+ * Можно ли встроить шрифт в PDF текстом. Подмножества OTF с контурами CFF fontkit собирает
+ * с ошибками (просмотрщики считают шрифт повреждённым), поэтому такой текст идёт кривыми.
+ * TrueType (TTF, WOFF с glyf) встраивается подмножеством.
+ */
+export function canEmbed(f: FkFont): boolean {
+  return !isCff(f);
+}

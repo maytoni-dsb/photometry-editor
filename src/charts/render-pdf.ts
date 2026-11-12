@@ -30,8 +30,8 @@ import {
   type PDFFont,
   type PDFOperator,
 } from 'pdf-lib';
-import { openFont, textOutline, type FontSet } from './fonts';
-import type { Color, Scene } from './scene';
+import { canEmbed, openFont, textOutline, type FontSet } from './fonts';
+import { walk, type Color, type Scene } from './scene';
 import { colorComponents, pageSizePt, placeRuns, walkVector, type ColorMode, type Seg } from './vector';
 
 export interface VectorExportOptions {
@@ -73,7 +73,30 @@ function pdfColor(c: Color, mode: ColorMode) {
   return mode === 'rgb' ? rgb(v[0], v[1], v[2]) : cmyk(v[0], v[1], v[2], v[3]);
 }
 
+/**
+ * PDF со встроенным подмножеством шрифта. Шрифты OTF с контурами CFF (например, Suisse Intl)
+ * fontkit встраивает с ошибками — с такими шрифтами текст в PDF идёт кривыми.
+ */
 export async function renderPdf(scene: Scene, opts: VectorExportOptions): Promise<Uint8Array> {
+  const { regular, bold } = sceneTexts(scene, !!opts.fonts.bold);
+  if (!opts.textAsPaths) {
+    const ok = (regular.length === 0 || canEmbed(openFont(opts.fonts.regular))) && (bold.length === 0 || canEmbed(openFont(opts.fonts.bold!)));
+    if (!ok) return renderPdfOnce(scene, { ...opts, textAsPaths: true });
+  }
+  return renderPdfOnce(scene, opts);
+}
+
+/** Тексты сцены по начертаниям (полужирные — отдельно, если есть свой файл начертания). */
+function sceneTexts(scene: Scene, hasBold: boolean): { regular: string[]; bold: string[] } {
+  const regular: string[] = [];
+  const bold: string[] = [];
+  walk(scene.children, (p) => {
+    if (p.t === 'text') (p.bold && hasBold ? bold : regular).push(p.text);
+  });
+  return { regular, bold };
+}
+
+async function renderPdfOnce(scene: Scene, opts: VectorExportOptions): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(scene.title);
@@ -85,12 +108,14 @@ export async function renderPdf(scene: Scene, opts: VectorExportOptions): Promis
 
   let regular: PDFFont | null = null;
   let bold: PDFFont | null = null;
-  if (!opts.textAsPaths) {
-    regular = await doc.embedFont(opts.fonts.regular, { subset: true });
-    bold = opts.fonts.bold ? await doc.embedFont(opts.fonts.bold, { subset: true }) : regular;
-  }
   const fkRegular = openFont(opts.fonts.regular);
   const fkBold = opts.fonts.bold ? openFont(opts.fonts.bold) : fkRegular;
+  if (!opts.textAsPaths) {
+    // начертание встраивается, только если им что-то написано: пустое подмножество CFF fontkit не собирает
+    const used = sceneTexts(scene, !!opts.fonts.bold);
+    regular = await doc.embedFont(opts.fonts.regular, { subset: true });
+    bold = opts.fonts.bold && used.bold.length ? await doc.embedFont(opts.fonts.bold, { subset: true }) : regular;
+  }
 
   page.pushOperators(pushGraphicsState(), setLineJoin(LineJoinStyle.Round));
   walkVector(scene, {

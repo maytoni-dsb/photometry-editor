@@ -69,13 +69,15 @@ export function buildPolarCatalog(
   const sideMain = opts.cSide === 'right' ? 1 : -1;
   const rad = (v: number) => (Math.min(v, scale.max) / scale.max) * R;
   const curves: Prim[] = [];
+  const fills: Prim[] = [];
   data.series.forEach((sr, i) => {
     const val = (cc: number, g: number) => intensityC(c, cc, g) * data.factor;
     const left = gs.slice().reverse().map((g) => pt(g, rad(val(sr.c + 180, g)), -sideMain));
     const right = gs.map((g) => pt(g, rad(val(sr.c, g)), sideMain));
     const pts = [...left, ...right];
     const closed = gEnd >= 180 - 1e-9;
-    if (i === 0 && style.colors.fill) curves.push({ t: 'polyline', pts: closed ? pts : [...pts, [cx, cy]], closed: true, fill: style.colors.fill });
+    // заливка под каждой кривой (решение заказчика 12.11.2026); все заливки — под всеми контурами
+    if (style.colors.fill) fills.push({ t: 'polyline', pts: closed ? pts : [...pts, [cx, cy]], closed: true, fill: style.colors.fill });
     curves.push({ t: 'polyline', pts, closed, stroke: seriesStroke(style, i) });
   });
 
@@ -136,7 +138,7 @@ export function buildPolarCatalog(
     fontFamily: style.font.family,
     background: style.colors.background ?? undefined,
     children: [
-      { t: 'group', id: 'curves', children: curves },
+      { t: 'group', id: 'curves', children: [...fills, ...curves] },
       { t: 'group', id: 'grid', children: grid },
       { t: 'group', id: 'labels', children: labels },
       ...(title.length ? [{ t: 'group', id: 'title', children: title } as Prim] : []),

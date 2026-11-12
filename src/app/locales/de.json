@@ -4,7 +4,8 @@
     "open": "Dateien öffnen",
     "language": "Sprache",
     "style": "Diagrammstil",
-    "privacy": "Dateien werden im Browser verarbeitet und nicht hochgeladen."
+    "privacy": "Dateien werden im Browser verarbeitet und nicht hochgeladen.",
+    "theme": "Helles oder dunkles Design"
   },
   "drop": {
     "title": "IES- oder LDT-Dateien hier ablegen",
@@ -151,11 +152,6 @@
     "title": "Diagrammstil",
     "name": "Stilname",
     "font": "Schrift",
-    "fontBuiltin": "Roboto (integriert)",
-    "fontUpload": "TTF/OTF laden…",
-    "fontCustom": "Eigene Schrift: {{name}}",
-    "fontReset": "Zurück zu Roboto",
-    "fontCff": "OTF-Schrift mit CFF-Konturen",
     "sizes": "Schriftgrad, pt",
     "sizeTitle": "Titel",
     "sizeLabel": "Beschriftung",
@@ -201,5 +197,17 @@
     "none": "—",
     "yes": "ja",
     "no": "nein"
+  },
+  "font": {
+    "builtin": "Aktuell: integrierte Roboto. Hausschrift ist Suisse Intl.",
+    "current": "Aktuell: {{name}} ({{styles}})",
+    "fromComputer": "{{name}} von diesem Computer",
+    "upload": "OTF/TTF-Dateien laden…",
+    "reset": "Zurück zu Roboto",
+    "notFound": "{{name}} ist auf diesem Computer nicht installiert. Laden Sie die Schriftdateien (Regular und Medium).",
+    "denied": "Der Browser hat den Zugriff auf lokale Schriften verweigert. Erlauben Sie ihn oder laden Sie die Dateien.",
+    "error": "Schrift konnte nicht geladen werden: {{msg}}",
+    "noLocalApi": "Dieser Browser kann keine lokalen Schriften lesen (Chrome und Edge können es) — laden Sie die Schriftdateien.",
+    "missing": "Hausschrift Suisse Intl ist nicht verbunden — Diagramme verwenden vorerst Roboto."
   }
 }

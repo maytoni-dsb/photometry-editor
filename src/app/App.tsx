@@ -6,6 +6,7 @@ import { catalogStyle, sanitizeStyle, type ChartStyle } from '../charts/style';
 import { ChartPanel } from './components/ChartPanel';
 import { IntensityTable } from './components/IntensityTable';
 import { Passport } from './components/Passport';
+import { MaytoniLogo } from './components/MaytoniLogo';
 import { StyleEditor } from './components/StyleEditor';
 import { openBytes, type OpenFile } from './doc';
 import { loadFonts, type LoadedFonts } from './fonts';
@@ -116,18 +117,31 @@ export default function App() {
 
   const active = files.find((f) => f.id === activeId) ?? null;
 
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    save('theme', root.dataset.theme);
+  };
+
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
-            <circle cx="16" cy="12" r="9" fill="none" stroke="var(--accent)" strokeWidth="3" />
-            <path d="M16 21v8" stroke="var(--accent-2)" strokeWidth="3" />
-          </svg>
-          <span>{t('app.title')}</span>
-        </div>
-        <div className="topbar-actions">
-          <button className="btn primary" onClick={() => inputRef.current?.click()}>{t('app.open')}</button>
+      <header className="sbar">
+        <span className="brand">
+          <MaytoniLogo />
+        </span>
+        <span className="apptitle">{t('app.title')}</span>
+        {active && (
+          <nav className="stnav" role="tablist" aria-label={t('app.title')}>
+            {TABS.map((k) => (
+              <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'gsst cur' : 'gsst'} onClick={() => setTab(k)}>
+                {t(`tabs.${k}`)}
+              </button>
+            ))}
+          </nav>
+        )}
+        <div className="sbtools">
+          <button className="gsbtn" onClick={() => inputRef.current?.click()}>{t('app.open')}</button>
           <input
             ref={inputRef}
             type="file"
@@ -139,12 +153,18 @@ export default function App() {
               e.target.value = '';
             }}
           />
-          <button className="btn" onClick={() => setStyleOpen(true)}>{t('app.style')}</button>
-          <select aria-label={t('app.language')} value={i18n.language} onChange={(e) => void i18n.changeLanguage(e.target.value)}>
+          <button className="sbbtn" onClick={() => setStyleOpen(true)}>{t('app.style')}</button>
+          <select className="langsel" aria-label={t('app.language')} value={i18n.language} onChange={(e) => void i18n.changeLanguage(e.target.value)}>
             {LANGS.map((l) => (
               <option key={l} value={l}>{l.toUpperCase()}</option>
             ))}
           </select>
+          <button className="themebtn" onClick={toggleTheme} aria-label={t('app.theme')} title={t('app.theme')}>
+            <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10 2.5a7.5 7.5 0 0 1 0 15z" fill="currentColor" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -187,8 +207,8 @@ export default function App() {
                 <svg viewBox="0 0 120 80" width="160">
                   <path d="M10 10 A50 50 0 0 0 110 10" fill="none" stroke="var(--line)" strokeWidth="1" />
                   <path d="M35 10 A25 25 0 0 0 85 10" fill="none" stroke="var(--line)" strokeWidth="1" />
-                  <path d="M60 10 C40 40 44 62 60 64 C76 62 80 40 60 10" fill="none" stroke="var(--accent)" strokeWidth="2" />
-                  <path d="M60 10 C30 30 38 52 60 54 C82 52 90 30 60 10" fill="none" stroke="var(--accent-2)" strokeWidth="2" strokeDasharray="4 2" />
+                  <path d="M60 10 C40 40 44 62 60 64 C76 62 80 40 60 10" fill="var(--accent-soft)" stroke="var(--accent)" strokeWidth="1.6" />
+                  <path d="M60 10 C30 30 38 52 60 54 C82 52 90 30 60 10" fill="none" stroke="var(--ink3)" strokeWidth="1.2" strokeDasharray="4 2" />
                 </svg>
               </div>
               <h1>{t('drop.title')}</h1>
@@ -197,14 +217,10 @@ export default function App() {
             </div>
           ) : (
             <>
-              <nav className="tabs" role="tablist">
-                {TABS.map((k) => (
-                  <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'tab active' : 'tab'} onClick={() => setTab(k)}>
-                    {t(`tabs.${k}`)}
-                  </button>
-                ))}
-                <span className="tabs-file" title={active.name}>{active.name}</span>
-              </nav>
+              <div className="mainhead">
+                <span className={`fmt fmt-${active.parse.photometry.source.format.toLowerCase()}`}>{active.parse.photometry.source.format}</span>
+                <b title={active.name}>{active.name}</b>
+              </div>
               <div className="tab-body">
                 {tab === 'passport' && <Passport file={active} />}
                 {tab === 'table' && <IntensityTable file={active} />}
@@ -217,6 +233,7 @@ export default function App() {
                     style={style}
                     onStyle={setStyle}
                     fonts={fonts}
+                    onFonts={setFonts}
                   />
                 )}
               </div>

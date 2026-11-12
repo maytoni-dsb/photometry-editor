@@ -100,6 +100,7 @@ export function buildPolar(
 
   // --- кривые
   const curves: Prim[] = [];
+  const fills: Prim[] = [];
   const sideMain = opts.cSide === 'right' ? 1 : -1;
   data.series.forEach((sr, i) => {
     const rad = (v: number) => (Math.min(v, scale.max) / scale.max) * R;
@@ -109,7 +110,8 @@ export function buildPolar(
     const lastG = sr.main[sr.main.length - 1]?.[0] ?? 0;
     const closed = lastG >= 180 - 1e-9;
     // заливка под первой кривой (если задана в стиле): контур замыкается через центр
-    if (i === 0 && style.colors.fill) curves.push({ t: 'polyline', pts: closed ? pts : [...pts, [cx, cy]], closed: true, fill: style.colors.fill });
+    // заливка под каждой кривой (решение заказчика 12.11.2026); все заливки — под всеми контурами
+    if (style.colors.fill) fills.push({ t: 'polyline', pts: closed ? pts : [...pts, [cx, cy]], closed: true, fill: style.colors.fill });
     curves.push({ t: 'polyline', pts, closed, stroke: seriesStroke(style, i) });
   });
 
@@ -124,7 +126,7 @@ export function buildPolar(
     background: style.colors.background ?? undefined,
     children: [
       { t: 'group', id: 'grid', children: grid },
-      { t: 'group', id: 'curves', children: curves },
+      { t: 'group', id: 'curves', children: [...fills, ...curves] },
       { t: 'group', id: 'labels', children: labels },
       ...(head.prims.length ? [{ t: 'group', id: 'title', children: head.prims } as Prim] : []),
       ...(leg.prims.length ? [{ t: 'group', id: 'legend', children: leg.prims } as Prim] : []),

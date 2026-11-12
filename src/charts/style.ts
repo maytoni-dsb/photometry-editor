@@ -104,7 +104,8 @@ const PT = 25.4 / 72;
  * Стиль каталога MAYTONI — по образцу «LIC eps stage2» (12.11.2026):
  * кегль 6 пт, линии 0,3 пт, сетка пунктиром 0,43 / 1,29 пт, всё чёрное (K100),
  * заливка под кривой CMYK 0/0/20/0 (RGB 255/255/204), лучи через 30°.
- * Шрифт образца — Helvetica (MATLAB); у нас по умолчанию Roboto, свой шрифт можно загрузить.
+ * Фирменный шрифт — Suisse Intl (коммерческий, в репозиторий не входит): подключается с компьютера
+ * пользователя; пока он не подключён, графики идут встроенным Roboto.
  */
 export function catalogStyle(): ChartStyle {
   const black = c([0, 0, 0], [0, 0, 0, 100]);
@@ -112,17 +113,18 @@ export function catalogStyle(): ChartStyle {
   return {
     version: 1,
     name: 'MAYTONI каталог',
-    font: { family: 'Roboto', title: 6, label: 6, tick: 6 },
+    font: { family: 'Suisse Intl', title: 6, label: 6, tick: 6 },
     colors: {
       text: black,
       grid: black,
       gridMajor: black,
       background: null,
-      series: [black, c([0, 94, 170], [100, 55, 0, 5]), c([215, 38, 50], [0, 95, 80, 5]), c([0, 140, 70], [90, 10, 100, 5])],
+      // все кривые чёрные; вторая (C90–C270) — длинным штрихом, чтобы не сливаться с точечной сеткой
+      series: [black, black, black, black],
       fill: c([255, 255, 204], [0, 0, 20, 0]),
     },
     widths: { curve: w, grid: w, gridMajor: w },
-    dashes: [[], [1.2, 0.6], [0.3, 0.5], [1.6, 0.5, 0.3, 0.5]],
+    dashes: [[], [1.2, 0.6], [2.4, 0.6, 0.4, 0.6], [0.6, 0.6]],
     gridDash: [(3 / 7) * PT, (9 / 7) * PT],
     grid: { angleStep: 30, angleLabelEvery: 1 },
   };

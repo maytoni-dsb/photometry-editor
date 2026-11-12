@@ -13,6 +13,7 @@ import type { Lang } from '../../core/issues';
 import type { ChartSettings } from '../App';
 import { baseName, type OpenFile } from '../doc';
 import type { LoadedFonts } from '../fonts';
+import { FontConnect } from './FontConnect';
 import { LANGS } from '../i18n';
 import { safeFileName, saveFile } from '../save-file';
 import { load, save } from '../storage';
@@ -25,12 +26,13 @@ interface Props {
   style: ChartStyle;
   onStyle: (s: ChartStyle) => void;
   fonts: LoadedFonts | null;
+  onFonts: (f: LoadedFonts) => void;
 }
 
 /** Ширина превью на экране, пикселей на миллиметр. */
 const PX_PER_MM = 6.5;
 
-export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, fonts }: Props) {
+export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, fonts, onFonts }: Props) {
   const { t } = useTranslation();
   const p = file.parse.photometry;
   const axial = file.summary.asC.symmetry === 'axial' || file.summary.asC.hAngles.length === 1;
@@ -203,6 +205,13 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
           </div>
         )}
 
+        {fonts && !fonts.custom && (
+          <div className="note small">
+            <p>{t('font.missing')}</p>
+            <FontConnect fonts={fonts} onFonts={onFonts} compact />
+          </div>
+        )}
+
         <fieldset className="export">
           <legend>{t('export.title')}</legend>
           <div className="row">
@@ -230,7 +239,7 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
 
       <div className="chart-stage">
         {/* узкие графики (каталог 39 мм) показываем крупнее, но не шире 600 px */}
-        <div className="paper" style={{ width: Math.max(scene.width * PX_PER_MM, Math.min(600, scene.width * 15)) }} dangerouslySetInnerHTML={{ __html: svg }} />
+        <div className="paper" style={{ width: Math.max(scene.width * PX_PER_MM, Math.min(520, scene.width * 12)) }} dangerouslySetInnerHTML={{ __html: svg }} />
         <p className="muted small center">{t('chart.size', { w: Math.round(scene.width), h: Math.round(scene.height) })}</p>
       </div>
     </div>

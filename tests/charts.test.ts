@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import {
@@ -266,6 +266,32 @@ describe('оформление «каталог MAYTONI» (образец LIC ep
     expect((eps.match(/% text: /g) ?? []).length).toBe(8); // 7 подписей углов + заголовок
     expect(eps).toContain('% text: I???? = 1000 ??/???');
     const pdf = await renderPdf(scene, { color: 'cmyk', fonts });
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
+  });
+});
+
+describe('решения заказчика 12.11.2026', () => {
+  it('каталог: две кривые, обе залиты, C90–C270 пунктиром, отличным от сетки', () => {
+    const p = makeC(asym, { flux: 1000 });
+    const style = catalogStyle();
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, planes: [0, 90] }), style);
+    const curves = prims(scene, 'curves');
+    const fills = curves.filter((x) => x.t === 'polyline' && x.fill);
+    const lines = curves.filter((x) => x.t === 'polyline' && x.stroke) as Array<{ stroke: { dash?: number[] } }>;
+    expect(fills).toHaveLength(2);
+    expect(curves.indexOf(fills[1])).toBeLessThan(curves.indexOf(lines[0] as never)); // заливки под контурами
+    expect(lines[0].stroke.dash).toBeUndefined();
+    const dash = lines[1].stroke.dash!;
+    expect(dash[0]).toBeGreaterThan(style.gridDash[0] * 4); // штрих заметно длиннее точки сетки
+  });
+
+  const otf = '/usr/share/fonts/opentype/inter/Inter-Regular.otf';
+  it.skipIf(!existsSync(otf))('шрифт OTF (CFF, как Suisse Intl): PDF с текстом кривыми, без ошибок', async () => {
+    const f = { regular: new Uint8Array(readFileSync(otf)) };
+    const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH }), catalogStyle(), fontMeasure(f));
+    const pdf = await renderPdf(scene, { color: 'cmyk', fonts: f });
+    expect(new TextDecoder('latin1').decode(pdf)).not.toContain('/FontFile');
     expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
   });
 });

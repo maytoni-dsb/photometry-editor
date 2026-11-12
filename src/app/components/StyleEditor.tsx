@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Color } from '../../charts/scene';
 import { defaultStyle, hexToRgb, naiveCmyk, rgbHex, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../../charts/style';
-import { clearCustomFont, loadFonts, setCustomFont, type LoadedFonts } from '../fonts';
+import type { LoadedFonts } from '../fonts';
+import { FontConnect } from './FontConnect';
 import { saveFile, safeFileName } from '../save-file';
 
 interface Props {
@@ -56,25 +57,14 @@ function ColorRow({ label, value, onChange, extra }: { label: string; value: Col
 
 export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props) {
   const { t } = useTranslation();
-  const fontInput = useRef<HTMLInputElement>(null);
   const styleInput = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const s = style;
   const set = (patch: Partial<ChartStyle>) => onChange({ ...s, ...patch });
   const setColors = (patch: Partial<ChartStyle['colors']>) => set({ colors: { ...s.colors, ...patch } });
   const numIn = (v: number, on: (x: number) => void, step = 0.05, min = 0.01, max = 30) => (
-    <input type="number" step={step} min={min} max={max} value={v} onChange={(e) => { const x = Number(e.target.value); if (Number.isFinite(x) && x >= min) on(Math.min(max, x)); }} />
+    <input type="number" step={step} min={min} max={max} value={Math.round(v * 1000) / 1000} onChange={(e) => { const x = Number(e.target.value); if (Number.isFinite(x) && x >= min) on(Math.min(max, x)); }} />
   );
-
-  const uploadFont = async (f: File) => {
-    try {
-      const loaded = await setCustomFont(new Uint8Array(await f.arrayBuffer()));
-      onFonts(loaded);
-      setMsg(null);
-    } catch (e) {
-      setMsg((e as Error).message);
-    }
-  };
 
   const importStyle = async (f: File) => {
     try {
@@ -118,14 +108,7 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
 
           <fieldset>
             <legend>{t('style.font')}</legend>
-            <div className="row">
-              <strong>{fonts?.custom ? t('style.fontCustom', { name: fonts.family }) : t('style.fontBuiltin')}</strong>
-              <button className="btn small" onClick={() => fontInput.current?.click()}>{t('style.fontUpload')}</button>
-              {fonts?.custom && (
-                <button className="link small" onClick={async () => { clearCustomFont(); onFonts(await loadFonts()); }}>{t('style.fontReset')}</button>
-              )}
-              <input ref={fontInput} type="file" accept=".ttf,.otf,.woff" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadFont(f); e.target.value = ''; }} />
-            </div>
+            <FontConnect fonts={fonts} onFonts={onFonts} />
             <div className="row">
               <span>{t('style.sizes')}:</span>
               <label>{t('style.sizeTitle')} {numIn(s.font.title, (x) => set({ font: { ...s.font, title: x } }), 0.5, 3)}</label>
