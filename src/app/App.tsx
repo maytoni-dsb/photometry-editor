@@ -134,7 +134,10 @@ export default function App() {
         <span className="brand">
           <MaytoniLogo />
         </span>
-        <span className="apptitle">{t('app.title')}</span>
+        <span className="apptitle">
+          {t('app.title')}
+          <span className="appver" title={`commit ${__APP_COMMIT__}`}>v{__APP_VERSION__} · {__APP_COMMIT__}</span>
+        </span>
         {active && (
           <nav className="stnav" role="tablist" aria-label={t('app.title')}>
             {TABS.map((k) => (
