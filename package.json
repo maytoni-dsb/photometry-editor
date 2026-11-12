@@ -1,22 +1,38 @@
 {
   "name": "photometry-editor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Онлайн-редактор фотометрических файлов IES и LDT",
   "type": "module",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "audit": "tsx scripts/audit-library.ts"
+    "audit": "tsx scripts/audit-library.ts",
+    "charts": "tsx scripts/render-charts.ts"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "5.2.0",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
+    "vite": "7.3.8",
     "vitest": "3.2.4"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
+    "i18next": "25.10.10",
+    "pdf-lib": "1.17.1",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "react-i18next": "15.7.4"
   }
 }

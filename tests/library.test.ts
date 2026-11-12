@@ -8,7 +8,19 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { diffIntensity, parseFile, parseIES, parseLDT, typeBToC, writeIES, writeLDT } from '../src/core/index';
+import {
+  buildLinear,
+  buildPolar,
+  defaultChartOptions,
+  defaultPlanes,
+  defaultStyle,
+  fontMeasure,
+  renderEps,
+  renderPdf,
+  renderSvg,
+  type FontSet,
+} from '../src/charts/index';
+import { diffIntensity, parseFile, parseIES, parseLDT, summarize, typeBToC, writeIES, writeLDT } from '../src/core/index';
 
 const dir = process.env.PHOTOMETRY_LIBRARY;
 
@@ -35,6 +47,36 @@ describe.skipIf(!dir)('библиотека заказчика', () => {
         const d1 = diffIntensity(c, sameC).maxRelToPeak;
         const d2 = diffIntensity(c, other).maxRelToPeak;
         if (d1 > 1e-4 || d2 > 1e-3) failures.push(`${f}: same ${d1.toExponential(2)}, other ${d2.toExponential(2)}`);
+      } catch (e) {
+        failures.push(`${f}: ${(e as Error).message}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it('графики строятся для всех файлов, экспорт — для каждого 50-го', async () => {
+    const fonts: FontSet = {
+      regular: new Uint8Array(readFileSync('public/fonts/Roboto-Regular.woff')),
+      bold: new Uint8Array(readFileSync('public/fonts/Roboto-Medium.woff')),
+    };
+    const measure = fontMeasure(fonts);
+    const style = defaultStyle();
+    const failures: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      try {
+        const { photometry } = parseFile(new Uint8Array(readFileSync(f)), f);
+        const s = summarize(photometry);
+        const opts = { ...defaultChartOptions(), planes: defaultPlanes(photometry) };
+        for (const scene of [buildPolar(photometry, s, opts, style, measure), buildLinear(photometry, s, opts, style, measure)]) {
+          const svg = renderSvg(scene);
+          if (/NaN|undefined|Infinity/.test(svg)) failures.push(`${f}: плохие числа в SVG`);
+          if (i % 50 === 0) {
+            await renderPdf(scene, { color: 'cmyk', fonts });
+            const eps = await renderEps(scene, { color: 'cmyk', fonts });
+            if (/NaN|undefined|Infinity/.test(eps)) failures.push(`${f}: плохие числа в EPS`);
+          }
+        }
       } catch (e) {
         failures.push(`${f}: ${(e as Error).message}`);
       }
