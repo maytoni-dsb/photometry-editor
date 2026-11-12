@@ -1,0 +1,6 @@
+* text=auto eol=lf
+# Тестовые фотометрические файлы храним байт в байт (CRLF, кодировки)
+*.ies -text
+*.IES -text
+*.ldt -text
+*.LDT -text

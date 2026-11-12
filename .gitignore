@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+# Реальные файлы заказчика в публичный репозиторий не кладём
+private-data/
+reports/
