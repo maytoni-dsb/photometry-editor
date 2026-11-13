@@ -24,7 +24,8 @@
     "table": "Lichtstärketabelle",
     "polar": "Polar-LVK",
     "linear": "Lineare LVK",
-    "ops": "Operationen"
+    "ops": "Operationen",
+    "body": "3D-Körper"
   },
   "passport": {
     "file": "Datei",
@@ -248,7 +249,7 @@
     "version": "Version",
     "build": "Build (Commit)",
     "keys": "Tastenkürzel",
-    "keyTabs": "Reiter: Datenblatt, Tabelle, Polar, Linear, Operationen",
+    "keyTabs": "Reiter: Datenblatt, Tabelle, Polar, Linear, 3D-Körper, Operationen",
     "keyFiles": "Nächste / vorherige Datei",
     "keyUndo": "Operation rückgängig",
     "keyRedo": "Operation wiederholen"
@@ -323,6 +324,31 @@
       "c-step": "C-Schritt {{step}}° teilt {{span}}° nicht",
       "g-step": "γ-Schritt {{step}}° teilt den Bereich {{span}}° nicht",
       "no-components": "Mindestens einen Körper auswählen"
-    }
+    },
+    "preview_2d": "Polarkurve",
+    "preview_3d": "3D-Körper",
+    "preview3dNote": "Beide Körper im gleichen Maßstab (Radius = das größere der beiden Maxima), sie drehen sich gemeinsam."
+  },
+  "b3d": {
+    "title": "3D-Lichtstärkekörper",
+    "view": "Ansicht",
+    "view_iso": "Isometrie",
+    "view_front": "C0–C180",
+    "view_side": "C90–C270",
+    "view_below": "Von unten",
+    "view_above": "Von oben",
+    "viewHint_iso": "Schräg von der Seite und oben",
+    "viewHint_front": "Blick auf die Ebene C0–C180, C0 rechts — wie die Polarkurve",
+    "viewHint_side": "Blick auf die Ebene C90–C270, C90 rechts",
+    "viewHint_below": "Von unten, entlang des Nadirs",
+    "viewHint_above": "Von oben",
+    "mouse": "Maus: ziehen — drehen, Rad — zoomen.",
+    "wireframe": "Netz anzeigen",
+    "planesNote": "Umrandete Ebenen: {{planes}} (wie in der Polarkurve: die erste durchgezogen).",
+    "colors": "Farbe — Lichtstärke",
+    "peak": "Max.",
+    "note": "Der Abstand vom Zentrum zur Oberfläche ist proportional zur Lichtstärke in dieser Richtung.",
+    "nadir": "Nadir",
+    "loading": "3D wird geladen…"
   }
 }

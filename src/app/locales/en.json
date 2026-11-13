@@ -24,7 +24,8 @@
     "table": "Intensity table",
     "polar": "Polar curve",
     "linear": "Linear curve",
-    "ops": "Operations"
+    "ops": "Operations",
+    "body": "3D body"
   },
   "passport": {
     "file": "File",
@@ -248,7 +249,7 @@
     "version": "Version",
     "build": "Build (commit)",
     "keys": "Keyboard shortcuts",
-    "keyTabs": "Tabs: data sheet, table, polar, linear, operations",
+    "keyTabs": "Tabs: data sheet, table, polar, linear, 3D body, operations",
     "keyFiles": "Next / previous file",
     "keyUndo": "Undo operation",
     "keyRedo": "Redo operation"
@@ -323,6 +324,31 @@
       "c-step": "C step {{step}}° does not divide {{span}}°",
       "g-step": "γ step {{step}}° does not divide the {{span}}° range",
       "no-components": "Select at least one body"
-    }
+    },
+    "preview_2d": "Polar curve",
+    "preview_3d": "3D body",
+    "preview3dNote": "Both bodies share one scale (radius = the larger of the two peaks) and rotate together."
+  },
+  "b3d": {
+    "title": "3D photometric body",
+    "view": "View",
+    "view_iso": "Isometric",
+    "view_front": "C0–C180",
+    "view_side": "C90–C270",
+    "view_below": "Below",
+    "view_above": "Above",
+    "viewHint_iso": "Oblique view from the side and above",
+    "viewHint_front": "Looking at the C0–C180 plane, C0 on the right — like the polar curve",
+    "viewHint_side": "Looking at the C90–C270 plane, C90 on the right",
+    "viewHint_below": "From below the luminaire, along the nadir",
+    "viewHint_above": "From above",
+    "mouse": "Mouse: drag to rotate, wheel to zoom.",
+    "wireframe": "Show mesh",
+    "planesNote": "Outlined planes: {{planes}} (as on the polar curve: the first one solid).",
+    "colors": "Colour — intensity",
+    "peak": "peak",
+    "note": "The distance from the centre to the surface is proportional to the intensity in that direction.",
+    "nadir": "nadir",
+    "loading": "Loading 3D…"
   }
 }

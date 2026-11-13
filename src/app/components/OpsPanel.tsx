@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fontMeasure } from '../../charts/fonts';
 import { buildPolar } from '../../charts/polar';
@@ -29,6 +29,9 @@ import {
 import type { ChartSettings } from '../App';
 import { baseName, type OpenFile } from '../doc';
 import type { LoadedFonts } from '../fonts';
+import { createCameraLink, type View3D } from '../../charts/body3d';
+import { load, save } from '../storage';
+import { Body3D, Fallback, RampLegend, ViewButtons } from './Body3DTab';
 
 export type OpKind = 'normalize' | 'mirror' | 'rotate' | 'symmetrize' | 'regrid' | 'sum';
 export const OP_KINDS: OpKind[] = ['normalize', 'mirror', 'rotate', 'symmetrize', 'regrid', 'sum'];
@@ -103,6 +106,10 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const [gStep, setGStep] = useState('');
   const [gRange, setGRange] = useState<GammaRange>('keep');
   const [sumRows, setSumRows] = useState<Record<string, SumRow>>({});
+  const [mode, setMode] = useState<'2d' | '3d'>(() => load('ops-preview', '2d'));
+  const [view, setView] = useState<View3D>('iso');
+  const [nonce, setNonce] = useState(0);
+  const link = useMemo(createCameraLink, []);
 
   const row = (f: OpenFile): SumRow =>
     sumRows[f.id] ?? { on: f.id === file.id, weight: '1', rx: '0', ry: '0', rz: '0', ox: '0', oy: '0', oz: '0' };
@@ -173,6 +180,9 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     renderSvg(buildPolar(ph, sm, { ...settings, planes, width: settings.width, title: '' }, style, measure));
   const before = useMemo(() => chart(p, s), [p, s, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
   const after = useMemo(() => (ok ? chart(ok.p, ok.summary) : null), [ok, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // общий масштаб 3D: радиус 1 — наибольший из двух максимумов, чтобы было видно изменение величины
+  const scale3d = Math.max(s.peak.value, ok?.summary.peak.value ?? 0) || 1;
 
   const apply = () => {
     if (!ok) return;
@@ -370,17 +380,39 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
       </aside>
 
       <div className="chart-stage ops-stage">
+        <div className="ops-toolbar">
+          <div className="seg">
+            {(['2d', '3d'] as const).map((m) => (
+              <button key={m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); save('ops-preview', m); }}>
+                {t(`ops.preview_${m}`)}
+              </button>
+            ))}
+          </div>
+          {mode === '3d' && <ViewButtons onView={(v) => { setView(v); setNonce(nonce + 1); }} />}
+        </div>
         <div className="ops-pair">
           <figure>
             <figcaption>{t('ops.before')}</figcaption>
-            <div className="paper" dangerouslySetInnerHTML={{ __html: before }} />
+            {mode === '2d' ? (
+              <div className="paper" dangerouslySetInnerHTML={{ __html: before }} />
+            ) : (
+              <Suspense fallback={<Fallback height={400} />}>
+                <Body3D photometry={s.asC} scale={scale3d} planes={planes} view={view} viewNonce={nonce} link={link} height={400} />
+              </Suspense>
+            )}
             {stats(s, p)}
           </figure>
           <figure>
             <figcaption>{t('ops.after')}</figcaption>
-            {after && ok ? (
+            {ok && (mode === '3d' || after) ? (
               <>
-                <div className="paper" dangerouslySetInnerHTML={{ __html: after }} />
+                {mode === '2d' ? (
+                  <div className="paper" dangerouslySetInnerHTML={{ __html: after! }} />
+                ) : (
+                  <Suspense fallback={<Fallback height={400} />}>
+                    <Body3D photometry={ok.summary.asC} scale={scale3d} planes={planes} view={view} viewNonce={nonce} link={link} height={400} />
+                  </Suspense>
+                )}
                 {stats(ok.summary, ok.p)}
               </>
             ) : (
@@ -388,6 +420,12 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
             )}
           </figure>
         </div>
+        {mode === '3d' && (
+          <div className="ops-3dnote">
+            <RampLegend />
+            <p className="muted small">{t('ops.preview3dNote')}</p>
+          </div>
+        )}
       </div>
     </div>
   );

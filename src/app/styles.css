@@ -363,3 +363,21 @@ legend + * { clear: both; }
 .opstats dt { color: var(--ink3); }
 .opstats dd { margin: 0; font-variant-numeric: tabular-nums; }
 @media (max-width: 900px) { .ops-pair { grid-template-columns: 1fr; } }
+
+/* --- 3D-тело */
+.b3d { position: relative; width: 100%; min-width: 0; border-radius: 12px; background: var(--card); border: 1px solid var(--rule); overflow: hidden; cursor: grab; }
+.b3d:active { cursor: grabbing; }
+.b3d canvas { display: block; }
+.b3d-labels { position: absolute; inset: 0; pointer-events: none; }
+.b3d-label { font-size: 11px; color: var(--ink3); white-space: nowrap; padding: 1px 4px; border-radius: 4px; background: color-mix(in srgb, var(--card) 70%, transparent); }
+.b3d-label.strong { color: var(--ink); font-weight: 600; }
+.b3d-loading { display: grid; place-items: center; cursor: default; }
+.b3d-stage { padding: 16px; }
+.b3d-views { gap: 6px; }
+.b3d-legend { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 280px; }
+.b3d-ramp { height: 10px; border-radius: 5px; border: 1px solid var(--rule); }
+.b3d-ramp-labels { display: flex; justify-content: space-between; }
+.ops-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; width: 100%; }
+.ops-pair .b3d { width: 100%; }
+.ops-3dnote { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; width: 100%; }
+.ops-3dnote p { margin: 0; }

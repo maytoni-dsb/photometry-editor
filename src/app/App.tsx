@@ -11,6 +11,7 @@ import { IntensityTable } from './components/IntensityTable';
 import { Passport } from './components/Passport';
 import { MaytoniLogo } from './components/MaytoniLogo';
 import { StyleEditor } from './components/StyleEditor';
+import { Body3DTab } from './components/Body3DTab';
 import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
 import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, type OpenFile } from './doc';
 import { applyOp, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry } from '../core/index';
@@ -18,9 +19,9 @@ import { loadFonts, type LoadedFonts } from './fonts';
 import { LANGS } from './i18n';
 import { load, save } from './storage';
 
-type Tab = 'passport' | 'table' | 'polar' | 'linear' | 'ops';
+type Tab = 'passport' | 'table' | 'polar' | 'linear' | 'body' | 'ops';
 type Theme = 'system' | 'light' | 'dark';
-const TABS: Tab[] = ['passport', 'table', 'polar', 'linear', 'ops'];
+const TABS: Tab[] = ['passport', 'table', 'polar', 'linear', 'body', 'ops'];
 
 /** Настройки графиков, общие для всех файлов. planes = null — плоскости по умолчанию для файла. */
 export interface ChartSettings extends Omit<ChartOptions, 'planes'> {
@@ -223,7 +224,7 @@ export default function App() {
     } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'y') {
       e.preventDefault();
       doRedo();
-    } else if (mod && !e.shiftKey && ['1', '2', '3', '4', '5'].includes(e.key) && active) {
+    } else if (mod && !e.shiftKey && ['1', '2', '3', '4', '5', '6'].includes(e.key) && active) {
       e.preventDefault();
       setTab(TABS[Number(e.key) - 1]);
     } else if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -464,6 +465,7 @@ export default function App() {
               <div className="tab-body">
                 {tab === 'passport' && <Passport file={active} />}
                 {tab === 'table' && <IntensityTable file={active} />}
+                {tab === 'body' && <Body3DTab file={active} settings={settings} />}
                 {tab === 'ops' && (
                   <OpsPanel
                     file={active}
