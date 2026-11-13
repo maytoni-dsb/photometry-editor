@@ -374,3 +374,64 @@ describe('результат операций записывается в IES и
     });
   });
 });
+
+describe('сглаживание', () => {
+  // детерминированный «шум» измерения ±5 %
+  const noise = (c: number, g: number) => 1 + 0.05 * Math.sin(c * 12.9898 + g * 78.233) * Math.cos(c * 4.1414 + g * 1.7);
+  const smoothBody = (c: number, g: number) => beam(30, 20)(c, g) + 50;
+
+  it('постоянное поле не меняется', () => {
+    const p = makeC(() => 100, { cStep: 15, gStep: 5 });
+    const r = applyOp(p, { op: 'smooth', width: 10 }).photometry;
+    for (const row of r.candela) for (const x of row) expect(x).toBeCloseTo(100, 6);
+  });
+
+  it('шум уменьшается, поток сохраняется, форма почти та же', () => {
+    const clean = makeC(smoothBody, { cStep: 5, gStep: 2.5 });
+    const noisy = makeC((c, g) => smoothBody(c, g) * noise(c, g), { cStep: 5, gStep: 2.5 });
+    const r = applyOp(noisy, { op: 'smooth', width: 6 }).photometry;
+    expect(flux(r)).toBeCloseTo(flux(noisy), 6);
+    const errBefore = diffIntensity(clean, noisy).maxRelToPeak;
+    const errAfter = diffIntensity(clean, r).maxRelToPeak;
+    expect(errAfter).toBeLessThan(errBefore * 0.6);
+  });
+
+  it('пик понижается тем сильнее, чем шире ядро; ось пучка на месте', () => {
+    const p = makeC(beam(0, 0), { cStep: 5, gStep: 2.5 });
+    const a = peak(applyOp(p, { op: 'smooth', width: 5 }).photometry);
+    const b = peak(applyOp(p, { op: 'smooth', width: 15 }).photometry);
+    expect(a.value).toBeLessThan(1000);
+    expect(b.value).toBeLessThan(a.value);
+    expect(b.v).toBe(0);
+  });
+
+  it('симметрия и сетка сохраняются; осевое остаётся осевым', () => {
+    const q = makeC(symQuad, { symmetry: 'quadrant', cStep: 15, gStep: 5 });
+    const r = applyOp(q, { op: 'smooth', width: 8 }).photometry;
+    expect(r.symmetry).toBe('quadrant');
+    expect(r.hAngles).toEqual(q.hAngles);
+    const full = makeC(symQuad, { cStep: 15, gStep: 5 });
+    const rf = applyOp(full, { op: 'smooth', width: 8 }).photometry;
+    expect(diffIntensity(rf, r).maxRelToPeak).toBeLessThan(1e-9);
+    const ax = applyOp(makeC(lambert, { symmetry: 'axial', gStep: 5 }), { op: 'smooth', width: 8 }).photometry;
+    expect(ax.symmetry).toBe('axial');
+    expect(flux(ax) / PI1000).toBeCloseTo(1, 2);
+  });
+
+  it('узкое ядро (меньше шага сетки) почти ничего не меняет; без сохранения потока — поток свой', () => {
+    const p = makeC(beam(30, 40), { cStep: 15, gStep: 5 });
+    const r = applyOp(p, { op: 'smooth', width: 1 }).photometry;
+    expect(diffIntensity(p, r).maxRelToPeak).toBeLessThan(1e-6);
+    const k = applyOp(makeC(beam(0, 0), { cStep: 5, gStep: 2.5 }), { op: 'smooth', width: 10, keepFlux: false }).photometry;
+    expect(Math.abs(flux(k) / flux(makeC(beam(0, 0), { cStep: 5, gStep: 2.5 })) - 1)).toBeLessThan(0.02);
+    expect(() => applyOp(p, { op: 'smooth', width: 0 })).toThrow(OpError);
+    expect(() => applyOp(p, { op: 'smooth', width: 45 })).toThrow(OpError);
+  });
+
+  it('скорость: сетка 2,5° × 1°, ширина 10° — быстро', () => {
+    const p = makeC(beam(30, 20), { cStep: 2.5, gStep: 1 });
+    const t0 = performance.now();
+    applyOp(p, { op: 'smooth', width: 10 });
+    expect(performance.now() - t0).toBeLessThan(1500);
+  });
+});

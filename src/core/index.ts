@@ -29,6 +29,7 @@ export {
   rotate,
   symmetrize,
   regrid,
+  smooth,
   sumBodies,
   compactSymmetry,
   naturalSteps,

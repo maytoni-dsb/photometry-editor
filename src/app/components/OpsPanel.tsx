@@ -33,8 +33,8 @@ import { createCameraLink, type View3D } from '../../charts/body3d';
 import { load, save } from '../storage';
 import { Body3D, Fallback, RampLegend, ViewButtons } from './Body3DTab';
 
-export type OpKind = 'normalize' | 'mirror' | 'rotate' | 'symmetrize' | 'regrid' | 'sum';
-export const OP_KINDS: OpKind[] = ['normalize', 'mirror', 'rotate', 'symmetrize', 'regrid', 'sum'];
+export type OpKind = 'normalize' | 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'regrid' | 'sum';
+export const OP_KINDS: OpKind[] = ['normalize', 'mirror', 'rotate', 'symmetrize', 'smooth', 'regrid', 'sum'];
 
 type SymTarget = Exclude<Symmetry, 'bilateral'>;
 
@@ -80,6 +80,8 @@ export function opLabel(t: (k: string, o?: Record<string, unknown>) => string, l
       return t('ops.label.symmetrize', { sym: t(`ops.sym_${spec.symmetry}`) });
     case 'regrid':
       return t('ops.label.regrid', { c: fmtNum(lang, spec.cStep, 3), g: fmtNum(lang, spec.gStep, 3) });
+    case 'smooth':
+      return t(spec.keepFlux === false ? 'ops.label.smoothFree' : 'ops.label.smooth', { w: fmtNum(lang, spec.width, 2) });
   }
 }
 
@@ -105,6 +107,8 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const [cStep, setCStep] = useState('');
   const [gStep, setGStep] = useState('');
   const [gRange, setGRange] = useState<GammaRange>('keep');
+  const [sWidth, setSWidth] = useState('5');
+  const [keepFlux, setKeepFlux] = useState(true);
   const [sumRows, setSumRows] = useState<Record<string, SumRow>>({});
   const [mode, setMode] = useState<'2d' | '3d'>(() => load('ops-preview', '2d'));
   const [view, setView] = useState<View3D>('iso');
@@ -128,12 +132,14 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
         return { op: 'rotate', axis, angle: num(angle) };
       case 'symmetrize':
         return { op: 'symmetrize', symmetry: symT };
+      case 'smooth':
+        return { op: 'smooth', width: num(sWidth), keepFlux };
       case 'regrid':
         return { op: 'regrid', cStep: cStep === '' ? steps.cStep : num(cStep), gStep: gStep === '' ? steps.gStep : num(gStep), gRange };
       default:
         return null;
     }
-  }, [op, nMode, nValue, plane, axis, angle, symT, cStep, gStep, gRange, steps]);
+  }, [op, nMode, nValue, plane, axis, angle, symT, cStep, gStep, gRange, steps, sWidth, keepFlux]);
 
   const sumComps = useMemo(() => {
     if (op !== 'sum') return [];
@@ -300,6 +306,29 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
                 ))}
               </div>
               <p className="muted small">{t('ops.symNote')}</p>
+            </>
+          )}
+
+          {op === 'smooth' && (
+            <>
+              <div className="row">
+                <span className="muted small">{t('ops.smoothWidth')}</span>
+                <input type="number" step="any" min={0} max={30} value={sWidth} onChange={(e) => setSWidth(e.target.value)} className="w-num" aria-label={t('ops.smoothWidth')} />
+                <span className="muted">°</span>
+              </div>
+              <div className="row">
+                {[2, 5, 10, 15].map((w) => (
+                  <button key={w} className="btn small" onClick={() => setSWidth(String(w))}>{w}°</button>
+                ))}
+              </div>
+              <label className="check">
+                <input type="checkbox" checked={keepFlux} onChange={(e) => setKeepFlux(e.target.checked)} />
+                {t('ops.keepFlux')}
+              </label>
+              <p className="muted small">{t('ops.smoothNote')}</p>
+              {num(sWidth) > 0 && num(sWidth) <= Math.min(steps.gStep, s.asC.symmetry === 'axial' ? Infinity : steps.cStep) && (
+                <p className="muted small">{t('ops.smoothNarrow', { c: fmtNum(lang, steps.cStep, 2), g: fmtNum(lang, steps.gStep, 2) })}</p>
+              )}
             </>
           )}
 

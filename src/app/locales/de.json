@@ -315,7 +315,9 @@
       "rotate": "Drehung {{axis}} {{angle}}",
       "symmetrize": "Symmetrisiert: {{sym}}",
       "regrid": "Raster C {{c}}°, γ {{g}}°",
-      "sum": "Summe von {{n}} Körpern"
+      "sum": "Summe von {{n}} Körpern",
+      "smooth": "Geglättet {{w}}°",
+      "smoothFree": "Geglättet {{w}}° (Lichtstrom nicht erhalten)"
     },
     "err": {
       "bad-value": "Positive Zahl eingeben",
@@ -323,11 +325,17 @@
       "zero-peak": "Alle Lichtstärken sind null",
       "c-step": "C-Schritt {{step}}° teilt {{span}}° nicht",
       "g-step": "γ-Schritt {{step}}° teilt den Bereich {{span}}° nicht",
-      "no-components": "Mindestens einen Körper auswählen"
+      "no-components": "Mindestens einen Körper auswählen",
+      "smooth-width": "Glättungsbreite höchstens 30°"
     },
     "preview_2d": "Polarkurve",
     "preview_3d": "3D-Körper",
-    "preview3dNote": "Beide Körper im gleichen Maßstab (Radius = das größere der beiden Maxima), sie drehen sich gemeinsam."
+    "preview3dNote": "Beide Körper im gleichen Maßstab (Radius = das größere der beiden Maxima), sie drehen sich gemeinsam.",
+    "kind_smooth": "Glätten",
+    "smoothWidth": "Kernbreite",
+    "keepFlux": "Lichtstrom erhalten",
+    "smoothNote": "Gauß-Glättung auf der Kugel: jeder Wert wird zum Mittel benachbarter Richtungen, gewichtet nach Winkelabstand. Die Breite ist die Halbwertsbreite des Kerns: Details schmaler als sie (Rauschen, Messwelligkeit) werden geglättet, das Maximum schmaler Strahlen sinkt leicht. Raster und Symmetrie bleiben gleich.",
+    "smoothNarrow": "Die Breite ist nicht größer als der Rasterschritt (C {{c}}°, γ {{g}}°) — Nachbarknoten wirken kaum, es gibt keinen Effekt. Erst das Raster verfeinern oder die Breite erhöhen."
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",

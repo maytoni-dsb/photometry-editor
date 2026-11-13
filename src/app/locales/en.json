@@ -315,7 +315,9 @@
       "rotate": "Rotate {{axis}} {{angle}}",
       "symmetrize": "Symmetrise: {{sym}}",
       "regrid": "Grid C {{c}}°, γ {{g}}°",
-      "sum": "Sum of {{n}} bodies"
+      "sum": "Sum of {{n}} bodies",
+      "smooth": "Smooth {{w}}°",
+      "smoothFree": "Smooth {{w}}° (flux not kept)"
     },
     "err": {
       "bad-value": "Enter a positive number",
@@ -323,11 +325,17 @@
       "zero-peak": "All intensities are zero",
       "c-step": "C step {{step}}° does not divide {{span}}°",
       "g-step": "γ step {{step}}° does not divide the {{span}}° range",
-      "no-components": "Select at least one body"
+      "no-components": "Select at least one body",
+      "smooth-width": "Smoothing width must not exceed 30°"
     },
     "preview_2d": "Polar curve",
     "preview_3d": "3D body",
-    "preview3dNote": "Both bodies share one scale (radius = the larger of the two peaks) and rotate together."
+    "preview3dNote": "Both bodies share one scale (radius = the larger of the two peaks) and rotate together.",
+    "kind_smooth": "Smooth",
+    "smoothWidth": "Kernel width",
+    "keepFlux": "Keep flux",
+    "smoothNote": "Gaussian smoothing on the sphere: each value becomes an average of neighbouring directions weighted by angular distance. The width is the kernel FWHM: details narrower than it (noise, measurement ripple) are smoothed out, a narrow beam peak drops slightly. Grid and symmetry stay the same.",
+    "smoothNarrow": "The width does not exceed the grid step (C {{c}}°, γ {{g}}°) — neighbouring nodes barely contribute, there will be no effect. Refine the grid first or increase the width."
   },
   "b3d": {
     "title": "3D photometric body",

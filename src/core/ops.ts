@@ -14,7 +14,7 @@
  */
 
 import { foldC, fullPlanes, intensityC, norm360, peak, planeValue, storedPlanesFor, uniformStep } from './angles';
-import { computeFlux } from './flux';
+import { computeFlux, gammaWeights } from './flux';
 import { issue, type Issue } from './issues';
 import { clonePhotometry, type Dimensions, type Photometry, type Symmetry } from './model';
 import { referenceFlux } from './summary';
@@ -42,7 +42,8 @@ export type OpSpec =
   | { op: 'mirror'; plane: MirrorPlane }
   | { op: 'rotate'; axis: RotationAxis; angle: number }
   | { op: 'symmetrize'; symmetry: Exclude<Symmetry, 'bilateral'> }
-  | { op: 'regrid'; cStep: number; gStep: number; gRange?: GammaRange };
+  | { op: 'regrid'; cStep: number; gStep: number; gRange?: GammaRange }
+  | { op: 'smooth'; /** ширина гауссова ядра на половине высоты, ° */ width: number; /** вернуть исходный поток (по умолчанию да) */ keepFlux?: boolean };
 
 export interface OpResult {
   photometry: Photometry;
@@ -52,7 +53,7 @@ export interface OpResult {
 /** Ошибка в параметрах операции. Текст собирает интерфейс по коду (ops.err.<code>). */
 export class OpError extends Error {
   constructor(
-    public code: 'bad-value' | 'zero-flux' | 'zero-peak' | 'c-step' | 'g-step' | 'no-components',
+    public code: 'bad-value' | 'zero-flux' | 'zero-peak' | 'c-step' | 'g-step' | 'no-components' | 'smooth-width',
     public params: Record<string, string | number> = {},
   ) {
     super(code);
@@ -446,6 +447,102 @@ export function regrid(p: Photometry, cStep: number, gStep: number, gRange: Gamm
   return { photometry: q, issues };
 }
 
+// ——— сглаживание ———
+
+/**
+ * Сглаживание гауссовым ядром на сфере: значение в узле — взвешенное среднее по соседним
+ * направлениям, вес = exp(−θ²/2σ²) × телесный угол узла (θ — угол между направлениями,
+ * σ = ширина / 2,355). Ядро изотропное: одинаково по C и γ, корректно в полюсах и
+ * не нарушает симметрию. Сетка и симметрия файла сохраняются; если в файле нет части сферы
+ * (например, только 0…90°), ядро у края обрезается и нормируется заново.
+ */
+export function smooth(p: Photometry, width: number, keepFlux = true): OpResult {
+  if (!Number.isFinite(width) || width <= 0) throw new OpError('bad-value');
+  if (width > 30) throw new OpError('smooth-width');
+  const issues: Issue[] = [];
+  const src = asTypeC(p, issues);
+  const full = unfold(src); // полный круг, у осевой — плоскости через 5°
+  const cs = full.hAngles;
+  const vs = src.vAngles;
+  const nc = cs.length;
+  const nv = vs.length;
+  const sigma = (width / 2.3548) * RAD;
+  const cut = 2.5 * sigma;
+  const cosCut = Math.cos(cut);
+  const cutDeg = cut * DEG;
+
+  // телесные углы узлов: по γ — зоны, по C — половины промежутков
+  const gw = gammaWeights(vs);
+  const cw = cs.map((_, i) => {
+    if (nc === 1) return 2 * Math.PI;
+    const prev = i === 0 ? cs[nc - 1] - 360 : cs[i - 1];
+    const next = i === nc - 1 ? cs[0] + 360 : cs[i + 1];
+    return ((next - prev) / 2) * RAD;
+  });
+  const sinV = vs.map((g) => Math.sin(g * RAD));
+  const cosV = vs.map((g) => Math.cos(g * RAD));
+  const step = uniformStep(cs);
+  const uniform = step > 0 && Math.abs(cs[0]) < EPS && Math.abs(360 / step - Math.round(360 / step)) < 1e-6;
+
+  // при малом θ: θ²/2 ≈ 1 − cosθ (ошибка ~θ⁴/24), поэтому вес считается без acos
+  const inv = 1 / (sigma * sigma);
+  // таблица cos ΔC для равномерной сетки (ΔC кратно шагу)
+  const cosTab = uniform ? Array.from({ length: nc }, (_, k) => Math.cos(k * step * RAD)) : [];
+
+  const value = (c: number, j: number): number => {
+    const g = vs[j];
+    const ic = uniform ? Math.round(c / step) : -1;
+    const onGrid = uniform && Math.abs(ic * step - c) < 1e-6;
+    let sw = 0;
+    let si = 0;
+    for (let j2 = 0; j2 < nv; j2++) {
+      if (Math.abs(vs[j2] - g) > cutDeg + EPS) continue;
+      const sMin = Math.min(sinV[j], sinV[j2]);
+      // sinθ ≥ sin(min γ)·sin|ΔC| — дальше этого ΔC направления заведомо дальше cut
+      const r = Math.sin(cut) / sMin;
+      const dcMax = !(sMin > 0) || r >= 1 ? 180 : Math.asin(r) * DEG + 1e-6;
+      const cc = cosV[j] * cosV[j2];
+      const ss = sinV[j] * sinV[j2];
+      const g2w = gw[j2];
+      if (onGrid) {
+        const half = Math.floor(nc / 2);
+        const kMax = dcMax >= 180 ? half : Math.min(half, Math.floor(dcMax / step));
+        const k0 = kMax * 2 === nc ? -kMax + 1 : -kMax; // ΔC = 180° не считать дважды
+        for (let k = k0; k <= kMax; k++) {
+          const cosT = cc + ss * cosTab[k < 0 ? k + nc : k];
+          if (cosT < cosCut) continue;
+          let i2 = ic + k;
+          if (i2 < 0) i2 += nc;
+          else if (i2 >= nc) i2 -= nc;
+          const w = Math.exp((cosT - 1) * inv) * cw[i2] * g2w;
+          sw += w;
+          si += w * full.candela[i2][j2];
+        }
+      } else {
+        for (let i2 = 0; i2 < nc; i2++) {
+          const cosT = cc + ss * Math.cos((cs[i2] - c) * RAD);
+          if (cosT < cosCut) continue;
+          const w = Math.exp((cosT - 1) * inv) * cw[i2] * g2w;
+          sw += w;
+          si += w * full.candela[i2][j2];
+        }
+      }
+    }
+    // у полюса зона узла нулевой ширины по γ может дать нулевой вес — берём исходное значение
+    return sw > 0 ? si / sw : intensityC(src, c, g);
+  };
+
+  const q = clonePhotometry(src);
+  q.candela = src.hAngles.map((c) => vs.map((_, j) => value(c, j)));
+  if (keepFlux) {
+    const f0 = computeFlux(src).total;
+    const f1 = computeFlux(q).total;
+    if (f0 > 0 && f1 > 0) q.candela = q.candela.map((row) => row.map((x) => (x * f0) / f1));
+  }
+  resetRatios(q, issues);
+  return { photometry: q, issues };
+}
+
 // ——— диспетчер ———
 
 /**
@@ -473,6 +570,8 @@ function runOp(p: Photometry, spec: OpSpec): OpResult {
       return symmetrize(p, spec.symmetry);
     case 'regrid':
       return regrid(p, spec.cStep, spec.gStep, spec.gRange);
+    case 'smooth':
+      return smooth(p, spec.width, spec.keepFlux ?? true);
   }
 }
 

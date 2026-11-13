@@ -112,8 +112,10 @@ export default function Body3D({ photometry, scale, planes, wireframe = false, v
       const o = new CSS2DObject(d);
       o.position.copy(p);
       axes.add(o);
+      axisLabels.push({ el: d, dir: p.clone().normalize() });
       return d;
     };
+    const axisLabels: Array<{ el: HTMLDivElement; dir: THREE.Vector3 }> = [];
     const L = 1.26;
     label('C0 · X', toThree(L, 0, 0), 'strong');
     label('C90 · Y', toThree(0, L, 0), 'strong');
@@ -130,7 +132,11 @@ export default function Body3D({ photometry, scale, planes, wireframe = false, v
     controls.enablePan = false;
     controls.minDistance = 1.2;
     controls.maxDistance = 20;
+    const view = new THREE.Vector3();
     const render = () => {
+      // подпись оси, направленной почти на зрителя, легла бы в центр поверх других — прячем
+      view.copy(camera.position).normalize();
+      for (const a of axisLabels) a.el.style.opacity = Math.abs(a.dir.dot(view)) > 0.94 ? '0' : '';
       renderer.render(scene, camera);
       labels.render(scene, camera);
     };
