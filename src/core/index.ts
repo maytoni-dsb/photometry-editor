@@ -45,3 +45,4 @@ export {
   type MirrorPlane,
   type GammaRange,
 } from './ops';
+export { beamAngles, planeAngles, type PlaneAngles } from './beam';

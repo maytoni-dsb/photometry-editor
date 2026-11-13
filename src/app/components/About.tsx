@@ -16,6 +16,7 @@ export function About({ onClose }: { onClose: () => void }) {
     [`${mod}Z`, t('about.keyUndo')],
     [mod === '⌘' ? '⇧⌘Z' : 'Ctrl+Y / Ctrl+Shift+Z', t('about.keyRedo')],
     ['Alt+↓ / Alt+↑', t('about.keyFiles')],
+    [`${mod}B`, t('menu.batchOpen').replace('…', '')],
     ['F1', t('menu.about')],
   ];
   return (

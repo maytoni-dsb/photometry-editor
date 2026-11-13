@@ -12,6 +12,8 @@ import { Passport } from './components/Passport';
 import { MaytoniLogo } from './components/MaytoniLogo';
 import { StyleEditor } from './components/StyleEditor';
 import { Body3DTab } from './components/Body3DTab';
+import { BatchPanel, type BatchInputFile, type BatchPreset } from './components/BatchPanel';
+import { droppedFiles } from './drop';
 import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
 import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, type OpenFile } from './doc';
 import { applyOp, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry } from '../core/index';
@@ -65,6 +67,18 @@ export default function App() {
   const [showFiles, setShowFiles] = useState(() => load('show-files', true));
   const [theme, setTheme] = useState<Theme>(() => load<Theme | null>('theme', null) ?? 'system');
   const [opKind, setOpKind] = useState<OpKind>('normalize');
+  // пакетная обработка (этап 5): окно не размонтируется, чтобы список файлов и ход работы сохранялись
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchMounted, setBatchMounted] = useState(false);
+  const [batchPreset, setBatchPreset] = useState<{ kind: BatchPreset; nonce: number }>({ kind: 'all', nonce: 0 });
+  const [batchIncoming, setBatchIncoming] = useState<{ files: BatchInputFile[]; nonce: number } | null>(null);
+  const batchOpenRef = useRef(false);
+  batchOpenRef.current = batchOpen;
+  const openBatch = (kind: BatchPreset) => {
+    setBatchMounted(true);
+    setBatchOpen(true);
+    setBatchPreset((p) => ({ kind, nonce: p.nonce + 1 }));
+  };
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -117,7 +131,14 @@ export default function App() {
     const drop = (e: DragEvent) => {
       e.preventDefault();
       setDragging(false);
-      if (e.dataTransfer?.files.length) void addFiles(e.dataTransfer.files);
+      const dt = e.dataTransfer;
+      if (!dt) return;
+      // окно пакета открыто — файлы и папки идут в пакет, а не в редактор
+      if (batchOpenRef.current) {
+        void droppedFiles(dt).then((files) => setBatchIncoming((x) => ({ files, nonce: (x?.nonce ?? 0) + 1 })));
+        return;
+      }
+      if (dt.files.length) void addFiles(dt.files);
     };
     window.addEventListener('dragover', over);
     window.addEventListener('dragleave', leave);
@@ -230,6 +251,11 @@ export default function App() {
     } else if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       e.preventDefault();
       step(e.key === 'ArrowDown' ? 1 : -1);
+    } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      openBatch('all');
+    } else if (e.key === 'Escape' && batchOpen && !styleOpen) {
+      setBatchOpen(false);
     } else if (e.key === 'F1') {
       e.preventDefault();
       setAboutOpen(true);
@@ -322,6 +348,18 @@ export default function App() {
           submenu: [90, -90, 180].map((a) => ({ label: `${a > 0 ? '+' : '−'}${Math.abs(a)}°`, onClick: () => quickOp({ op: 'rotate', axis: 'z', angle: a }) })),
         },
         { label: t('menu.normalize1000'), disabled: !active, onClick: () => quickOp({ op: 'normalize', mode: 'cdklm' }) },
+      ],
+    },
+    {
+      id: 'batch',
+      label: t('menu.batch'),
+      items: [
+        { label: t('menu.batchOpen'), shortcut: `${mod}B`, onClick: () => openBatch('all') },
+        'sep',
+        { label: t('menu.batchConvert'), onClick: () => openBatch('convert') },
+        { label: t('menu.batchVariants'), onClick: () => openBatch('variants') },
+        { label: t('menu.batchCharts'), onClick: () => openBatch('charts') },
+        { label: t('menu.batchSummary'), onClick: () => openBatch('summary') },
       ],
     },
     {
@@ -499,7 +537,7 @@ export default function App() {
       </div>
 
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
-      {styleOpen && (
+      {styleOpen && !batchOpen && (
         <StyleEditor
           style={style}
           onChange={setStyle}
@@ -508,7 +546,24 @@ export default function App() {
           onClose={() => setStyleOpen(false)}
         />
       )}
-      {dragging && <div className="drop-overlay">{t('drop.overlay')}</div>}
+      {batchMounted && (
+        <BatchPanel
+          open={batchOpen}
+          preset={batchPreset}
+          onClose={() => setBatchOpen(false)}
+          incoming={batchIncoming}
+          openFiles={files}
+          active={active}
+          settings={settings}
+          style={style}
+          fonts={fonts}
+          onOpenStyle={() => setStyleOpen(true)}
+        />
+      )}
+      {styleOpen && batchOpen && (
+        <StyleEditor style={style} onChange={setStyle} fonts={fonts} onFonts={setFonts} onClose={() => setStyleOpen(false)} />
+      )}
+      {dragging && <div className="drop-overlay">{t(batchOpen ? 'batch.dropOverlay' : 'drop.overlay')}</div>}
     </div>
   );
 }

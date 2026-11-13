@@ -47,7 +47,9 @@ export type IssueCode =
   | 'op-resampled'
   | 'op-sum-offsets'
   | 'op-sum-resampled'
-  | 'op-ratios-reset';
+  | 'op-ratios-reset'
+  // пакетная обработка
+  | 'variant-beam-angle';
 
 export interface Issue {
   code: IssueCode;
@@ -102,6 +104,7 @@ const ru: Templates = {
   'op-sum-offsets': 'Смещения учтены в размерах светящей части; силы света сложены в дальней зоне',
   'op-sum-resampled': 'Сетки слагаемых разные — сумма посчитана на общей сетке C {cStep}°, γ {gStep}°',
   'op-ratios-reset': 'Коэффициенты использования LDT (строка 27) обнулены: после операции они неверны, расчёт — на этапе 6',
+  'variant-beam-angle': 'Вариант «{suffix}»: у лампы указан угол {angle}°, у исходного файла — {source}. Лампа с другим углом даёт другую КСС — масштабированием её не получить, нужен отдельный замер',
 };
 
 const en: Templates = {
@@ -143,6 +146,7 @@ const en: Templates = {
   'op-sum-offsets': 'Offsets are applied to the luminous dimensions; intensities are summed in the far field',
   'op-sum-resampled': 'Component grids differ — the sum uses a common grid C {cStep}°, γ {gStep}°',
   'op-ratios-reset': 'LDT utilisation ratios (line 27) cleared: they are no longer valid after the operation',
+  'variant-beam-angle': 'Variant "{suffix}": the lamp has a {angle}° beam, the source file — {source}. A different beam gives a different distribution; scaling cannot produce it — a separate measurement is needed',
 };
 
 const de: Templates = {
@@ -184,6 +188,7 @@ const de: Templates = {
   'op-sum-offsets': 'Versätze sind in den Abmessungen der leuchtenden Fläche berücksichtigt; Lichtstärken im Fernfeld addiert',
   'op-sum-resampled': 'Raster der Summanden unterschiedlich — Summe auf gemeinsamem Raster C {cStep}°, γ {gStep}°',
   'op-ratios-reset': 'LDT-Raumwirkungsgrade (Zeile 27) zurückgesetzt: nach der Operation nicht mehr gültig',
+  'variant-beam-angle': 'Variante „{suffix}“: Lampe mit {angle}° Ausstrahlungswinkel, Ausgangsdatei — {source}. Ein anderer Winkel ergibt eine andere LVK; durch Skalieren nicht erreichbar — eigene Messung nötig',
 };
 
 const templates: Record<Lang, Templates> = { ru, en, de };

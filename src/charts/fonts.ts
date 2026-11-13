@@ -158,3 +158,53 @@ export function textOutline(f: FkFont, text: string, x: number, y: number, sizeP
 export function canEmbed(f: FkFont): boolean {
   return !isCff(f);
 }
+
+/**
+ * WOFF 1.0 → обычный TTF/OTF (sfnt). Подмножество для PDF fontkit собирает из WOFF в десятки раз
+ * медленнее (таблицы распаковываются заново), поэтому в пакетной выгрузке встроенный Roboto
+ * один раз распаковывается. Другие форматы возвращаются как есть.
+ */
+export async function woffToSfnt(bytes: Uint8Array): Promise<Uint8Array> {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (bytes.length < 44 || dv.getUint32(0) !== 0x774f4646) return bytes; // 'wOFF'
+  const flavor = dv.getUint32(4);
+  const n = dv.getUint16(12);
+  const tables: Array<{ tag: number; checksum: number; data: Uint8Array }> = [];
+  for (let i = 0; i < n; i++) {
+    const o = 44 + i * 20;
+    const tag = dv.getUint32(o);
+    const offset = dv.getUint32(o + 4);
+    const compLength = dv.getUint32(o + 8);
+    const origLength = dv.getUint32(o + 12);
+    const checksum = dv.getUint32(o + 16);
+    let data = bytes.subarray(offset, offset + compLength);
+    if (compLength < origLength) {
+      const ds = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
+      data = new Uint8Array(await new Response(ds).arrayBuffer());
+    }
+    tables.push({ tag, checksum, data });
+  }
+  let entrySelector = 0;
+  while (2 ** (entrySelector + 1) <= n) entrySelector++;
+  const searchRange = 2 ** entrySelector * 16;
+  let size = 12 + 16 * n;
+  for (const t of tables) size += (t.data.length + 3) & ~3;
+  const out = new Uint8Array(size);
+  const w = new DataView(out.buffer);
+  w.setUint32(0, flavor);
+  w.setUint16(4, n);
+  w.setUint16(6, searchRange);
+  w.setUint16(8, entrySelector);
+  w.setUint16(10, n * 16 - searchRange);
+  let off = 12 + 16 * n;
+  tables.forEach((t, i) => {
+    const o = 12 + i * 16;
+    w.setUint32(o, t.tag);
+    w.setUint32(o + 4, t.checksum);
+    w.setUint32(o + 8, off);
+    w.setUint32(o + 12, t.data.length);
+    out.set(t.data, off);
+    off += (t.data.length + 3) & ~3;
+  });
+  return out;
+}
