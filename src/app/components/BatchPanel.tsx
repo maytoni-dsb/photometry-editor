@@ -114,6 +114,8 @@ interface Props {
   /** Файлы, брошенные в окно или выбранные в папке (из App). */
   incoming: { files: BatchInputFile[]; nonce: number } | null;
   openFiles: OpenFile[];
+  /** Подключённая папка: все её файлы IES / LDT. */
+  folder: { name: string; count: number; files: () => Promise<BatchInputFile[]> } | null;
   active: OpenFile | null;
   settings: ChartSettings;
   style: ChartStyle;
@@ -121,7 +123,7 @@ interface Props {
   onOpenStyle: () => void;
 }
 
-export function BatchPanel({ open, preset, onClose, incoming, openFiles, active, settings, style, fonts, onOpenStyle }: Props) {
+export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder, active, settings, style, fonts, onOpenStyle }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Lang;
   const [inputs, setInputs] = useState<BatchInputFile[]>([]);
@@ -284,6 +286,11 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, active,
               <button className="btn small" disabled={!openFiles.length} onClick={() => addFiles(openFiles.map(openFileToInput))} title={openFiles.some(isModified) ? t('batch.takeOpenModified') : ''}>
                 {t('batch.takeOpen', { n: openFiles.length })}
               </button>
+              {folder && (
+                <button className="btn small" disabled={!folder.count} onClick={() => void folder.files().then(addFiles)}>
+                  {t('batch.takeFolder', { name: folder.name, n: folder.count })}
+                </button>
+              )}
               {inputs.length > 0 && <button className="link small" disabled={running} onClick={() => { setInputs([]); setResult(null); }}>{t('batch.clear')}</button>}
               <input ref={filesRef} type="file" multiple accept=".ies,.ldt,.IES,.LDT" hidden onChange={(e) => { addFiles([...(e.target.files ?? [])].map((f) => ({ name: f.name, file: f }))); e.target.value = ''; }} />
               <input

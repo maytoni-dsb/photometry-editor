@@ -118,26 +118,85 @@ export const createCameraLink = (): CameraLink => ({ subs: new Set() });
 export type View3D = 'iso' | 'front' | 'side' | 'below' | 'above';
 export const VIEWS: View3D[] = ['iso', 'front', 'side', 'below', 'above'];
 
-/** Цвет по относительной силе света: бледно-жёлтый (как заливка каталога) → оранжевый → тёмно-красный. */
-const STOPS: Array<[number, [number, number, number]]> = [
-  [0, [1.0, 0.99, 0.86]],
-  [0.5, [1.0, 0.78, 0.3]],
-  [0.85, [0.93, 0.42, 0.14]],
-  [1, [0.75, 0.18, 0.1]],
-];
-
-export function rampColor(t: number): [number, number, number] {
-  const x = Math.min(1, Math.max(0, t));
-  for (let i = 1; i < STOPS.length; i++) {
-    const [t1, c1] = STOPS[i];
-    const [t0, c0] = STOPS[i - 1];
-    if (x <= t1) {
-      const u = (x - t0) / (t1 - t0 || 1);
-      return [c0[0] + (c1[0] - c0[0]) * u, c0[1] + (c1[1] - c0[1]) * u, c0[2] + (c1[2] - c0[2]) * u];
+/**
+ * Сетка тела (вид «mesh», без условных цветов): меридианы — плоскости C через cEvery°,
+ * параллели — конусы γ через gEvery°. Отрезки парами точек (x, y, z), фотометрические оси.
+ */
+export function meshLines(p: Photometry, scale: number, cEvery = 15, gEvery = 10): Float32Array {
+  const s = scale > 0 ? scale : 1;
+  const pts: number[] = [];
+  const point = (c: number, g: number): [number, number, number] => {
+    const r = Math.max(0, bodyIntensity(p, c, g)) / s;
+    const sg = Math.sin(g * RAD);
+    return [r * sg * Math.cos(c * RAD), r * sg * Math.sin(c * RAD), -r * Math.cos(g * RAD)];
+  };
+  const seg = (a: [number, number, number], b: [number, number, number]) => {
+    // нулевые отрезки (тело стянулось в центр) не рисуем
+    if (Math.hypot(a[0], a[1], a[2]) < 1e-6 && Math.hypot(b[0], b[1], b[2]) < 1e-6) return;
+    pts.push(...a, ...b);
+  };
+  for (let c = 0; c < 360 - 1e-9; c += cEvery) {
+    let prev = point(c, 0);
+    for (let g = 1; g <= 180; g += 1) {
+      const cur = point(c, g);
+      seg(prev, cur);
+      prev = cur;
     }
   }
-  return STOPS[STOPS.length - 1][1];
+  for (let g = gEvery; g < 180 - 1e-9; g += gEvery) {
+    let prev = point(0, g);
+    for (let c = 2; c <= 360; c += 2) {
+      const cur = point(c, g);
+      seg(prev, cur);
+      prev = cur;
+    }
+  }
+  return new Float32Array(pts);
 }
 
-/** Та же шкала для легенды (CSS-градиент). */
-export const RAMP_CSS = `linear-gradient(90deg, ${STOPS.map(([t, c]) => `rgb(${c.map((v) => Math.round(v * 255)).join(',')}) ${t * 100}%`).join(', ')})`;
+/** Шаг меридианов сетки: шаг плоскостей файла, но не мельче 10° и не крупнее 30°, делитель 360. */
+export function meshCStep(p: Photometry): number {
+  const axial = p.symmetry === 'axial' || p.hAngles.length === 1;
+  const want = axial ? 15 : Math.min(30, Math.max(10, minGap(p.hAngles)));
+  return fit(360, want, 10);
+}
+
+/** Корпус светильника для 3D-вида, в единицах тела (радиус 1 = масштаб силы света). */
+export interface HousingBox {
+  shape: 'rect' | 'circle';
+  /** Вдоль C0 (X), поперёк (Y, для круга = length), высота (вверх от светящей части). */
+  length: number;
+  width: number;
+  height: number;
+  /** Светящая часть на нижней грани (LDT); null — не показывать. */
+  luminous: { shape: 'rect' | 'circle'; length: number; width: number } | null;
+  /** Миллиметров на единицу тела — для подписи масштаба. */
+  mmPerUnit: number;
+}
+
+/**
+ * Корпус в масштабе тела: размеры в мм и силы света в кд несоизмеримы, поэтому наибольший размер
+ * корпуса делается долей radiusShare радиуса тела — корпус виден, но не заслоняет тело.
+ * IES хранит только размеры светящей части — она и показывается как корпус.
+ */
+export function housingBox(p: Photometry, radiusShare = 0.32): HousingBox | null {
+  const ldt = p.source.format === 'LDT' || (p.luminaire.length > 0 && p.luminaire.shape !== 'point');
+  const body = ldt && p.luminaire.length > 0 ? p.luminaire : p.luminous;
+  if (body.shape === 'point' || !(body.length > 0)) return null;
+  const circle = body.shape === 'circle';
+  const L = body.length;
+  const W = circle ? body.length : body.width;
+  const H = body.height;
+  const k = radiusShare / Math.max(L, W || 0, H || 0);
+  const lum = ldt && body === p.luminaire && p.luminous.length > 0 && p.luminous.shape !== 'point' ? p.luminous : null;
+  return {
+    shape: circle ? 'circle' : 'rect',
+    length: L * k,
+    width: (W || L * 0.05) * k,
+    height: Math.max(H * k, 0.004),
+    luminous: lum
+      ? { shape: lum.shape === 'circle' ? 'circle' : 'rect', length: lum.length * k, width: (lum.shape === 'circle' ? lum.length : lum.width) * k }
+      : null,
+    mmPerUnit: 1 / k,
+  };
+}

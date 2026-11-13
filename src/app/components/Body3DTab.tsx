@@ -1,6 +1,6 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RAMP_CSS, VIEWS, type View3D } from '../../charts/body3d';
+import { housingBox, VIEWS, type View3D } from '../../charts/body3d';
 import { defaultPlanes } from '../../charts/series';
 import type { Lang } from '../../core/index';
 import type { ChartSettings } from '../App';
@@ -24,20 +24,6 @@ export function ViewButtons({ onView }: { onView: (v: View3D) => void }) {
   );
 }
 
-export function RampLegend() {
-  const { t } = useTranslation();
-  return (
-    <div className="b3d-legend">
-      <div className="b3d-ramp" style={{ background: RAMP_CSS }} />
-      <div className="b3d-ramp-labels muted small">
-        <span>0</span>
-        <span>50 %</span>
-        <span>{t('b3d.peak')}</span>
-      </div>
-    </div>
-  );
-}
-
 export function Fallback({ height }: { height: number }) {
   const { t } = useTranslation();
   return <div className="b3d b3d-loading muted" style={{ height }}>{t('b3d.loading')}</div>;
@@ -48,7 +34,8 @@ export function Body3DTab({ file, settings }: { file: OpenFile; settings: ChartS
   const lang = i18n.language as Lang;
   const [view, setView] = useState<View3D>('iso');
   const [nonce, setNonce] = useState(0);
-  const [wire, setWire] = useState(() => load('b3d-wire', false));
+  const [showHousing, setShowHousing] = useState(() => load('b3d-housing', true));
+  const housing = useMemo(() => housingBox(file.parse.photometry), [file.parse.photometry]);
   const s = file.summary;
   const planes = settings.planes ?? defaultPlanes(file.parse.photometry);
   const n = (x: number, d = 0) => x.toLocaleString(lang, { maximumFractionDigits: d });
@@ -64,14 +51,13 @@ export function Body3DTab({ file, settings }: { file: OpenFile; settings: ChartS
         </fieldset>
         <fieldset>
           <label className="check">
-            <input type="checkbox" checked={wire} onChange={(e) => { setWire(e.target.checked); save('b3d-wire', e.target.checked); }} />
-            {t('b3d.wireframe')}
+            <input type="checkbox" checked={showHousing} disabled={!housing} onChange={(e) => { setShowHousing(e.target.checked); save('b3d-housing', e.target.checked); }} />
+            {t('b3d.housing')}
           </label>
+          <p className="muted small">{housing ? t('b3d.housingNote') : t('b3d.noHousing')}</p>
           <p className="muted small">{t('b3d.planesNote', { planes: planes.map((c) => `C${c}–C${(c + 180) % 360}`).join(', ') })}</p>
         </fieldset>
         <fieldset>
-          <legend>{t('b3d.colors')}</legend>
-          <RampLegend />
           <p className="muted small">
             Iₘₐₓ = {n(s.peak.value)} {t('unit.cd')} · C{n(s.peak.c, 1)} γ{n(s.peak.g, 1)}° · Φ = {n(s.flux.total)} {t('unit.lm')}
           </p>
@@ -80,7 +66,7 @@ export function Body3DTab({ file, settings }: { file: OpenFile; settings: ChartS
       </aside>
       <div className="chart-stage b3d-stage">
         <Suspense fallback={<Fallback height={620} />}>
-          <Body3D photometry={s.asC} planes={planes} wireframe={wire} view={view} viewNonce={nonce} height={620} />
+          <Body3D photometry={s.asC} planes={planes} housing={showHousing ? housing : null} view={view} viewNonce={nonce} height={620} />
         </Suspense>
       </div>
     </div>

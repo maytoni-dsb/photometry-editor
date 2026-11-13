@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatIssue, type Dimensions, type Lang } from '../../core/index';
 import { saveAs } from '../actions';
+import { LuminaireDrawing } from './LuminaireDrawing';
 import type { OpenFile } from '../doc';
 
 function num(lang: string, x: number | null | undefined, digits = 1): string {
@@ -115,6 +116,11 @@ export function Passport({ file }: { file: OpenFile }) {
           [t('passport.dimsLuminous'), dims(p.luminous)],
           ...(p.ldt ? [[t('passport.luminousHeights'), p.ldt.luminousHeights.map((h) => n(h)).join(' / ')]] as Array<[string, string]> : []),
         ])}
+
+        <section className="card drawing-card">
+          <h3>{t('drawing.title')}</h3>
+          <LuminaireDrawing photometry={p} />
+        </section>
 
         {section(t('passport.file'), [
           [t('passport.fileName'), file.name],

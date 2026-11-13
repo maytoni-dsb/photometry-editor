@@ -12,7 +12,7 @@ import type { ColorMode } from '../../charts/vector';
 import type { Lang } from '../../core/issues';
 import type { ChartSettings } from '../App';
 import { baseName, type OpenFile } from '../doc';
-import type { LoadedFonts } from '../fonts';
+import { screenFamily, type LoadedFonts } from '../fonts';
 import { FontConnect } from './FontConnect';
 import type { ExportFormat } from '../actions';
 import { renderPng } from '../png';
@@ -61,7 +61,7 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
     const opts = { ...settings, planes, width: kind === 'polar' ? settings.width : settings.linearWidth };
     return kind === 'polar' ? buildPolar(p, file.summary, opts, style, measure) : buildLinear(p, file.summary, opts, style, measure);
   }, [kind, p, file.summary, settings, planes, style, measure]);
-  const svg = useMemo(() => renderSvg(scene), [scene]);
+  const svg = useMemo(() => renderSvg(scene, { screenFamily: screenFamily(fonts) }), [scene, fonts]);
 
   const fileBase = safeFileName(`${baseName(file.name)}_${kind}`);
 

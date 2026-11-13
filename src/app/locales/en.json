@@ -17,7 +17,27 @@
     "close": "Close",
     "closeAll": "Close all",
     "issues": "{{count}} issues",
-    "modified": "Modified, not saved"
+    "modified": "Modified, not saved",
+    "openFiles": "Files…",
+    "connectFolder": "Folder…",
+    "disconnect": "Disconnect folder",
+    "live": "live",
+    "snapshot": "snapshot",
+    "liveHint": "Folder connected: new, changed and deleted files appear in the list at once",
+    "snapshotHint": "This browser cannot watch a folder — the list is as it was when chosen. In Chrome and Edge the folder updates itself.",
+    "needPermission": "After reloading the page the browser asks to confirm access to the folder.",
+    "grant": "Allow access",
+    "filter": "Find in folder…",
+    "noMatch": "Nothing found",
+    "folderEmpty": "No IES / LDT files in the folder",
+    "opened": "Open",
+    "openedAll": "Open files",
+    "emptyHint": "Open files or connect a folder — its IES / LDT files appear here and stay up to date.",
+    "miniTitle": "Distribution",
+    "miniOriginal": "original, before operations",
+    "disk_changed": "The file changed in the folder while it has unsaved edits here",
+    "disk_removed": "The file was deleted from the folder",
+    "folderError": "Could not open the folder: {{msg}}"
   },
   "tabs": {
     "passport": "Data sheet",
@@ -341,7 +361,11 @@
     "smoothWidth": "Kernel width",
     "keepFlux": "Keep flux",
     "smoothNote": "Gaussian smoothing on the sphere: each value becomes an average of neighbouring directions weighted by angular distance. The width is the kernel FWHM: details narrower than it (noise, measurement ripple) are smoothed out, a narrow beam peak drops slightly. Grid and symmetry stay the same.",
-    "smoothNarrow": "The width does not exceed the grid step (C {{c}}°, γ {{g}}°) — neighbouring nodes barely contribute, there will be no effect. Refine the grid first or increase the width."
+    "smoothNarrow": "The width does not exceed the grid step (C {{c}}°, γ {{g}}°) — neighbouring nodes barely contribute, there will be no effect. Refine the grid first or increase the width.",
+    "wmode_k": "Weight",
+    "wmode_flux": "Flux, lm",
+    "weightFluxHint": "Component flux: {{v}} lm",
+    "weightKHint": "Own flux {{own}} lm → weight {{k}}"
   },
   "b3d": {
     "title": "3D photometric body",
@@ -357,13 +381,13 @@
     "viewHint_below": "From below the luminaire, along the nadir",
     "viewHint_above": "From above",
     "mouse": "Mouse: drag to rotate, wheel to zoom.",
-    "wireframe": "Show mesh",
     "planesNote": "Outlined planes: {{planes}} (as on the polar curve: the first one solid).",
-    "colors": "Colour — intensity",
-    "peak": "peak",
-    "note": "The distance from the centre to the surface is proportional to the intensity in that direction.",
+    "note": "The distance from the centre to the surface is proportional to the intensity in that direction. Mesh: C-planes and γ-cones every 10°.",
     "nadir": "nadir",
-    "loading": "Loading 3D…"
+    "loading": "Loading 3D…",
+    "housing": "Luminaire housing",
+    "housingNote": "Housing and luminous area are drawn from the file dimensions. Millimetres and candelas are not comparable, so the largest housing dimension is shown as a third of the body radius.",
+    "noHousing": "The file has no luminaire dimensions."
   },
   "batch": {
     "summaryFile": "Summary",
@@ -501,6 +525,18 @@
     "saveZip": "Save ZIP archive…",
     "again": "Change settings",
     "zipName": "Batch",
-    "varAngleNote": "Lamps {{list}} have a beam angle. Scaling keeps the same distribution: if the angle differs from the lamp in the source measurement, a separate measurement is needed — such variants are flagged in the summary table."
+    "varAngleNote": "Lamps {{list}} have a beam angle. Scaling keeps the same distribution: if the angle differs from the lamp in the source measurement, a separate measurement is needed — such variants are flagged in the summary table.",
+    "takeFolder": "From folder \"{{name}}\" ({{n}})"
+  },
+  "drawing": {
+    "title": "Drawing",
+    "none": "The file has no luminaire dimensions.",
+    "below": "From below",
+    "fromC270": "From C270",
+    "fromC0": "From C0",
+    "luminous": "luminous area {{l}} × {{w}} mm",
+    "heights": "heights at C0 / C90 / C180 / C270: {{h}} mm",
+    "iesNote": "IES holds only the luminous dimensions — they are shown.",
+    "noLuminous": "The file has no luminous dimensions."
   }
 }

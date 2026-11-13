@@ -28,10 +28,10 @@ import {
 } from '../../core/index';
 import type { ChartSettings } from '../App';
 import { baseName, type OpenFile } from '../doc';
-import type { LoadedFonts } from '../fonts';
-import { createCameraLink, type View3D } from '../../charts/body3d';
+import { screenFamily, type LoadedFonts } from '../fonts';
+import { createCameraLink, housingBox, type View3D } from '../../charts/body3d';
 import { load, save } from '../storage';
-import { Body3D, Fallback, RampLegend, ViewButtons } from './Body3DTab';
+import { Body3D, Fallback, ViewButtons } from './Body3DTab';
 
 export type OpKind = 'normalize' | 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'regrid' | 'sum';
 export const OP_KINDS: OpKind[] = ['normalize', 'mirror', 'rotate', 'symmetrize', 'smooth', 'regrid', 'sum'];
@@ -40,7 +40,10 @@ type SymTarget = Exclude<Symmetry, 'bilateral'>;
 
 interface SumRow {
   on: boolean;
+  /** Как задан вес: коэффициентом или потоком слагаемого (лм). */
+  wmode: 'k' | 'flux';
   weight: string;
+  flux: string;
   rx: string;
   ry: string;
   rz: string;
@@ -66,6 +69,13 @@ interface Props {
 const num = (s: string) => (s.trim() === '' ? NaN : Number(s.replace(',', '.')));
 const fmtNum = (lang: string, x: number, d = 1) => x.toLocaleString(lang, { maximumFractionDigits: d });
 const signed = (lang: string, x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${fmtNum(lang, Math.abs(x), 2)}°`;
+
+/** Вес слагаемого: коэффициент или «поток слагаемого / его расчётный поток» (поворот поток не меняет). */
+function sumWeight(f: OpenFile, r: SumRow): number {
+  if (r.wmode === 'k') return num(r.weight);
+  const own = f.summary.flux.total;
+  return own > 0 ? num(r.flux) / own : NaN;
+}
 
 /** Название шага для истории (на языке интерфейса). */
 export function opLabel(t: (k: string, o?: Record<string, unknown>) => string, lang: string, spec: OpSpec): string {
@@ -116,7 +126,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const link = useMemo(createCameraLink, []);
 
   const row = (f: OpenFile): SumRow =>
-    sumRows[f.id] ?? { on: f.id === file.id, weight: '1', rx: '0', ry: '0', rz: '0', ox: '0', oy: '0', oz: '0' };
+    sumRows[f.id] ?? { on: f.id === file.id, wmode: 'k', weight: '1', flux: String(Math.round(f.summary.flux.total)), rx: '0', ry: '0', rz: '0', ox: '0', oy: '0', oz: '0' };
   const setRow = (id: string, patch: Partial<SumRow>) => {
     const f = files.find((x) => x.id === id)!;
     setSumRows({ ...sumRows, [id]: { ...row(f), ...patch } });
@@ -151,7 +161,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
         return {
           name: baseName(f.name),
           photometry: f.parse.photometry,
-          weight: num(r.weight),
+          weight: sumWeight(f, r),
           rotations,
           offset: { x: num(r.ox) || 0, y: num(r.oy) || 0, z: num(r.oz) || 0 },
         };
@@ -183,9 +193,12 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     return [...set].sort((a, b) => a - b).slice(0, 6);
   }, [p, ok]);
   const chart = (ph: Photometry, sm: PhotometrySummary) =>
-    renderSvg(buildPolar(ph, sm, { ...settings, planes, width: settings.width, title: '' }, style, measure));
+    renderSvg(buildPolar(ph, sm, { ...settings, planes, width: settings.width, title: '' }, style, measure), { screenFamily: screenFamily(fonts) });
   const before = useMemo(() => chart(p, s), [p, s, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
   const after = useMemo(() => (ok ? chart(ok.p, ok.summary) : null), [ok, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const housingBefore = useMemo(() => housingBox(p), [p]);
+  const housingAfter = useMemo(() => (ok ? housingBox(ok.p) : null), [ok]);
 
   // общий масштаб 3D: радиус 1 — наибольший из двух максимумов, чтобы было видно изменение величины
   const scale3d = Math.max(s.peak.value, ok?.summary.peak.value ?? 0) || 1;
@@ -222,9 +235,57 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const cur = file.past.length;
 
   return (
-    <div className="chart-view ops-view">
-      <aside className="chart-settings">
-        <h3>{t('ops.title')}</h3>
+    <div className="ops-layout">
+      <div className="ops-main">
+        <div className="ops-stage">
+        <div className="ops-toolbar">
+          <div className="seg">
+            {(['2d', '3d'] as const).map((m) => (
+              <button key={m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); save('ops-preview', m); }}>
+                {t(`ops.preview_${m}`)}
+              </button>
+            ))}
+          </div>
+          {mode === '3d' && <ViewButtons onView={(v) => { setView(v); setNonce(nonce + 1); }} />}
+        </div>
+        <div className="ops-pair">
+          <figure>
+            <figcaption>{t('ops.before')}</figcaption>
+            {mode === '2d' ? (
+              <div className="paper" dangerouslySetInnerHTML={{ __html: before }} />
+            ) : (
+              <Suspense fallback={<Fallback height={400} />}>
+                <Body3D photometry={s.asC} scale={scale3d} planes={planes} housing={housingBefore} view={view} viewNonce={nonce} link={link} height={400} />
+              </Suspense>
+            )}
+            {stats(s, p)}
+          </figure>
+          <figure>
+            <figcaption>{t('ops.after')}</figcaption>
+            {ok && (mode === '3d' || after) ? (
+              <>
+                {mode === '2d' ? (
+                  <div className="paper" dangerouslySetInnerHTML={{ __html: after! }} />
+                ) : (
+                  <Suspense fallback={<Fallback height={400} />}>
+                    <Body3D photometry={ok.summary.asC} scale={scale3d} planes={planes} housing={housingAfter} view={view} viewNonce={nonce} link={link} height={400} />
+                  </Suspense>
+                )}
+                {stats(ok.summary, ok.p)}
+              </>
+            ) : (
+              <div className="paper empty-preview">{preview && 'error' in preview ? preview.error : '—'}</div>
+            )}
+          </figure>
+        </div>
+        {mode === '3d' && (
+          <div className="ops-3dnote">
+            <p className="muted small">{t('ops.preview3dNote')}</p>
+          </div>
+        )}
+        </div>
+        <section className="ops-editor">
+          <h3>{t('ops.title')}</h3>
         <div className="opkinds" role="tablist">
           {OP_KINDS.map((k) => (
             <button key={k} role="tab" aria-selected={op === k} className={op === k ? 'opkind on' : 'opkind'} onClick={() => onOp(k)}>
@@ -363,7 +424,23 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
                       </label>
                       {r.on && (
                         <div className="sumfields">
-                          <label>{t('ops.weight')}<input type="number" step="any" min={0} value={r.weight} onChange={(e) => setRow(f.id, { weight: e.target.value })} /></label>
+                          <div className="sumweight">
+                            <div className="seg small">
+                              {(['k', 'flux'] as const).map((m) => (
+                                <button key={m} className={r.wmode === m ? 'on' : ''} onClick={() => setRow(f.id, { wmode: m })}>{t(`ops.wmode_${m}`)}</button>
+                              ))}
+                            </div>
+                            {r.wmode === 'k' ? (
+                              <input type="number" step="any" min={0} value={r.weight} onChange={(e) => setRow(f.id, { weight: e.target.value })} aria-label={t('ops.weight')} />
+                            ) : (
+                              <input type="number" step="any" min={0} value={r.flux} onChange={(e) => setRow(f.id, { flux: e.target.value })} aria-label={t('ops.wmode_flux')} />
+                            )}
+                            <span className="muted small">
+                              {r.wmode === 'k'
+                                ? t('ops.weightFluxHint', { v: fmtNum(lang, (num(r.weight) || 0) * f.summary.flux.total, 0) })
+                                : t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f, r) || 0, 3) })}
+                            </span>
+                          </div>
                           {(['rx', 'ry', 'rz'] as const).map((k) => (
                             <label key={k}>{t('ops.rot')} {k[1].toUpperCase()}, °<input type="number" step="any" value={r[k]} onChange={(e) => setRow(f.id, { [k]: e.target.value })} /></label>
                           ))}
@@ -393,6 +470,9 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           </button>
         </div>
 
+        </section>
+      </div>
+      <aside className="ops-history">
         <fieldset className="history">
           <legend>{t('ops.history')}</legend>
           <ol>
@@ -407,55 +487,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           <p className="muted small">{t('ops.historyNote')}</p>
         </fieldset>
       </aside>
-
-      <div className="chart-stage ops-stage">
-        <div className="ops-toolbar">
-          <div className="seg">
-            {(['2d', '3d'] as const).map((m) => (
-              <button key={m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); save('ops-preview', m); }}>
-                {t(`ops.preview_${m}`)}
-              </button>
-            ))}
-          </div>
-          {mode === '3d' && <ViewButtons onView={(v) => { setView(v); setNonce(nonce + 1); }} />}
-        </div>
-        <div className="ops-pair">
-          <figure>
-            <figcaption>{t('ops.before')}</figcaption>
-            {mode === '2d' ? (
-              <div className="paper" dangerouslySetInnerHTML={{ __html: before }} />
-            ) : (
-              <Suspense fallback={<Fallback height={400} />}>
-                <Body3D photometry={s.asC} scale={scale3d} planes={planes} view={view} viewNonce={nonce} link={link} height={400} />
-              </Suspense>
-            )}
-            {stats(s, p)}
-          </figure>
-          <figure>
-            <figcaption>{t('ops.after')}</figcaption>
-            {ok && (mode === '3d' || after) ? (
-              <>
-                {mode === '2d' ? (
-                  <div className="paper" dangerouslySetInnerHTML={{ __html: after! }} />
-                ) : (
-                  <Suspense fallback={<Fallback height={400} />}>
-                    <Body3D photometry={ok.summary.asC} scale={scale3d} planes={planes} view={view} viewNonce={nonce} link={link} height={400} />
-                  </Suspense>
-                )}
-                {stats(ok.summary, ok.p)}
-              </>
-            ) : (
-              <div className="paper empty-preview">{preview && 'error' in preview ? preview.error : '—'}</div>
-            )}
-          </figure>
-        </div>
-        {mode === '3d' && (
-          <div className="ops-3dnote">
-            <RampLegend />
-            <p className="muted small">{t('ops.preview3dNote')}</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

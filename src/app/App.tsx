@@ -14,6 +14,23 @@ import { StyleEditor } from './components/StyleEditor';
 import { Body3DTab } from './components/Body3DTab';
 import { BatchPanel, type BatchInputFile, type BatchPreset } from './components/BatchPanel';
 import { droppedFiles } from './drop';
+import { Sidebar } from './components/Sidebar';
+import {
+  canWatchFolders,
+  diffEntries,
+  entriesFromFiles,
+  entryBlob,
+  folderPermission,
+  pickFolder,
+  readEntry,
+  recallFolder,
+  rememberFolder,
+  scanFolder,
+  watchFolder,
+  type FolderDiff,
+  type FolderEntry,
+  type FolderState,
+} from './folder';
 import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
 import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, type OpenFile } from './doc';
 import { applyOp, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry } from '../core/index';
@@ -80,6 +97,12 @@ export default function App() {
     setBatchPreset((p) => ({ kind, nonce: p.nonce + 1 }));
   };
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  // подключённая папка (п. 1 правок 13.11): список слева обновляется, когда в папке что-то меняется
+  const [folder, setFolder] = useState<FolderState | null>(null);
+  const folderRef = useRef(folder);
+  folderRef.current = folder;
+  const filesRef = useRef<OpenFile[]>([]);
 
   useEffect(() => {
     loadFonts().then(setFonts, (e) => setErrors((x) => [...x, String(e)]));
@@ -118,6 +141,17 @@ export default function App() {
     }
   }, [t]);
 
+  // ——— подключённая папка
+  const attachFolder = useCallback(async (h: FileSystemDirectoryHandle, remember = true) => {
+    try {
+      const entries = await scanFolder(h);
+      setFolder({ name: h.name, entries, live: true, handle: h });
+      if (remember) await rememberFolder(h);
+    } catch (e) {
+      setErrors([t('files.folderError', { msg: (e as Error).message })]);
+    }
+  }, [t]);
+
   useEffect(() => {
     const over = (e: DragEvent) => {
       if (e.dataTransfer?.types.includes('Files')) {
@@ -138,7 +172,29 @@ export default function App() {
         void droppedFiles(dt).then((files) => setBatchIncoming((x) => ({ files, nonce: (x?.nonce ?? 0) + 1 })));
         return;
       }
-      if (dt.files.length) void addFiles(dt.files);
+      // папка: в Chrome / Edge подключается с отслеживанием, иначе — снимок её файлов
+      const items = [...dt.items];
+      const handles = items.map((it) => (it as DataTransferItem & { getAsFileSystemHandle?: () => Promise<FileSystemHandle | null> }).getAsFileSystemHandle?.());
+      const isDir = items.some((it) => (it as DataTransferItem & { webkitGetAsEntry?: () => { isDirectory: boolean } | null }).webkitGetAsEntry?.()?.isDirectory);
+      if (!isDir) {
+        if (dt.files.length) void addFiles(dt.files);
+        return;
+      }
+      // записи перетаскивания доступны только синхронно, поэтому снимок начинаем сразу, если он понадобится
+      const watch = canWatchFolders() && !!handles[0];
+      const snapshot = watch ? null : droppedFiles(dt);
+      void (async () => {
+        if (watch) {
+          for (const p of handles) {
+            const h = await p;
+            if (h?.kind === 'directory') return attachFolder(h as FileSystemDirectoryHandle);
+          }
+          return;
+        }
+        const list = await snapshot!;
+        const root = list[0]?.path?.split('/')[0] ?? 'folder';
+        setFolder({ name: root, entries: entriesFromFiles(list), live: false });
+      })();
     };
     window.addEventListener('dragover', over);
     window.addEventListener('dragleave', leave);
@@ -148,7 +204,110 @@ export default function App() {
       window.removeEventListener('dragleave', leave);
       window.removeEventListener('drop', drop);
     };
-  }, [addFiles]);
+  }, [addFiles, attachFolder]);
+
+  filesRef.current = files;
+
+  // папка с прошлого раза: доступ остался — сразу, иначе — кнопка «Разрешить доступ»
+  useEffect(() => {
+    if (!canWatchFolders()) return;
+    void recallFolder().then(async (h) => {
+      if (!h) return;
+      if (await folderPermission(h)) await attachFolder(h, false);
+      else setFolder({ name: h.name, entries: [], live: true, needsPermission: true, handle: h });
+    });
+  }, [attachFolder]);
+
+  const connectFolder = async () => {
+    if (!canWatchFolders()) {
+      folderInputRef.current?.click();
+      return;
+    }
+    try {
+      const h = await pickFolder();
+      if (h) await attachFolder(h);
+    } catch (e) {
+      setErrors([t('files.folderError', { msg: (e as Error).message })]);
+    }
+  };
+  const grantFolder = async () => {
+    const h = folder?.handle;
+    if (h && (await folderPermission(h, true))) await attachFolder(h, false);
+  };
+  const disconnectFolder = () => {
+    setFolder(null);
+    void rememberFolder(null);
+    // файлы папки без правок закрываются, с правками — остаются в «Открытых»
+    setFiles((prev) => prev.filter((f) => !f.folderPath || isModified(f)).map((f) => (f.folderPath ? { ...f, folderPath: undefined } : f)));
+  };
+
+  /** Файл папки изменился или удалён на диске: открытый без правок — перечитываем / закрываем. */
+  const syncOpen = async (d: FolderDiff) => {
+    for (const e of d.changed) {
+      const f = filesRef.current.find((x) => x.folderPath === e.path);
+      if (!f) continue;
+      if (isModified(f)) {
+        setFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, disk: 'changed' } : x)));
+        continue;
+      }
+      try {
+        const fresh = openBytes(e.name, await readEntry(e));
+        setFiles((prev) => prev.map((x) => (x.id === f.id ? { ...fresh, id: f.id, folderPath: e.path } : x)));
+      } catch {
+        /* файл ещё записывается — прочитаем при следующем изменении */
+      }
+    }
+    for (const e of d.removed) {
+      const f = filesRef.current.find((x) => x.folderPath === e.path);
+      if (!f) continue;
+      if (isModified(f)) setFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, disk: 'removed', folderPath: undefined } : x)));
+      else close(f.id);
+    }
+  };
+  const syncRef = useRef(syncOpen);
+  syncRef.current = syncOpen;
+
+  useEffect(() => {
+    const h = folder?.live && !folder.needsPermission ? folder.handle : undefined;
+    if (!h) return;
+    let busy = false;
+    return watchFolder(h, async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const next = await scanFolder(h);
+        const cur = folderRef.current;
+        if (!cur || cur.handle !== h) return;
+        const d = diffEntries(cur.entries, next);
+        if (!d.added.length && !d.removed.length && !d.changed.length) return;
+        setFolder({ ...cur, entries: next });
+        await syncRef.current(d);
+      } catch {
+        /* папка недоступна (отключён диск) — попробуем в следующий раз */
+      } finally {
+        busy = false;
+      }
+    });
+  }, [folder?.handle, folder?.live, folder?.needsPermission]);
+
+  /**
+   * Открыть файл папки. Как предпросмотр: файлы папки без правок, кроме выбранного, закрываются —
+   * при просмотре большой папки в памяти не копятся сотни файлов.
+   */
+  const openEntry = async (e: FolderEntry) => {
+    const have = filesRef.current.find((f) => f.folderPath === e.path);
+    if (have) {
+      setActiveId(have.id);
+      return;
+    }
+    try {
+      const f = { ...openBytes(e.name, await readEntry(e)), folderPath: e.path };
+      setFiles((prev) => [...prev.filter((x) => !x.folderPath || isModified(x)), f]);
+      setActiveId(f.id);
+    } catch (err) {
+      setErrors([t('error.read', { name: e.path, msg: (err as Error).message })]);
+    }
+  };
 
   const close = (id: string) => {
     setFiles((prev) => {
@@ -215,6 +374,13 @@ export default function App() {
     setActiveId(null);
   };
   const step = (d: number) => {
+    // по файлам подключённой папки — подряд, как в проводнике
+    if (folder && active?.folderPath) {
+      const i = folder.entries.findIndex((e) => e.path === active.folderPath);
+      const next = folder.entries[i + d];
+      if (i >= 0 && next) void openEntry(next);
+      return;
+    }
     if (!files.length) return;
     const i = Math.max(0, files.findIndex((f) => f.id === activeId));
     setActiveId(files[(i + d + files.length) % files.length].id);
@@ -274,6 +440,8 @@ export default function App() {
       label: t('menu.file'),
       items: [
         { label: t('menu.open'), shortcut: `${mod}O`, onClick: openDialog },
+        { label: t('files.connectFolder'), onClick: () => void connectFolder() },
+        { label: t('files.disconnect'), disabled: !folder, onClick: disconnectFolder },
         'sep',
         { label: t('passport.saveIes'), disabled: !active, onClick: () => active && void saveAs(active, 'ies') },
         { label: t('passport.saveLdt'), disabled: !active, onClick: () => active && void saveAs(active, 'ldt') },
@@ -428,6 +596,21 @@ export default function App() {
               e.target.value = '';
             }}
           />
+          <input
+            ref={(el) => {
+              folderInputRef.current = el;
+              if (el) el.setAttribute('webkitdirectory', '');
+            }}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              const list = [...(e.target.files ?? [])].map((f) => ({ file: f, path: (f as File & { webkitRelativePath?: string }).webkitRelativePath }));
+              e.target.value = '';
+              if (!list.length) return;
+              setFolder({ name: list[0].path?.split('/')[0] || 'folder', entries: entriesFromFiles(list), live: false });
+            }}
+          />
           <button className="themebtn" onClick={toggleTheme} aria-label={t('app.theme')} title={t('app.theme')}>
             <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
               <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -445,29 +628,26 @@ export default function App() {
       )}
 
       <div className="body">
-        {files.length > 0 && showFiles && (
-          <aside className="sidebar">
-            <div className="sidebar-head">
-              <span>{t('files.title')} ({files.length})</span>
-              <button className="link" onClick={() => { setFiles([]); setActiveId(null); }}>{t('files.closeAll')}</button>
-            </div>
-            <ul className="filelist">
-              {files.map((f) => {
-                const worst = f.issues[0]?.severity;
-                return (
-                  <li key={f.id} className={f.id === activeId ? 'active' : ''}>
-                    <button className="file-item" onClick={() => setActiveId(f.id)} title={f.name}>
-                      <span className={`fmt fmt-${f.parse.photometry.source.format.toLowerCase()}`}>{f.parse.photometry.source.format}</span>
-                      <span className="fname">{f.name}</span>
-                      {isModified(f) && <span className="modmark" title={t('files.modified')}>●</span>}
-                      {worst && worst !== 'info' && <span className={`dot ${worst}`} title={t('files.issues', { count: f.issues.length })} />}
-                    </button>
-                    <button className="close" aria-label={t('files.close')} onClick={() => close(f.id)}>×</button>
-                  </li>
-                );
-              })}
-            </ul>
-          </aside>
+        {showFiles && (
+          <Sidebar
+            files={files}
+            activeId={activeId}
+            folder={folder}
+            onSelect={setActiveId}
+            onClose={close}
+            onCloseAll={() => {
+              setFiles((prev) => prev.filter((f) => f.folderPath));
+              if (!active?.folderPath) setActiveId(null);
+            }}
+            onOpenEntry={(e) => void openEntry(e)}
+            onOpenFiles={openDialog}
+            onConnectFolder={() => void connectFolder()}
+            onGrant={() => void grantFolder()}
+            onDisconnect={disconnectFolder}
+            settings={settings}
+            style={style}
+            fonts={fonts}
+          />
         )}
 
         <main className="main">
@@ -489,9 +669,6 @@ export default function App() {
           ) : (
             <>
               <div className="mainhead">
-                <span className={`fmt fmt-${active.parse.photometry.source.format.toLowerCase()}`}>{active.parse.photometry.source.format}</span>
-                <b title={active.name}>{active.name}</b>
-                {isModified(active) && <span className="modmark" title={t('files.modified')}>●</span>}
                 <nav className="stnav" role="tablist">
                   {TABS.map((k) => (
                     <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'gsst cur' : 'gsst'} onClick={() => setTab(k)}>
@@ -553,6 +730,7 @@ export default function App() {
           onClose={() => setBatchOpen(false)}
           incoming={batchIncoming}
           openFiles={files}
+          folder={folder ? { name: folder.name, count: folder.entries.length, files: () => Promise.all(folder.entries.map(async (e) => ({ name: e.name, path: e.path, file: await entryBlob(e) }))) } : null}
           active={active}
           settings={settings}
           style={style}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildBody, planeCurve, rampColor } from '../src/charts/body3d';
+import { buildBody, housingBox, meshCStep, meshLines, planeCurve } from '../src/charts/body3d';
 import { rotate } from '../src/core/index';
 import { asym, lambert, makeC } from './helpers';
 
@@ -41,8 +41,32 @@ describe('3D-тело: геометрия', () => {
     for (let k = 0; k < pts.length; k += 3) expect(Math.abs(pts[k + 1])).toBeLessThan(1e-9);
   });
 
-  it('цветовая шкала монотонна по яркости', () => {
-    const lum = (t: number) => rampColor(t).reduce((s, x, i) => s + x * [0.3, 0.59, 0.11][i], 0);
-    for (let t = 0.1; t <= 1; t += 0.1) expect(lum(t)).toBeLessThan(lum(t - 0.1) + 1e-9);
+  it('сетка тела: точки лежат на поверхности, меридианы через шаг файла', () => {
+    const p = makeC(lambert, { symmetry: 'axial', gStep: 5 });
+    expect(meshCStep(p)).toBe(15);
+    const l = meshLines(p, 1000, 15, 10);
+    expect(l.length % 6).toBe(0);
+    // ламберт: точка на расстоянии cos γ от центра → |r|² = −z·r (сфера, касающаяся центра)
+    for (let k = 0; k < l.length; k += 3) {
+      const r2 = l[k] ** 2 + l[k + 1] ** 2 + l[k + 2] ** 2;
+      expect(r2).toBeCloseTo(-l[k + 2], 2); // между узлами 5° — линейная интерполяция
+    }
+  });
+
+  it('корпус: LDT — корпус и светящая часть, IES — светящая часть; наибольший размер = треть радиуса', () => {
+    const p = makeC(lambert, { symmetry: 'axial' });
+    p.source.format = 'LDT';
+    const h = housingBox(p)!;
+    expect(h.shape).toBe('rect');
+    expect(Math.max(h.length, h.width, h.height)).toBeCloseTo(0.32, 9);
+    expect(h.length / h.width).toBeCloseTo(600 / 100, 9);
+    expect(h.luminous!.length / h.length).toBeCloseTo(580 / 600, 9);
+    p.source.format = 'IES';
+    p.luminaire = { shape: 'point', length: 0, width: 0, height: 0 };
+    const i = housingBox(p)!;
+    expect(i.luminous).toBeNull();
+    expect(i.length / i.width).toBeCloseTo(580 / 80, 9);
+    p.luminous = { shape: 'point', length: 0, width: 0, height: 0 };
+    expect(housingBox(p)).toBeNull();
   });
 });

@@ -54,9 +54,21 @@ function fromBase64(s: string): Uint8Array {
   return out;
 }
 
+/**
+ * Имя, под которым подключённый шрифт регистрируется на странице. Не настоящее имя семейства:
+ * иначе FontFace «Suisse Intl» с двумя начертаниями заменил бы установленный в системе шрифт
+ * во всём интерфейсе, и полужирный (600) браузер рисовал бы искусственно — буквы слипались.
+ */
+export const screenAlias = (family: string) => `${family} PE-chart`;
+
+/** Семейство для графиков на экране: подключённый шрифт под своим именем (см. screenAlias). */
+export function screenFamily(f: LoadedFonts | null): string | undefined {
+  return f ? screenAlias(f.family) : undefined;
+}
+
 async function register(family: string, bytes: Uint8Array, weight: string): Promise<void> {
   try {
-    const face = new FontFace(family, bytes.slice().buffer, { weight });
+    const face = new FontFace(screenAlias(family), bytes.slice().buffer, { weight });
     await face.load();
     document.fonts.add(face);
   } catch {

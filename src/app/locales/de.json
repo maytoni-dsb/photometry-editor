@@ -17,7 +17,27 @@
     "close": "Schließen",
     "closeAll": "Alle schließen",
     "issues": "{{count}} Hinweise",
-    "modified": "Geändert, nicht gespeichert"
+    "modified": "Geändert, nicht gespeichert",
+    "openFiles": "Dateien…",
+    "connectFolder": "Ordner…",
+    "disconnect": "Ordner trennen",
+    "live": "live",
+    "snapshot": "Momentaufnahme",
+    "liveHint": "Ordner verbunden: neue, geänderte und gelöschte Dateien erscheinen sofort in der Liste",
+    "snapshotHint": "Dieser Browser kann keinen Ordner beobachten — die Liste zeigt den Stand bei der Auswahl. In Chrome und Edge aktualisiert sich der Ordner selbst.",
+    "needPermission": "Nach dem Neuladen bittet der Browser, den Zugriff auf den Ordner zu bestätigen.",
+    "grant": "Zugriff erlauben",
+    "filter": "Im Ordner suchen…",
+    "noMatch": "Nichts gefunden",
+    "folderEmpty": "Keine IES- / LDT-Dateien im Ordner",
+    "opened": "Geöffnet",
+    "openedAll": "Geöffnete Dateien",
+    "emptyHint": "Dateien öffnen oder einen Ordner verbinden — seine IES- / LDT-Dateien erscheinen hier und bleiben aktuell.",
+    "miniTitle": "LVK",
+    "miniOriginal": "Original, vor den Operationen",
+    "disk_changed": "Die Datei hat sich im Ordner geändert, hier gibt es ungespeicherte Änderungen",
+    "disk_removed": "Die Datei wurde aus dem Ordner gelöscht",
+    "folderError": "Ordner konnte nicht geöffnet werden: {{msg}}"
   },
   "tabs": {
     "passport": "Datenblatt",
@@ -341,7 +361,11 @@
     "smoothWidth": "Kernbreite",
     "keepFlux": "Lichtstrom erhalten",
     "smoothNote": "Gauß-Glättung auf der Kugel: jeder Wert wird zum Mittel benachbarter Richtungen, gewichtet nach Winkelabstand. Die Breite ist die Halbwertsbreite des Kerns: Details schmaler als sie (Rauschen, Messwelligkeit) werden geglättet, das Maximum schmaler Strahlen sinkt leicht. Raster und Symmetrie bleiben gleich.",
-    "smoothNarrow": "Die Breite ist nicht größer als der Rasterschritt (C {{c}}°, γ {{g}}°) — Nachbarknoten wirken kaum, es gibt keinen Effekt. Erst das Raster verfeinern oder die Breite erhöhen."
+    "smoothNarrow": "Die Breite ist nicht größer als der Rasterschritt (C {{c}}°, γ {{g}}°) — Nachbarknoten wirken kaum, es gibt keinen Effekt. Erst das Raster verfeinern oder die Breite erhöhen.",
+    "wmode_k": "Gewicht",
+    "wmode_flux": "Lichtstrom, lm",
+    "weightFluxHint": "Lichtstrom des Summanden: {{v}} lm",
+    "weightKHint": "Eigener Lichtstrom {{own}} lm → Gewicht {{k}}"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",
@@ -357,13 +381,13 @@
     "viewHint_below": "Von unten, entlang des Nadirs",
     "viewHint_above": "Von oben",
     "mouse": "Maus: ziehen — drehen, Rad — zoomen.",
-    "wireframe": "Netz anzeigen",
     "planesNote": "Umrandete Ebenen: {{planes}} (wie in der Polarkurve: die erste durchgezogen).",
-    "colors": "Farbe — Lichtstärke",
-    "peak": "Max.",
-    "note": "Der Abstand vom Zentrum zur Oberfläche ist proportional zur Lichtstärke in dieser Richtung.",
+    "note": "Der Abstand vom Mittelpunkt zur Oberfläche ist proportional zur Lichtstärke in dieser Richtung. Netz: C-Ebenen und γ-Kegel alle 10°.",
     "nadir": "Nadir",
-    "loading": "3D wird geladen…"
+    "loading": "3D wird geladen…",
+    "housing": "Leuchtengehäuse",
+    "housingNote": "Gehäuse und leuchtende Fläche nach den Maßen der Datei. Millimeter und Candela sind nicht vergleichbar, daher ist das größte Gehäusemaß als ein Drittel des Körperradius dargestellt.",
+    "noHousing": "Die Datei enthält keine Leuchtenmaße."
   },
   "batch": {
     "summaryFile": "Übersicht",
@@ -501,6 +525,18 @@
     "saveZip": "ZIP-Archiv speichern…",
     "again": "Einstellungen ändern",
     "zipName": "Stapel",
-    "varAngleNote": "Bei den Lampen {{list}} ist ein Ausstrahlungswinkel angegeben. Skalieren erhält dieselbe LVK: weicht der Winkel von der Lampe der Ausgangsmessung ab, ist eine eigene Messung nötig — solche Varianten sind in der Übersicht markiert."
+    "varAngleNote": "Bei den Lampen {{list}} ist ein Ausstrahlungswinkel angegeben. Skalieren erhält dieselbe LVK: weicht der Winkel von der Lampe der Ausgangsmessung ab, ist eine eigene Messung nötig — solche Varianten sind in der Übersicht markiert.",
+    "takeFolder": "Aus Ordner „{{name}}“ ({{n}})"
+  },
+  "drawing": {
+    "title": "Zeichnung",
+    "none": "Die Datei enthält keine Leuchtenmaße.",
+    "below": "Ansicht von unten",
+    "fromC270": "Von C270",
+    "fromC0": "Von C0",
+    "luminous": "leuchtende Fläche {{l}} × {{w}} mm",
+    "heights": "Höhen an C0 / C90 / C180 / C270: {{h}} mm",
+    "iesNote": "IES enthält nur die Maße der leuchtenden Fläche — sie werden gezeigt.",
+    "noLuminous": "Die Datei enthält keine Maße der leuchtenden Fläche."
   }
 }

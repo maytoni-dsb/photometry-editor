@@ -103,12 +103,15 @@ export interface SvgOptions {
   textAsPaths?: FontSet;
   /** Фон, если в сцене его нет (для PNG). */
   background?: Color;
+  /** Семейство, под которым шрифт подключён на странице (только для показа на экране, не для файла). */
+  screenFamily?: string;
 }
 
 export function renderSvg(scene: Scene, opts: SvgOptions = {}): string {
   const W = n(scene.width);
   const H = n(scene.height);
-  const family = escapeXml(`${scene.fontFamily}, Roboto, Arial, Helvetica, sans-serif`);
+  const screen = opts.screenFamily ? `, '${opts.screenFamily}'` : '';
+  const family = escapeXml(`${scene.fontFamily}${screen}, Roboto, Arial, Helvetica, sans-serif`);
   const bgColor = scene.background ?? opts.background;
   const bg = bgColor ? `  <rect x="0" y="0" width="${W}" height="${H}" fill="${rgbHex(bgColor)}"/>\n` : '';
   return (

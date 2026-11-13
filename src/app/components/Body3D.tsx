@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import { buildBody, planeCurve, rampColor, type CameraLink, type View3D } from '../../charts/body3d';
+import { buildBody, meshCStep, meshLines, planeCurve, type CameraLink, type HousingBox, type View3D } from '../../charts/body3d';
 import type { Photometry } from '../../core/index';
 
 const DIST = 3.6;
@@ -43,7 +43,8 @@ interface Props {
   scale?: number;
   /** Плоскости C, которые обводятся линиями (C и C + 180°). */
   planes: number[];
-  wireframe?: boolean;
+  /** Корпус светильника в масштабе тела (null — не показывать). */
+  housing?: HousingBox | null;
   view?: View3D;
   /** Счётчик: при изменении камера возвращается в вид view. */
   viewNonce?: number;
@@ -51,7 +52,7 @@ interface Props {
   height: number;
 }
 
-export default function Body3D({ photometry, scale, planes, wireframe = false, view = 'iso', viewNonce = 0, link, height }: Props) {
+export default function Body3D({ photometry, scale, planes, housing = null, view = 'iso', viewNonce = 0, link, height }: Props) {
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const nadirEl = useRef<HTMLDivElement | null>(null);
@@ -224,32 +225,75 @@ export default function Body3D({ photometry, scale, planes, wireframe = false, v
     }
     const mesh = buildBody(photometry, { scale });
     const pos = new Float32Array(mesh.positions.length);
-    const col = new Float32Array(mesh.positions.length);
-    for (let k = 0; k < mesh.relative.length; k++) {
+    for (let k = 0; k < mesh.positions.length / 3; k++) {
       pos[k * 3] = mesh.positions[k * 3];
       pos[k * 3 + 1] = mesh.positions[k * 3 + 2];
       pos[k * 3 + 2] = -mesh.positions[k * 3 + 1];
-      const [r, g, b] = rampColor(mesh.relative[k]);
-      col[k * 3] = r;
-      col[k * 3 + 1] = g;
-      col[k * 3 + 2] = b;
     }
+    const css = getComputedStyle(document.documentElement);
+    const dark = (css.getPropertyValue('color-scheme') || '').includes('dark') || document.documentElement.dataset.theme === 'dark';
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
     geo.computeVertexNormals();
+    // тело — светлая полупрозрачная поверхность и сетка по C и γ, без условных цветов
     const surf = new THREE.Mesh(
       geo,
-      new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+      new THREE.MeshLambertMaterial({
+        color: dark ? 0x8a8a8a : 0xf2f2f2,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
+      }),
     );
     c.body.add(surf);
-    if (wireframe) {
-      const wf = new THREE.LineSegments(new THREE.WireframeGeometry(geo), new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 }));
-      c.body.add(wf);
+    const s0 = scale && scale > 0 ? scale : mesh.peak || 1;
+    const lines = meshLines(photometry, s0, meshCStep(photometry), 10);
+    const lp = new Float32Array(lines.length);
+    for (let k = 0; k < lines.length / 3; k++) {
+      lp[k * 3] = lines[k * 3];
+      lp[k * 3 + 1] = lines[k * 3 + 2];
+      lp[k * 3 + 2] = -lines[k * 3 + 1];
+    }
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.BufferAttribute(lp, 3));
+    c.body.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: dark ? 0xd0d0d0 : 0x3a3a3a, transparent: true, opacity: dark ? 0.6 : 0.5 })));
+
+    // корпус светильника: нижняя грань — на уровне светящей части (центр тела), корпус — вверх
+    if (housing) {
+      const h = housing;
+      const edge = dark ? 0xeeeeee : 0x222222;
+      const boxGeo =
+        h.shape === 'circle'
+          ? new THREE.CylinderGeometry(h.length / 2, h.length / 2, h.height, 48)
+          : new THREE.BoxGeometry(h.length, h.height, h.width);
+      const box = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({ color: dark ? 0x5a5a5a : 0xb8b8b8 }));
+      box.position.set(0, h.height / 2, 0);
+      c.body.add(box);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo, 30), new THREE.LineBasicMaterial({ color: edge }));
+      edges.position.copy(box.position);
+      c.body.add(edges);
+      if (h.luminous) {
+        const lgeo =
+          h.luminous.shape === 'circle'
+            ? new THREE.CircleGeometry(h.luminous.length / 2, 48)
+            : new THREE.PlaneGeometry(h.luminous.length, h.luminous.width);
+        const lum = new THREE.Mesh(lgeo, new THREE.MeshBasicMaterial({ color: 0xfff6c8, side: THREE.DoubleSide }));
+        lum.rotation.x = Math.PI / 2;
+        lum.position.y = -0.0015;
+        c.body.add(lum);
+        const le = new THREE.LineSegments(new THREE.EdgesGeometry(lgeo), new THREE.LineBasicMaterial({ color: edge }));
+        le.rotation.x = Math.PI / 2;
+        le.position.y = -0.002;
+        c.body.add(le);
+      }
     }
     // обводка плоскостей: первая — сплошная, остальные — пунктиром (как на полярной КСС)
-    const s = scale && scale > 0 ? scale : mesh.peak || 1;
+    const s = s0;
     planes.forEach((pc, i) => {
       const pts = planeCurve(photometry, pc, s * 0.995);
       const v: THREE.Vector3[] = [];
@@ -263,7 +307,7 @@ export default function Body3D({ photometry, scale, planes, wireframe = false, v
       c.body.add(line);
     });
     c.render();
-  }, [photometry, scale, planes, wireframe]);
+  }, [photometry, scale, planes, housing]);
 
   return <div ref={host} className="b3d" style={{ height }} />;
 }
