@@ -22,3 +22,25 @@ export function parseFile(bytes: Uint8Array, fileName: string): ParseResult {
   return /IESNA|TILT=/i.test(head) ? parseIES(bytes, fileName) : parseLDT(bytes, fileName);
 }
 export { summarize, referenceFlux, type PhotometrySummary, type ReferenceFluxKind } from './summary';
+export {
+  applyOp,
+  normalize,
+  mirror,
+  rotate,
+  symmetrize,
+  regrid,
+  sumBodies,
+  compactSymmetry,
+  naturalSteps,
+  rotatedDirection,
+  rotationMatrix,
+  OpError,
+  type OpSpec,
+  type OpResult,
+  type SumComponent,
+  type RotationStep,
+  type RotationAxis,
+  type NormalizeMode,
+  type MirrorPlane,
+  type GammaRange,
+} from './ops';

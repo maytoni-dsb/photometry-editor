@@ -42,7 +42,12 @@ export type IssueCode =
   | 'pair-mismatch-scale'
   | 'pair-mismatch-shape'
   | 'resampled-c-planes'
-  | 'converted-type-b';
+  | 'converted-type-b'
+  // операции над телами
+  | 'op-resampled'
+  | 'op-sum-offsets'
+  | 'op-sum-resampled'
+  | 'op-ratios-reset';
 
 export interface Issue {
   code: IssueCode;
@@ -93,6 +98,10 @@ const ru: Templates = {
   'pair-mismatch-shape': 'Пара файлов: форма КСС различается, отклонение до {percent}% от максимума (поток {a} и {b} лм)',
   'resampled-c-planes': 'C-плоскости неравномерные — для LDT пересчитаны на шаг {step}°',
   'converted-type-b': 'Фотометрия типа B пересчитана в тип C (шаг C {cStep}°, γ {gStep}°)',
+  'op-resampled': 'Сетка пересчитана: шаг C {cStep}°, γ {gStep}° (интерполяция)',
+  'op-sum-offsets': 'Смещения учтены в размерах светящей части; силы света сложены в дальней зоне',
+  'op-sum-resampled': 'Сетки слагаемых разные — сумма посчитана на общей сетке C {cStep}°, γ {gStep}°',
+  'op-ratios-reset': 'Коэффициенты использования LDT (строка 27) обнулены: после операции они неверны, расчёт — на этапе 6',
 };
 
 const en: Templates = {
@@ -130,6 +139,10 @@ const en: Templates = {
   'pair-mismatch-shape': 'File pair: distribution shape differs by up to {percent}% of peak (flux {a} vs {b} lm)',
   'resampled-c-planes': 'Irregular C-planes resampled to {step}° step for LDT',
   'converted-type-b': 'Type B photometry converted to type C (C step {cStep}°, γ step {gStep}°)',
+  'op-resampled': 'Grid resampled: C step {cStep}°, γ step {gStep}° (interpolated)',
+  'op-sum-offsets': 'Offsets are applied to the luminous dimensions; intensities are summed in the far field',
+  'op-sum-resampled': 'Component grids differ — the sum uses a common grid C {cStep}°, γ {gStep}°',
+  'op-ratios-reset': 'LDT utilisation ratios (line 27) cleared: they are no longer valid after the operation',
 };
 
 const de: Templates = {
@@ -167,6 +180,10 @@ const de: Templates = {
   'pair-mismatch-shape': 'Dateipaar: Verteilungsform weicht um bis zu {percent}% des Maximums ab (Lichtstrom {a} und {b} lm)',
   'resampled-c-planes': 'Ungleichmäßige C-Ebenen für LDT auf {step}°-Schritt umgerechnet',
   'converted-type-b': 'Photometrie Typ B in Typ C umgerechnet (C-Schritt {cStep}°, γ-Schritt {gStep}°)',
+  'op-resampled': 'Raster umgerechnet: C-Schritt {cStep}°, γ-Schritt {gStep}° (interpoliert)',
+  'op-sum-offsets': 'Versätze sind in den Abmessungen der leuchtenden Fläche berücksichtigt; Lichtstärken im Fernfeld addiert',
+  'op-sum-resampled': 'Raster der Summanden unterschiedlich — Summe auf gemeinsamem Raster C {cStep}°, γ {gStep}°',
+  'op-ratios-reset': 'LDT-Raumwirkungsgrade (Zeile 27) zurückgesetzt: nach der Operation nicht mehr gültig',
 };
 
 const templates: Record<Lang, Templates> = { ru, en, de };

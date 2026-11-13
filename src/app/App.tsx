@@ -11,14 +11,16 @@ import { IntensityTable } from './components/IntensityTable';
 import { Passport } from './components/Passport';
 import { MaytoniLogo } from './components/MaytoniLogo';
 import { StyleEditor } from './components/StyleEditor';
-import { openBytes, type OpenFile } from './doc';
+import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
+import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, type OpenFile } from './doc';
+import { applyOp, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry } from '../core/index';
 import { loadFonts, type LoadedFonts } from './fonts';
 import { LANGS } from './i18n';
 import { load, save } from './storage';
 
-type Tab = 'passport' | 'table' | 'polar' | 'linear';
+type Tab = 'passport' | 'table' | 'polar' | 'linear' | 'ops';
 type Theme = 'system' | 'light' | 'dark';
-const TABS: Tab[] = ['passport', 'table', 'polar', 'linear'];
+const TABS: Tab[] = ['passport', 'table', 'polar', 'linear', 'ops'];
 
 /** Настройки графиков, общие для всех файлов. planes = null — плоскости по умолчанию для файла. */
 export interface ChartSettings extends Omit<ChartOptions, 'planes'> {
@@ -61,6 +63,7 @@ export default function App() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [showFiles, setShowFiles] = useState(() => load('show-files', true));
   const [theme, setTheme] = useState<Theme>(() => load<Theme | null>('theme', null) ?? 'system');
+  const [opKind, setOpKind] = useState<OpKind>('normalize');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,6 +72,14 @@ export default function App() {
   useEffect(() => save('chart-settings', { ...settings, title: '' }), [settings]);
   useEffect(() => save('chart-style', style), [style]);
   useEffect(() => save('tab', tab), [tab]);
+  // несохранённые изменения — браузер переспросит при закрытии вкладки
+  const anyModified = files.some(isModified);
+  useEffect(() => {
+    if (!anyModified) return;
+    const on = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', on);
+    return () => window.removeEventListener('beforeunload', on);
+  }, [anyModified]);
   // шрифт в стиле — тот, что реально загружен
   useEffect(() => {
     if (fonts && style.font.family !== fonts.family) setStyle((s) => ({ ...s, font: { ...s.font, family: fonts.family } }));
@@ -128,6 +139,42 @@ export default function App() {
 
   const active = files.find((f) => f.id === activeId) ?? null;
 
+  // ——— операции и история (этап 4)
+  const updateFile = (id: string, fn: (f: OpenFile) => OpenFile) => setFiles((prev) => prev.map((f) => (f.id === id ? fn(f) : f)));
+  const applyToActive = (p: Photometry, issues: Issue[], label: string, spec: OpSpec) => {
+    if (active) updateFile(active.id, (f) => applyStep(f, p, issues, label, spec));
+  };
+  /** Быстрая команда меню: операция сразу применяется к активному файлу (отменяется Ctrl+Z). */
+  const quickOp = (spec: OpSpec) => {
+    if (!active) return;
+    try {
+      const r = applyOp(active.parse.photometry, spec);
+      applyToActive(r.photometry, r.issues, opLabel(t, i18n.language, spec), spec);
+    } catch (e) {
+      setErrors([e instanceof OpError ? t(`ops.err.${e.code}`, e.params) : String(e)]);
+    }
+  };
+  const createDoc = (name: string, p: Photometry, issues: Issue[], label: string) => {
+    const d = newDoc(name, p, issues, label);
+    setFiles((prev) => [...prev, d]);
+    setActiveId(d.id);
+  };
+  const doUndo = () => active && updateFile(active.id, undo);
+  const doRedo = () => active && updateFile(active.id, redo);
+  const jump = (i: number) => {
+    if (!active) return;
+    updateFile(active.id, (f) => {
+      if (i <= f.past.length) return jumpTo(f, i);
+      let g = f;
+      while (g.past.length < i && g.future.length) g = redo(g);
+      return g;
+    });
+  };
+  const openOp = (k: OpKind) => {
+    setOpKind(k);
+    setTab('ops');
+  };
+
   // тема: system — как в системе, light / dark — выбрана явно
   const applyTheme = (th: Theme) => {
     setTheme(th);
@@ -169,7 +216,14 @@ export default function App() {
     if (mod && !e.shiftKey && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       openDialog();
-    } else if (mod && !e.shiftKey && ['1', '2', '3', '4'].includes(e.key) && active) {
+    } else if (mod && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) doRedo();
+      else doUndo();
+    } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      doRedo();
+    } else if (mod && !e.shiftKey && ['1', '2', '3', '4', '5'].includes(e.key) && active) {
       e.preventDefault();
       setTab(TABS[Number(e.key) - 1]);
     } else if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -213,6 +267,26 @@ export default function App() {
       ],
     },
     {
+      id: 'edit',
+      label: t('menu.edit'),
+      items: [
+        {
+          label: active?.past.length ? t('menu.undoStep', { step: active.label }) : t('menu.undo'),
+          shortcut: `${mod}Z`,
+          disabled: !active?.past.length,
+          onClick: doUndo,
+        },
+        {
+          label: active?.future.length ? t('menu.redoStep', { step: active.future[0].label }) : t('menu.redo'),
+          shortcut: mod === '⌘' ? '⇧⌘Z' : 'Ctrl+Y',
+          disabled: !active?.future.length,
+          onClick: doRedo,
+        },
+        'sep',
+        { label: t('menu.history'), disabled: !active, onClick: () => setTab('ops') },
+      ],
+    },
+    {
       id: 'view',
       label: t('menu.view'),
       items: [
@@ -228,6 +302,25 @@ export default function App() {
           label: t('app.language'),
           submenu: LANGS.map((l) => ({ label: { ru: 'Русский', en: 'English', de: 'Deutsch' }[l], checked: i18n.language === l, onClick: () => void i18n.changeLanguage(l) })),
         },
+      ],
+    },
+    {
+      id: 'photometry',
+      label: t('menu.photometry'),
+      items: [
+        ...OP_KINDS.map((k): MenuItem => ({ label: `${t(`ops.kind_${k}`)}…`, disabled: !active, onClick: () => openOp(k) })),
+        'sep',
+        {
+          label: t('menu.mirrorNow'),
+          disabled: !active,
+          submenu: (['c0c180', 'c90c270', 'updown'] as MirrorPlane[]).map((pl) => ({ label: t(`ops.mirror_${pl}`), onClick: () => quickOp({ op: 'mirror', plane: pl }) })),
+        },
+        {
+          label: t('menu.rotateZNow'),
+          disabled: !active,
+          submenu: [90, -90, 180].map((a) => ({ label: `${a > 0 ? '+' : '−'}${Math.abs(a)}°`, onClick: () => quickOp({ op: 'rotate', axis: 'z', angle: a }) })),
+        },
+        { label: t('menu.normalize1000'), disabled: !active, onClick: () => quickOp({ op: 'normalize', mode: 'cdklm' }) },
       ],
     },
     {
@@ -327,6 +420,7 @@ export default function App() {
                     <button className="file-item" onClick={() => setActiveId(f.id)} title={f.name}>
                       <span className={`fmt fmt-${f.parse.photometry.source.format.toLowerCase()}`}>{f.parse.photometry.source.format}</span>
                       <span className="fname">{f.name}</span>
+                      {isModified(f) && <span className="modmark" title={t('files.modified')}>●</span>}
                       {worst && worst !== 'info' && <span className={`dot ${worst}`} title={t('files.issues', { count: f.issues.length })} />}
                     </button>
                     <button className="close" aria-label={t('files.close')} onClick={() => close(f.id)}>×</button>
@@ -358,6 +452,7 @@ export default function App() {
               <div className="mainhead">
                 <span className={`fmt fmt-${active.parse.photometry.source.format.toLowerCase()}`}>{active.parse.photometry.source.format}</span>
                 <b title={active.name}>{active.name}</b>
+                {isModified(active) && <span className="modmark" title={t('files.modified')}>●</span>}
                 <nav className="stnav" role="tablist">
                   {TABS.map((k) => (
                     <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'gsst cur' : 'gsst'} onClick={() => setTab(k)}>
@@ -369,6 +464,20 @@ export default function App() {
               <div className="tab-body">
                 {tab === 'passport' && <Passport file={active} />}
                 {tab === 'table' && <IntensityTable file={active} />}
+                {tab === 'ops' && (
+                  <OpsPanel
+                    file={active}
+                    files={files}
+                    op={opKind}
+                    onOp={setOpKind}
+                    settings={settings}
+                    style={style}
+                    fonts={fonts}
+                    onApply={applyToActive}
+                    onCreate={createDoc}
+                    onJump={jump}
+                  />
+                )}
                 {(tab === 'polar' || tab === 'linear') && (
                   <ChartPanel
                     kind={tab}

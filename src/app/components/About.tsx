@@ -12,7 +12,9 @@ export function About({ onClose }: { onClose: () => void }) {
   const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
   const keys: Array<[string, string]> = [
     [`${mod}O`, t('menu.open')],
-    [`${mod}1 … ${mod}4`, t('about.keyTabs')],
+    [`${mod}1 … ${mod}5`, t('about.keyTabs')],
+    [`${mod}Z`, t('about.keyUndo')],
+    [mod === '⌘' ? '⇧⌘Z' : 'Ctrl+Y / Ctrl+Shift+Z', t('about.keyRedo')],
     ['Alt+↓ / Alt+↑', t('about.keyFiles')],
     ['F1', t('menu.about')],
   ];
