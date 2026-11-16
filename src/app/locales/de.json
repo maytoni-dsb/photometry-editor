@@ -424,7 +424,8 @@
     "sumWithTitle": "Summe mit „{{name}}“ — klicken, um die Datei zu ersetzen",
     "sumRemove": "Zweite Datei entfernen",
     "sumFluxA": "Lichtstrom der aktuellen Datei",
-    "sumFluxB": "Lichtstrom der zweiten Datei"
+    "sumFluxB": "Lichtstrom der zweiten Datei",
+    "gRangeTitle": "γ-Bereich"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",

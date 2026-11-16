@@ -29,6 +29,7 @@ import { screenFamily, type LoadedFonts } from '../fonts';
 import { createCameraLink, housingBox, type View3D } from '../../charts/body3d';
 import { Body3D, Fallback, HousingToggle, useHousingPref, ViewPill } from './Body3DTab';
 import { NumField } from './NumField';
+import { Select } from './Select';
 
 /** Группы панели — в порядке применения. */
 export type OpKind = 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'sum' | 'regrid';
@@ -129,8 +130,8 @@ interface Params {
   sym: SymKey[];
   cStep: string;
   gStep: string;
-  g0: string;
-  g1: string;
+  /** Диапазон γ «от-до» — таблетка: 0-90, 0-180 или как в файле. */
+  gr: string;
   sWidth: string;
   keepFlux: boolean;
   rowA: SumRow;
@@ -147,8 +148,7 @@ function neutral(base: DocState): Params {
     sym: [],
     cStep: String(st.cStep),
     gStep: String(st.gStep),
-    g0: String(v[0]),
-    g1: String(v[v.length - 1]),
+    gr: `${v[0]}-${v[v.length - 1]}`,
     sWidth: '0',
     keepFlux: true,
     rowA: neutralRow(base),
@@ -263,8 +263,7 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
       }
       const c = num(prm.cStep);
       const g = num(prm.gStep);
-      const a = num(prm.g0);
-      const b = num(prm.g1);
+      const [a, b] = prm.gr.split('-').map(Number);
       const v = s.asC.vAngles;
       const keep = eq(a, v[0]) && eq(b, v[v.length - 1]);
       if (!(eq(c, steps.cStep) && eq(g, steps.gStep) && keep)) {
@@ -483,9 +482,13 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
             {icon(2, 8, 'regrid', { sep: true })}
             {cell(2, 9, 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" inlineUnit disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
             {cell(2, 10, 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" inlineUnit width="100%" aria-label={t('ops.gStep')} />)}
-            {cell(2, 11, 'γ', <NumField value={prm.g0} onChange={(x) => set({ g0: x })} def={v[0]} min={0} max={180} step={5} unit="°" inlineUnit width="100%" aria-label={t('ops.gFrom')} />, t('ops.gFrom'))}
-            <span className="cdash" style={at(2, 12)}>–</span>
-            {cell(2, 13, null, <NumField value={prm.g1} onChange={(x) => set({ g1: x })} def={v[v.length - 1]} min={0} max={180} step={5} unit="°" inlineUnit width="100%" aria-label={t('ops.gTo')} />, t('ops.gTo'))}
+            <span className="ccell" style={at(2, 11, 3)}>
+            <Select value={prm.gr} onChange={(e) => set({ gr: e.target.value })} className="cpill" aria-label={t('ops.gRangeTitle')} title={t('ops.gRangeTitle')}>
+              {[...new Set([`${v[0]}-${v[v.length - 1]}`, '0-90', '0-180'])].sort((x, y) => Number(x.split('-')[1]) - Number(y.split('-')[1]) || Number(x.split('-')[0]) - Number(y.split('-')[0])).map((k) => (
+                <option key={k} value={k}>γ {k.replace('-', '–')}°</option>
+              ))}
+            </Select>
+            </span>
           </div>
         </section>
 

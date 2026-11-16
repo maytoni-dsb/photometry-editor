@@ -863,3 +863,4 @@ table.lamps td:first-child { white-space: nowrap; }
   border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink2); font-size: 11px; line-height: 1; cursor: pointer;
 }
 .cicon.csum.full:hover .csumx { display: grid; }
+.cgrid .sel.cpill { width: 100%; height: 30px; justify-content: space-between; }

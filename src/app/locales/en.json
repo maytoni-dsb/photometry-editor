@@ -424,7 +424,8 @@
     "sumWithTitle": "Sum with “{{name}}” — click to replace the file",
     "sumRemove": "Remove the second file",
     "sumFluxA": "Flux of the current file",
-    "sumFluxB": "Flux of the second file"
+    "sumFluxB": "Flux of the second file",
+    "gRangeTitle": "γ range"
   },
   "b3d": {
     "title": "3D photometric body",
