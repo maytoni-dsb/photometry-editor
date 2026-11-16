@@ -37,7 +37,8 @@
     "miniOriginal": "original, before operations",
     "disk_changed": "The file changed in the folder while it has unsaved edits here",
     "disk_removed": "The file was deleted from the folder",
-    "folderError": "Could not open the folder: {{msg}}"
+    "folderError": "Could not open the folder: {{msg}}",
+    "copy": "copy"
   },
   "tabs": {
     "passport": "Data sheet",
@@ -80,13 +81,13 @@
     "symmetry": "Symmetry",
     "grid": "Grid",
     "gridValue": "{{h}} × {{v}} ({{hName}} {{hRange}}, {{vName}} {{vRange}})",
-    "mode": "Mode",
+    "mode": "Photometry",
     "absolute": "absolute",
     "relative": "relative",
     "multiplier": "Multiplier (IES)",
     "conversionFactor": "Conversion factor (LDT, line 24)",
     "tilt": "TILT",
-    "inputWatts": "Luminaire power, W",
+    "inputWatts": "Luminaire power",
     "calc": "Computed from data",
     "flux": "Luminous flux",
     "fluxDownUp": "Down / up",
@@ -94,7 +95,7 @@
     "peak": "Peak intensity",
     "peakValue": "{{cd}} cd ({{cdklm}} cd/klm) at C{{c}}, γ {{g}}°",
     "efficacy": "Efficacy",
-    "lor": "LOR (from data)",
+    "lor": "LOR",
     "ldtStated": "LOR {{lorl}} %, downward {{dff}} %",
     "keywords": "IES keywords",
     "saveIes": "Save as IES",
@@ -119,7 +120,8 @@
     "lengthL": "Length",
     "widthL": "Width",
     "heightL": "Height",
-    "ldtFile": "In the LDT file"
+    "ldtFile": "In the LDT file",
+    "characteristics": "Characteristics"
   },
   "sym": {
     "none": "none",
@@ -241,7 +243,8 @@
     "info": "info"
   },
   "error": {
-    "read": "Could not read “{{name}}”: {{msg}}"
+    "read": "Could not read “{{name}}”: {{msg}}",
+    "save": "Could not save {{name}}: {{msg}}"
   },
   "common": {
     "none": "—",
@@ -292,7 +295,10 @@
     "batchConvert": "Convert IES ↔ LDT…",
     "batchVariants": "Generate variants…",
     "batchCharts": "Batch chart export…",
-    "batchSummary": "Summary table…"
+    "batchSummary": "Summary table…",
+    "save": "Save",
+    "saveAs": "Save as",
+    "editing": "Edit"
   },
   "about": {
     "version": "Version",
@@ -366,7 +372,8 @@
       "regrid": "Grid C {{c}}°, γ {{g}}°",
       "sum": "Sum of {{n}} bodies",
       "smooth": "Smooth {{w}}°",
-      "smoothFree": "Smooth {{w}}° (flux not kept)"
+      "smoothFree": "Smooth {{w}}° (flux not kept)",
+      "sumWith": "Sum with “{{name}}”"
     },
     "err": {
       "bad-value": "Enter a positive number",
@@ -401,7 +408,12 @@
     "sumSame": "This is the current file — choose another one.",
     "sumNotPhotometry": "An IES or LDT file is needed.",
     "sumDrop": "Drag a file here from the list on the left or from disk",
-    "sumLoad": "Load…"
+    "sumLoad": "Load…",
+    "sumFlux": "Flux",
+    "sumHint": "The second file is added to the current one — the result is written to the current file.",
+    "deleteState": "Delete the current state",
+    "forkState": "New file from the current state",
+    "forked": "Created from “{{name}}”"
   },
   "b3d": {
     "title": "3D photometric body",

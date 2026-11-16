@@ -2,8 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { Dimensions, Photometry } from '../../core/index';
 
 /**
- * Чертёж светильника по размерам из фотометрического файла: вид снизу, вид со стороны C270
- * (вдоль C0–C180) и вид со стороны C0 (вдоль C90–C270), с размерами в мм.
+ * Чертёж светильника по размерам из фотометрического файла — изометрия с размерами в мм.
  *
  * LDT: корпус (строки 13–15) и светящая часть (строки 16–17, высоты по сторонам C0 / C90 / C180 / C270,
  * строки 18–21) — место выхода света залито. IES хранит только размеры светящей части —
@@ -36,10 +35,17 @@ export function drawingData(p: Photometry): { body: Box; lum: Box | null; height
   return { body: boxOf(p.luminous), lum: null, heights: null };
 }
 
+type V3 = [number, number, number];
+
+/** Направление на наблюдателя: справа-спереди-снизу — видна нижняя грань с выходом света. */
+const CAM: V3 = [1 / Math.sqrt(3), 1 / Math.sqrt(3), -1 / Math.sqrt(3)];
+const RIGHT: V3 = [-1 / Math.SQRT2, 1 / Math.SQRT2, 0];
+const UP: V3 = [1 / Math.sqrt(6), 1 / Math.sqrt(6), 2 / Math.sqrt(6)];
+const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
 /**
- * Две проекции: вид сверху (L × W; светящая часть на нижней грани — штриховой линией, как невидимый
- * контур) и вид сбоку со стороны C270 (L × H; светящая часть — заливкой снизу). Только размеры,
- * без подписей видов.
+ * Изометрия светильника (x — C0, y — C90, z — вверх; низ корпуса z = 0) с размерами в мм.
+ * Смотрим снизу: видны нижняя грань с выходом света (залит) и две боковые. Подписи постоянного размера.
  */
 export function LuminaireDrawing({ photometry }: { photometry: Photometry }) {
   const { t, i18n } = useTranslation();
@@ -48,98 +54,141 @@ export function LuminaireDrawing({ photometry }: { photometry: Photometry }) {
   const { body, lum, heights } = d;
   const fmt = (x: number) => x.toLocaleString(i18n.language, { maximumFractionDigits: 1 });
 
-  const u = 1;
-  // виды занимают около 150 × 100 единиц, подписи — постоянного размера
-  const sc = Math.min(150 / Math.max(body.L, 1), 100 / Math.max(body.W + body.H, 1));
-  const fs = 4.4 * u;
-  const gap = 11 * u;
-  const vis = (x: number) => Math.max(x * sc, 1.2 * u);
-  const L = vis(body.L);
-  const W = vis(body.W);
-  const H = vis(body.H);
-  const m = 12 * u;
-  const x0 = m + 2 * u;
-  const yPlan = 4 * u;
-  const ySide = yPlan + W + gap;
-  const lumDiff = lum && Math.abs(lum.L - body.L) > 1e-6;
-  const width = x0 + L + m + 2 * u;
-  const height = ySide + H + m + (lumDiff ? fs * 1.7 : 0) + 1 * u;
-
+  // масштаб: проекция корпуса — около 120 единиц по большей стороне
+  const raw = (q: V3): [number, number] => [dot(q, RIGHT), -dot(q, UP)];
+  const ext0 = (() => {
+    const R = body.L / 2;
+    const pts: V3[] = [];
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const z of [0, body.H]) pts.push([sx * R, sy * (body.W / 2), z]);
+    const xs = pts.map((q) => raw(q)[0]);
+    const ys = pts.map((q) => raw(q)[1]);
+    return Math.max(Math.max(...xs) - Math.min(...xs), (Math.max(...ys) - Math.min(...ys)) * 1.3, 1e-6);
+  })();
+  const k = 120 / ext0;
+  const minMm = 1.2 / k;
+  const L = Math.max(body.L, minMm);
+  const W = Math.max(body.W, minMm);
+  const H = Math.max(body.H, minMm);
+  const P = (q: V3): [number, number] => {
+    const [x, y] = raw(q);
+    return [x * k, y * k];
+  };
+  const pts = (qs: V3[]) => qs.map((q) => P(q).join(',')).join(' ');
+  const fs = 4.6;
+  const sw = 0.35;
   const parts: React.ReactNode[] = [];
   let key = 0;
-  const k = () => key++;
-  const sw = 0.35 * u;
-  const hidden = `${2 * u} ${1.2 * u}`;
-  const shape = (circle: boolean, cx: number, cy: number, w: number, h: number, kind: 'body' | 'lum' | 'hidden') => {
-    const props =
-      kind === 'body'
-        ? { className: 'dw-body', strokeWidth: sw }
-        : kind === 'lum'
-          ? { fill: LUM_FILL, stroke: LUM_STROKE, strokeWidth: sw }
-          : { fill: LUM_FILL, fillOpacity: 0.55, stroke: LUM_STROKE, strokeWidth: sw, strokeDasharray: hidden };
-    parts.push(circle ? <circle key={k()} cx={cx} cy={cy} r={w / 2} {...props} /> : <rect key={k()} x={cx - w / 2} y={cy - h / 2} width={w} height={h} {...props} />);
+  const bb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  const grow = (x: number, y: number) => {
+    bb.x0 = Math.min(bb.x0, x);
+    bb.x1 = Math.max(bb.x1, x);
+    bb.y0 = Math.min(bb.y0, y);
+    bb.y1 = Math.max(bb.y1, y);
   };
-  const text = (x: number, y: number, s: string, rot = 0) =>
+  const poly = (qs: V3[], cls: string, extra: Record<string, unknown> = {}) => {
+    qs.forEach((q) => grow(...P(q)));
+    parts.push(<polygon key={key++} points={pts(qs)} className={cls} strokeWidth={sw} strokeLinejoin="round" {...extra} />);
+  };
+  const lumProps = { fill: LUM_FILL, stroke: LUM_STROKE, strokeWidth: sw };
+
+  /** Окружность (или её дуга) в горизонтальной плоскости z. */
+  const ring = (R: number, z: number, n = 72, from = 0, to = 2 * Math.PI): V3[] =>
+    Array.from({ length: n + 1 }, (_, i) => {
+      const a = from + ((to - from) * i) / n;
+      return [R * Math.cos(a), R * Math.sin(a), z] as V3;
+    });
+
+  if (!body.circle) {
+    const x = L / 2;
+    const y = W / 2;
+    // видимые грани: +x (сторона C0), +y (C90), низ
+    poly([[x, -y, 0], [x, y, 0], [x, y, H], [x, -y, H]], 'dw-f2');
+    poly([[-x, y, 0], [x, y, 0], [x, y, H], [-x, y, H]], 'dw-f3');
+    poly([[-x, -y, 0], [x, -y, 0], [x, y, 0], [-x, y, 0]], 'dw-f1');
+  } else {
+    const R = L / 2;
+    // видимая половина боковой поверхности — от −45° до 135° (нормаль смотрит на наблюдателя)
+    const a0 = -Math.PI / 4;
+    const a1 = (3 * Math.PI) / 4;
+    const bottomArc = ring(R, 0, 48, a0, a1);
+    const topArc = ring(R, H, 48, a0, a1).reverse();
+    poly([...bottomArc, ...topArc], 'dw-f2');
+    poly(ring(R, 0), 'dw-f1');
+  }
+
+  // выход света на нижней грани; полосы на видимых боковых гранях — по высотам LDT
+  if (lum) {
+    const lx = Math.min(lum.L, L) / 2;
+    const ly = Math.min(lum.W, W) / 2;
+    const z = -0.0001;
+    if (lum.circle) poly(ring(lx, z), '', lumProps);
+    else poly([[-lx, -ly, z], [lx, -ly, z], [lx, ly, z], [-lx, ly, z]], '', lumProps);
+    if (!body.circle && !lum.circle && heights) {
+      const h0 = Math.min(heights[0], H);
+      const h90 = Math.min(heights[1], H);
+      if (h0 > 0 && Math.abs(lx - L / 2) < L * 0.01) poly([[L / 2, -ly, 0], [L / 2, ly, 0], [L / 2, ly, h0], [L / 2, -ly, h0]], '', lumProps);
+      if (h90 > 0 && Math.abs(ly - W / 2) < W * 0.01) poly([[-lx, W / 2, 0], [lx, W / 2, 0], [lx, W / 2, h90], [-lx, W / 2, h90]], '', lumProps);
+    }
+  }
+
+  // ——— размеры: выносные линии вдоль off (3D, в мм), размерная линия, стрелки, подпись снаружи
+  const OFF = 9 / k;
+  const dim = (a: V3, b: V3, off: V3, value: number, base = 0) => {
+    const sh = (q: V3, m: number): V3 => [q[0] + off[0] * m, q[1] + off[1] * m, q[2] + off[2] * m];
+    const [ax, ay] = P(sh(a, base > 0 ? base * 0.9 : 0));
+    const [bx, by] = P(sh(b, base > 0 ? base * 0.9 : 0));
+    const [a1x, a1y] = P(sh(a, base + OFF));
+    const [b1x, b1y] = P(sh(b, base + OFF));
+    const [a2x, a2y] = P(sh(a, base + OFF * 1.2));
+    const [b2x, b2y] = P(sh(b, base + OFF * 1.2));
+    const [ux, uy] = [b1x - a1x, b1y - a1y];
+    const len = Math.hypot(ux, uy) || 1;
+    const [ex, ey] = [ux / len, uy / len];
+    const ar = Math.min(1.8, len / 3);
+    const head = (x: number, y: number, s: number) =>
+      `M${x} ${y} L${x + s * ex * ar - ey * ar * 0.38} ${y + s * ey * ar + ex * ar * 0.38} L${x + s * ex * ar + ey * ar * 0.38} ${y + s * ey * ar - ex * ar * 0.38} Z`;
     parts.push(
-      <text key={k()} x={x} y={y} fontSize={fs} textAnchor="middle" className="dw-dim" transform={rot ? `rotate(${rot} ${x} ${y})` : undefined}>
+      <g key={key++} className="dw-dimline" strokeWidth={0.25}>
+        <line x1={ax} y1={ay} x2={a2x} y2={a2y} />
+        <line x1={bx} y1={by} x2={b2x} y2={b2y} />
+        <line x1={a1x} y1={a1y} x2={b1x} y2={b1y} />
+        <path d={head(a1x, a1y, 1) + head(b1x, b1y, -1)} className="dw-arrow" />
+      </g>,
+    );
+    // подпись — за размерной линией, по направлению выноса
+    const [ox, oy] = [(a1x + b1x) / 2 - (ax + bx) / 2, (a1y + b1y) / 2 - (ay + by) / 2];
+    const ol = Math.hypot(ox, oy) || 1;
+    const s = fmt(value);
+    const tw = s.length * fs * 0.56;
+    const cx = (a1x + b1x) / 2 + (ox / ol) * (tw / 2 + 1.5);
+    const cy = (a1y + b1y) / 2 + (oy / ol) * (fs * 0.7 + 1);
+    parts.push(
+      <text key={key++} x={cx} y={cy + fs * 0.35} fontSize={fs} textAnchor="middle" className="dw-dim">
         {s}
       </text>,
     );
-  const a = 1.6 * u;
-  const hdim = (xa: number, xb: number, y: number, value: number, ext: number) => {
-    parts.push(
-      <g key={k()} className="dw-dimline" strokeWidth={0.25 * u}>
-        <line x1={xa} y1={y - ext} x2={xa} y2={y + a} />
-        <line x1={xb} y1={y - ext} x2={xb} y2={y + a} />
-        <line x1={xa} y1={y} x2={xb} y2={y} />
-        <path d={`M${xa} ${y} l${a} ${-a / 2.5} v${(2 * a) / 2.5} z M${xb} ${y} l${-a} ${-a / 2.5} v${(2 * a) / 2.5} z`} className="dw-arrow" />
-      </g>,
-    );
-    text((xa + xb) / 2, y - 1.2 * u, fmt(value));
+    [P(sh(a, base + OFF * 1.2)), P(sh(b, base + OFF * 1.2))].forEach(([x, y]) => grow(x, y));
+    grow(cx - tw / 2, cy - fs * 0.7);
+    grow(cx + tw / 2, cy + fs * 0.7);
   };
-  /** Вертикальный размер; side = −1 — слева от объекта, +1 — справа. */
-  const vdim = (ya: number, yb: number, x: number, value: number, ext: number, side: 1 | -1) => {
-    parts.push(
-      <g key={k()} className="dw-dimline" strokeWidth={0.25 * u}>
-        <line x1={x - side * ext} y1={ya} x2={x + side * a} y2={ya} />
-        <line x1={x - side * ext} y1={yb} x2={x + side * a} y2={yb} />
-        <line x1={x} y1={ya} x2={x} y2={yb} />
-        <path d={`M${x} ${ya} l${-a / 2.5} ${a} h${(2 * a) / 2.5} z M${x} ${yb} l${-a / 2.5} ${-a} h${(2 * a) / 2.5} z`} className="dw-arrow" />
-      </g>,
-    );
-    // повёрнутый текст растёт от базовой линии влево: слева — сразу у линии, справа — с отступом на высоту букв
-    text(side < 0 ? x - 1.2 * u : x + 1.2 * u + 0.72 * fs, (ya + yb) / 2, fmt(value), -90);
-  };
-  const axis = (x1: number, y1: number, x2: number, y2: number) =>
-    parts.push(<line key={k()} x1={x1} y1={y1} x2={x2} y2={y2} className="dw-axis" strokeWidth={0.2 * u} strokeDasharray={`${3 * u} ${1 * u} ${0.6 * u} ${1 * u}`} />);
 
-  const cx = x0 + L / 2;
-  // ——— вид сверху: C0 вправо, C90 вверх
-  const cyP = yPlan + W / 2;
-  shape(body.circle, cx, cyP, L, W, 'body');
-  if (lum) shape(lum.circle, cx, cyP, vis(lum.L), vis(lum.W), 'hidden');
-  axis(x0 - 3 * u, cyP, x0 + L + 3 * u, cyP);
-  axis(cx, yPlan - 3 * u, cx, yPlan + W + 3 * u);
-  if (!body.circle) vdim(yPlan, yPlan + W, x0 - m * 0.55, body.W, m * 0.55 - 1 * u, -1);
-  if (lum && !lum.circle && Math.abs(lum.W - body.W) > 1e-6) vdim(cyP - vis(lum.W) / 2, cyP + vis(lum.W) / 2, x0 + L + m * 0.55, lum.W, m * 0.55 + (L - vis(lum.L)) / 2 - 1 * u, 1);
-
-  // ——— вид сбоку (со стороны C270): светящая часть — снизу, полоса высотой h(C270)
-  const yb = ySide + H;
-  parts.push(<rect key={k()} x={x0} y={ySide} width={L} height={H} className="dw-body" strokeWidth={sw} />);
-  if (lum) {
-    const lw = vis(lum.L);
-    const hh = heights ? heights[3] : 0;
-    if (hh > 0) parts.push(<rect key={k()} x={cx - lw / 2} y={yb - Math.min(H, hh * sc)} width={lw} height={Math.min(H, hh * sc)} fill={LUM_FILL} stroke={LUM_STROKE} strokeWidth={sw} />);
-    parts.push(<line key={k()} x1={cx - lw / 2} y1={yb} x2={cx + lw / 2} y2={yb} stroke={LUM_STROKE} strokeWidth={1.4 * u} />);
+  if (!body.circle) {
+    const x = L / 2;
+    const y = W / 2;
+    dim([-x, -y, 0], [x, -y, 0], [0, -1, 0], body.L); // длина — по ребру на силуэте
+    dim([-x, -y, 0], [-x, y, 0], [-1, 0, 0], body.W); // ширина
+    if (body.H > 0) dim([x, -y, 0], [x, -y, H], [0, -1, 0], body.H); // высота
+  } else {
+    const R = L / 2;
+    dim([-R, 0, 0], [R, 0, 0], [0, -1, 0], body.L, R);
+    const c = Math.SQRT1_2;
+    if (body.H > 0) dim([R * c, -R * c, 0], [R * c, -R * c, H], [c, -c, 0], body.H);
   }
-  axis(cx, ySide - 3 * u, cx, yb + 3 * u);
-  hdim(x0, x0 + L, yb + m * 0.7, body.L, m * 0.7 - 1 * u);
-  if (lum && lumDiff) hdim(cx - vis(lum.L) / 2, cx + vis(lum.L) / 2, yb + m * 0.7 + fs * 1.7, lum.L, m * 0.7 + fs * 1.7 - 1 * u);
-  vdim(ySide, yb, x0 + L + m * 0.55, body.H, m * 0.55 - 1 * u, 1);
-
+  const pad = 2;
+  const vb = `${bb.x0 - pad} ${bb.y0 - pad} ${bb.x1 - bb.x0 + 2 * pad} ${bb.y1 - bb.y0 + 2 * pad}`;
   return (
     <figure className="drawing">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t('drawing.title')}>
+      <svg viewBox={vb} role="img" aria-label={t('drawing.title')}>
         {parts}
       </svg>
     </figure>

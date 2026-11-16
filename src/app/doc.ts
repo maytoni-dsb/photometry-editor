@@ -39,8 +39,12 @@ export interface OpenFile extends DocState {
   derived?: boolean;
   /** Путь в подключённой папке (файл из папки). */
   folderPath?: string;
-  /** Файл в папке изменился или удалён, а в редакторе есть несохранённые изменения. */
+  /** Файл в папке изменился или удалён, а в редакторе есть несохранённые правки. */
   disk?: 'changed' | 'removed';
+  /** Файл на диске (открыт через системный диалог, из папки или перетаскиванием) — для «Сохранить». */
+  handle?: FileSystemFileHandle;
+  /** Длина истории в момент последнего сохранения (нет — файл не сохранялся после открытия). */
+  savedLen?: number;
 }
 
 /** Не больше стольких шагов отмены на файл. */
@@ -115,7 +119,18 @@ export function jumpTo(f: OpenFile, index: number): OpenFile {
 }
 
 /** Есть ли несохранённые изменения. */
-export const isModified = (f: OpenFile) => f.past.length > 0 || !!f.derived;
+export const isModified = (f: OpenFile) => (f.savedLen != null ? f.past.length !== f.savedLen : f.past.length > 0 || !!f.derived);
+
+/**
+ * Удалить текущее состояние из истории: текущим становится предыдущее, шаги «вперёд» сохраняются.
+ * У исходного состояния (истории нет) — без изменений.
+ */
+export function deleteCurrent(f: OpenFile): OpenFile {
+  if (!f.past.length) return f;
+  const prev = f.past[f.past.length - 1];
+  const savedLen = f.savedLen != null && f.savedLen >= f.past.length ? f.savedLen - 1 : f.savedLen;
+  return { ...f, ...prev, past: f.past.slice(0, -1), savedLen };
+}
 
 /** Имя без расширения. */
 export function baseName(name: string): string {

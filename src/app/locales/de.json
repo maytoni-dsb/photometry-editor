@@ -37,7 +37,8 @@
     "miniOriginal": "Original, vor den Operationen",
     "disk_changed": "Die Datei hat sich im Ordner geändert, hier gibt es ungespeicherte Änderungen",
     "disk_removed": "Die Datei wurde aus dem Ordner gelöscht",
-    "folderError": "Ordner konnte nicht geöffnet werden: {{msg}}"
+    "folderError": "Ordner konnte nicht geöffnet werden: {{msg}}",
+    "copy": "Kopie"
   },
   "tabs": {
     "passport": "Datenblatt",
@@ -80,13 +81,13 @@
     "symmetry": "Symmetrie",
     "grid": "Raster",
     "gridValue": "{{h}} × {{v}} ({{hName}} {{hRange}}, {{vName}} {{vRange}})",
-    "mode": "Art",
+    "mode": "Photometrie",
     "absolute": "absolut",
     "relative": "relativ",
     "multiplier": "Faktor (IES)",
     "conversionFactor": "Umrechnungsfaktor (LDT, Zeile 24)",
     "tilt": "TILT",
-    "inputWatts": "Leuchtenleistung, W",
+    "inputWatts": "Leuchtenleistung",
     "calc": "Aus den Daten berechnet",
     "flux": "Lichtstrom",
     "fluxDownUp": "Unten / oben",
@@ -94,7 +95,7 @@
     "peak": "Maximale Lichtstärke",
     "peakValue": "{{cd}} cd ({{cdklm}} cd/klm) bei C{{c}}, γ {{g}}°",
     "efficacy": "Lichtausbeute",
-    "lor": "LOR (aus Daten)",
+    "lor": "LOR",
     "ldtStated": "LOR {{lorl}} %, nach unten {{dff}} %",
     "keywords": "IES-Schlüsselwörter",
     "saveIes": "Als IES speichern",
@@ -119,7 +120,8 @@
     "lengthL": "Länge",
     "widthL": "Breite",
     "heightL": "Höhe",
-    "ldtFile": "In der LDT-Datei"
+    "ldtFile": "In der LDT-Datei",
+    "characteristics": "Kennwerte"
   },
   "sym": {
     "none": "keine",
@@ -241,7 +243,8 @@
     "info": "Info"
   },
   "error": {
-    "read": "„{{name}}“ konnte nicht gelesen werden: {{msg}}"
+    "read": "„{{name}}“ konnte nicht gelesen werden: {{msg}}",
+    "save": "{{name}} konnte nicht gespeichert werden: {{msg}}"
   },
   "common": {
     "none": "—",
@@ -292,7 +295,10 @@
     "batchConvert": "IES ↔ LDT konvertieren…",
     "batchVariants": "Varianten erzeugen…",
     "batchCharts": "Diagramme im Stapel exportieren…",
-    "batchSummary": "Übersichtstabelle…"
+    "batchSummary": "Übersichtstabelle…",
+    "save": "Speichern",
+    "saveAs": "Speichern unter",
+    "editing": "Bearbeiten"
   },
   "about": {
     "version": "Version",
@@ -366,7 +372,8 @@
       "regrid": "Raster C {{c}}°, γ {{g}}°",
       "sum": "Summe von {{n}} Körpern",
       "smooth": "Geglättet {{w}}°",
-      "smoothFree": "Geglättet {{w}}° (Lichtstrom nicht erhalten)"
+      "smoothFree": "Geglättet {{w}}° (Lichtstrom nicht erhalten)",
+      "sumWith": "Summe mit „{{name}}“"
     },
     "err": {
       "bad-value": "Positive Zahl eingeben",
@@ -401,7 +408,12 @@
     "sumSame": "Das ist die aktuelle Datei — bitte eine andere wählen.",
     "sumNotPhotometry": "Eine IES- oder LDT-Datei wird benötigt.",
     "sumDrop": "Datei aus der Liste links oder vom Datenträger hierher ziehen",
-    "sumLoad": "Laden…"
+    "sumLoad": "Laden…",
+    "sumFlux": "Lichtstrom",
+    "sumHint": "Die zweite Datei wird zur aktuellen addiert — das Ergebnis wird in die aktuelle Datei geschrieben.",
+    "deleteState": "Aktuellen Zustand löschen",
+    "forkState": "Neue Datei aus dem aktuellen Zustand",
+    "forked": "Erstellt aus „{{name}}“"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",

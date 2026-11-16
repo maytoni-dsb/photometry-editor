@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CATALOG_WIDTH } from '../charts/polar-catalog';
 import { defaultChartOptions, type ChartOptions } from '../charts/series';
 import { catalogStyle, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../charts/style';
-import { requestChartExport, saveAs } from './actions';
+import { formatOf, requestChartExport, saveAs, saveToHandle } from './actions';
 import { About } from './components/About';
 import { MenuBar, type Menu, type MenuItem } from './components/MenuBar';
 import { ChartPanel, layoutPatch } from './components/ChartPanel';
@@ -33,7 +33,7 @@ import {
   type FolderState,
 } from './folder';
 import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
-import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
+import { applyStep, baseName, deleteCurrent, isModified, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
 import { applyWork, patchWork, workFrom, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry, type Work } from '../core/index';
 import { loadFonts, type LoadedFonts } from './fonts';
 import { LANGS } from './i18n';
@@ -84,7 +84,7 @@ export default function App() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [showFiles, setShowFiles] = useState(() => load('show-files', true));
   const [theme, setTheme] = useState<Theme>(() => load<Theme | null>('theme', null) ?? 'system');
-  const [opKind, setOpKind] = useState<OpKind>('normalize');
+  const [opKind, setOpKind] = useState<OpKind>('rotate');
   // пакетная обработка (этап 5): окно не размонтируется, чтобы список файлов и ход работы сохранялись
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchMounted, setBatchMounted] = useState(false);
@@ -104,6 +104,7 @@ export default function App() {
   const folderRef = useRef(folder);
   folderRef.current = folder;
   const filesRef = useRef<OpenFile[]>([]);
+  const recentSaves = useRef(new Map<string, number>());
 
   useEffect(() => {
     loadFonts().then(setFonts, (e) => setErrors((x) => [...x, String(e)]));
@@ -124,13 +125,15 @@ export default function App() {
     if (fonts && style.font.family !== fonts.family) setStyle((s) => ({ ...s, font: { ...s.font, family: fonts.family } }));
   }, [fonts, style.font.family]);
 
-  const addFiles = useCallback(async (list: FileList | File[]) => {
-    const arr = [...list].filter((f) => /\.(ies|ldt)$/i.test(f.name));
+  /** Открыть файлы; handles — файлы на диске (для «Сохранить» в тот же файл), если браузер их дал. */
+  const addFiles = useCallback(async (list: FileList | File[], handles?: Array<FileSystemFileHandle | undefined>) => {
+    const all = [...list];
+    const arr = all.map((f, i) => ({ f, h: handles?.[i] })).filter(({ f }) => /\.(ies|ldt)$/i.test(f.name));
     const opened: OpenFile[] = [];
     const errs: string[] = [];
-    for (const f of arr) {
+    for (const { f, h } of arr) {
       try {
-        opened.push(openBytes(f.name, new Uint8Array(await f.arrayBuffer())));
+        opened.push({ ...openBytes(f.name, new Uint8Array(await f.arrayBuffer())), handle: h });
       } catch (e) {
         errs.push(t('error.read', { name: f.name, msg: (e as Error).message }));
       }
@@ -178,7 +181,12 @@ export default function App() {
       const handles = items.map((it) => (it as DataTransferItem & { getAsFileSystemHandle?: () => Promise<FileSystemHandle | null> }).getAsFileSystemHandle?.());
       const isDir = items.some((it) => (it as DataTransferItem & { webkitGetAsEntry?: () => { isDirectory: boolean } | null }).webkitGetAsEntry?.()?.isDirectory);
       if (!isDir) {
-        if (dt.files.length) void addFiles(dt.files);
+        const files = [...dt.files];
+        if (!files.length) return;
+        // в Chrome / Edge вместе с файлами приходят ссылки на них — тогда «Сохранить» пишет в тот же файл
+        void Promise.all(handles.map((p) => (p ? p.catch(() => null) : Promise.resolve(null)))).then((hs) =>
+          addFiles(files, hs.length === files.length ? hs.map((h) => (h?.kind === 'file' ? (h as FileSystemFileHandle) : undefined)) : undefined),
+        );
         return;
       }
       // записи перетаскивания доступны только синхронно, поэтому снимок начинаем сразу, если он понадобится
@@ -247,6 +255,9 @@ export default function App() {
     for (const e of d.changed) {
       const f = filesRef.current.find((x) => x.folderPath === e.path);
       if (!f) continue;
+      // это мы сами только что сохранили файл — перечитывать не нужно
+      const saved = recentSaves.current.get(e.path);
+      if (saved && Date.now() - saved < 15000) continue;
       if (isModified(f)) {
         setFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, disk: 'changed' } : x)));
         continue;
@@ -302,7 +313,7 @@ export default function App() {
       return;
     }
     try {
-      const f = { ...openBytes(e.name, await readEntry(e)), folderPath: e.path };
+      const f = { ...openBytes(e.name, await readEntry(e)), folderPath: e.path, handle: e.handle };
       setFiles((prev) => [...prev.filter((x) => !x.folderPath || isModified(x)), f]);
       setActiveId(f.id);
     } catch (err) {
@@ -355,6 +366,15 @@ export default function App() {
     setFiles((prev) => [...prev, d]);
     setActiveId(d.id);
   };
+  const deleteState = () => active && updateFile(active.id, deleteCurrent);
+  /** Новый файл из текущего состояния (его история начинается заново). */
+  const forkState = () => {
+    if (!active) return;
+    const fmt = formatOf(active);
+    const d = newDoc(`${baseName(active.name)} (${t('files.copy')}).${fmt}`, active.parse.photometry, [], t('ops.forked', { name: active.name }), workOf(active));
+    setFiles((prev) => [...prev, d]);
+    setActiveId(d.id);
+  };
   const doUndo = () => active && updateFile(active.id, undo);
   const doRedo = () => active && updateFile(active.id, redo);
   const jump = (i: number) => {
@@ -383,7 +403,45 @@ export default function App() {
     applyTheme(dark ? 'light' : 'dark');
   };
 
-  const openDialog = () => inputRef.current?.click();
+  /** Открыть: в Chrome / Edge — системный диалог со ссылками на файлы (для «Сохранить»), иначе — обычный выбор. */
+  const openDialog = async () => {
+    const w = window as unknown as { showOpenFilePicker?: (o: object) => Promise<FileSystemFileHandle[]> };
+    if (!w.showOpenFilePicker || window.self !== window.top) {
+      inputRef.current?.click();
+      return;
+    }
+    try {
+      const hs = await w.showOpenFilePicker({ multiple: true, id: 'photometry', types: [{ description: 'IES / LDT', accept: { 'text/plain': ['.ies', '.ldt'] } }] });
+      const fs = await Promise.all(hs.map((h) => h.getFile()));
+      await addFiles(fs, hs);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') inputRef.current?.click();
+    }
+  };
+
+  /** «Сохранить»: в тот же файл на диске; если его нет или записать нельзя — «Сохранить как». */
+  const saveActive = async () => {
+    if (!active) return;
+    const f = active;
+    try {
+      if (f.handle && (await saveToHandle(f))) {
+        if (f.folderPath) recentSaves.current.set(f.folderPath, Date.now());
+        updateFile(f.id, (x) => ({ ...x, savedLen: x.past.length, disk: undefined }));
+        return;
+      }
+    } catch (e) {
+      setErrors([t('error.save', { name: f.name, msg: (e as Error).message })]);
+    }
+    await saveActiveAs(formatOf(f));
+  };
+  const saveActiveAs = async (fmt: 'ies' | 'ldt') => {
+    if (!active) return;
+    const f = active;
+    const r = await saveAs(f, fmt);
+    if (!r) return;
+    // сохранённый «как» файл — новый файл на диске (папка к нему уже не относится)
+    updateFile(f.id, (x) => ({ ...x, name: r.handle ? r.name : x.name, handle: r.handle ?? x.handle, folderPath: r.handle ? undefined : x.folderPath, savedLen: x.past.length, derived: r.handle ? false : x.derived }));
+  };
   const closeAll = () => {
     setFiles([]);
     setActiveId(null);
@@ -418,7 +476,10 @@ export default function App() {
     if (target.matches?.('input:not([type=file]):not([type=checkbox]), select, textarea')) return;
     if (mod && !e.shiftKey && e.key.toLowerCase() === 'o') {
       e.preventDefault();
-      openDialog();
+      void openDialog();
+    } else if (mod && !e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      void saveActive();
     } else if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault();
       if (e.shiftKey) doRedo();
@@ -454,12 +515,19 @@ export default function App() {
       id: 'file',
       label: t('menu.file'),
       items: [
-        { label: t('menu.open'), shortcut: `${mod}O`, onClick: openDialog },
+        { label: t('menu.open'), shortcut: `${mod}O`, onClick: () => void openDialog() },
         { label: t('files.connectFolder'), onClick: () => void connectFolder() },
         { label: t('files.disconnect'), disabled: !folder, onClick: disconnectFolder },
         'sep',
-        { label: t('passport.saveIes'), disabled: !active, onClick: () => active && void saveAs(active, 'ies') },
-        { label: t('passport.saveLdt'), disabled: !active, onClick: () => active && void saveAs(active, 'ldt') },
+        { label: t('menu.save'), shortcut: `${mod}S`, disabled: !active, onClick: () => void saveActive() },
+        {
+          label: t('menu.saveAs'),
+          disabled: !active,
+          submenu: [
+            { label: 'IES…', onClick: () => void saveActiveAs('ies') },
+            { label: 'LDT…', onClick: () => void saveActiveAs('ldt') },
+          ],
+        },
         'sep',
         {
           label: t('menu.exportChart'),
@@ -516,14 +584,14 @@ export default function App() {
     },
     {
       id: 'photometry',
-      label: t('menu.photometry'),
+      label: t('menu.editing'),
       items: [
         ...OP_KINDS.map((k): MenuItem => ({ label: `${t(`ops.kind_${k}`)}…`, disabled: !active, onClick: () => openOp(k) })),
         'sep',
         {
           label: t('menu.mirrorNow'),
           disabled: !active,
-          submenu: (['c0c180', 'c90c270', 'updown'] as MirrorPlane[]).map((pl) => ({ label: t(`ops.mirror_${pl}`), onClick: () => quickOp({ op: 'mirror', plane: pl }) })),
+          submenu: (['c0c180', 'c90c270', 'updown'] as MirrorPlane[]).map((pl) => ({ label: t(`ops.mirrorBtn_${pl}`), onClick: () => quickOp({ op: 'mirror', plane: pl }) })),
         },
         {
           label: t('menu.rotateZNow'),
@@ -531,14 +599,8 @@ export default function App() {
           submenu: [90, -90, 180].map((a) => ({ label: `${a > 0 ? '+' : '−'}${Math.abs(a)}°`, onClick: () => quickOp({ op: 'rotate', axis: 'z', angle: a }) })),
         },
         { label: t('menu.normalize1000'), disabled: !active, onClick: () => quickOp({ op: 'normalize', mode: 'cdklm' }) },
-      ],
-    },
-    {
-      id: 'batch',
-      label: t('menu.batch'),
-      items: [
-        { label: t('menu.batchOpen'), shortcut: `${mod}B`, onClick: () => openBatch('all') },
         'sep',
+        { label: t('menu.batchOpen'), shortcut: `${mod}B`, onClick: () => openBatch('all') },
         { label: t('menu.batchConvert'), onClick: () => openBatch('convert') },
         { label: t('menu.batchVariants'), onClick: () => openBatch('variants') },
         { label: t('menu.batchCharts'), onClick: () => openBatch('charts') },
@@ -695,17 +757,17 @@ export default function App() {
                   ))}
                 </nav>
               </div>
-              <div className="tab-body">
+              <div className={tab === 'passport' || tab === 'table' || tab === 'ops' ? 'tab-body has-history' : 'tab-body'}>
                 {tab === 'passport' && (
                   <div className="with-history">
-                    <Passport file={active} onPatch={patchActive} />
-                    <HistoryPanel file={active} onJump={jump} />
+                    <Passport file={active} onPatch={patchActive} onOp={(spec, label) => { try { const r = applyWork(workOf(active), spec); applyToActive(r.photometry, r.issues, label, spec, r.work); } catch (e) { setErrors([e instanceof OpError ? t(`ops.err.${e.code}`, e.params) : String(e)]); } }} />
+                    <HistoryPanel file={active} onJump={jump} onDelete={deleteState} onFork={forkState} />
                   </div>
                 )}
                 {tab === 'table' && (
                   <div className="with-history">
                     <IntensityTable file={active} onEdit={editCell} />
-                    <HistoryPanel file={active} onJump={jump} />
+                    <HistoryPanel file={active} onJump={jump} onDelete={deleteState} onFork={forkState} />
                   </div>
                 )}
                 {tab === 'body' && <Body3DTab file={active} settings={settings} />}
@@ -721,6 +783,8 @@ export default function App() {
                     onApply={applyToActive}
                     onCreate={createDoc}
                     onJump={jump}
+                    onDelete={deleteState}
+                    onFork={forkState}
                     onAddFile={(name, bytes) => {
                       try {
                         const f = openBytes(name, bytes);

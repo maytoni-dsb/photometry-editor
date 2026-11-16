@@ -20,7 +20,6 @@ import {
   type Issue,
   type Lang,
   type MirrorPlane,
-  type NormalizeMode,
   type OpSpec,
   type Photometry,
   type PhotometrySummary,
@@ -35,8 +34,18 @@ import { Body3D, Fallback, HousingToggle, useHousingPref, ViewPill } from './Bod
 import { HistoryPanel } from './HistoryPanel';
 import { NumField } from './NumField';
 
-export type OpKind = 'normalize' | 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'regrid' | 'sum';
-export const OP_KINDS: OpKind[] = ['normalize', 'mirror', 'rotate', 'symmetrize', 'smooth', 'regrid', 'sum'];
+export type OpKind = 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'regrid' | 'sum';
+export const OP_KINDS: OpKind[] = ['mirror', 'rotate', 'symmetrize', 'smooth', 'regrid', 'sum'];
+
+/** Пиктограммы режимов (24 × 24, линией). */
+const OP_ICONS: Record<OpKind, string> = {
+  mirror: 'M12 3v18M9 6 4 12l5 6zM15 6l5 6-5 6',
+  rotate: 'M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4',
+  symmetrize: 'M12 3v18M12 5c-4 0-7 3-7 7s3 7 7 7M12 5c4 0 7 3 7 7s-3 7-7 7',
+  smooth: 'M3 15c3 0 3-6 6-6s3 6 6 6 3-6 6-6',
+  regrid: 'M4 4h16v16H4zM4 9.3h16M4 14.6h16M9.3 4v16M14.6 4v16',
+  sum: 'M12 5v14M5 12h14',
+};
 
 type SymTarget = Exclude<Symmetry, 'bilateral'>;
 
@@ -54,7 +63,7 @@ interface SumRow {
   oz: string;
 }
 
-const neutralRow = (f: OpenFile): SumRow => ({ wmode: 'k', weight: '1', flux: String(Math.round(f.summary.flux.total * 10) / 10), rx: '0', ry: '0', rz: '0', ox: '0', oy: '0', oz: '0' });
+const neutralRow = (f: OpenFile): SumRow => ({ wmode: 'flux', weight: '1', flux: String(Math.round(f.summary.flux.total * 10) / 10), rx: '0', ry: '0', rz: '0', ox: '0', oy: '0', oz: '0' });
 
 /** Источник второго слагаемого, перетащенный из списка файлов. */
 export const DRAG_FILE = 'application/x-pe-file';
@@ -68,7 +77,9 @@ interface Props {
   settings: ChartSettings;
   style: ChartStyle;
   fonts: LoadedFonts | null;
-  onApply: (p: Photometry, issues: Issue[], label: string, spec: OpSpec, work: Work) => void;
+  onApply: (p: Photometry, issues: Issue[], label: string, spec: OpSpec | undefined, work: Work) => void;
+  onDelete: () => void;
+  onFork: () => void;
   onCreate: (name: string, p: Photometry, issues: Issue[], label: string, work: Work) => void;
   onJump: (index: number) => void;
   /** Открыть файл с диска (байты) — он появится в списке файлов, но не станет текущим. */
@@ -112,19 +123,15 @@ function errorText(t: (k: string, o?: Record<string, unknown>) => string, e: unk
   return String((e as Error)?.message ?? e);
 }
 
-export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onApply, onCreate, onJump, onAddFile, onOpenEntry }: Props) {
+export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onApply, onJump, onAddFile, onOpenEntry, onDelete, onFork }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Lang;
   const p = file.parse.photometry;
   const s = file.summary;
   const work = useMemo(() => workOf(file), [file]);
   const steps = useMemo(() => naturalSteps(s.asC), [s.asC]);
-  const r1 = (x: number) => String(Math.round(x * 10) / 10);
 
   // ——— параметры операций; по умолчанию — значения, которые ничего не меняют
-  const neutralValue = (m: NormalizeMode) => (m === 'flux' ? r1(s.flux.total) : m === 'peak' ? r1(s.peak.value) : '1');
-  const [nMode, setNMode] = useState<NormalizeMode>('factor');
-  const [nValue, setNValue] = useState('1');
   const [plane, setPlane] = useState<MirrorPlane | null>(null);
   const [axis, setAxis] = useState<RotationAxis>('z');
   const [angle, setAngle] = useState('0');
@@ -142,7 +149,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const fileInput = useRef<HTMLInputElement>(null);
 
   const reset = () => {
-    setNValue(neutralValue(nMode));
     setPlane(null);
     setAngle('0');
     setSymT('none');
@@ -162,7 +168,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   useEffect(() => resetRef.current(), [op, file.id]);
   // после применения меняется сам файл (поток, сетка) — «нейтральные» значения пересчитываются
   useEffect(() => {
-    setNValue((v) => (nMode === 'factor' ? v : neutralValue(nMode)));
     setCStep(String(steps.cStep));
     setGStep(String(steps.gStep));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,13 +185,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const spec: OpSpec | null = useMemo(() => {
     const eq = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
     switch (op) {
-      case 'normalize': {
-        if (nMode === 'cdklm') return Math.abs(s.referenceFlux - 1000) < 1e-6 ? null : { op: 'normalize', mode: 'cdklm' };
-        const v = num(nValue);
-        if (!Number.isFinite(v)) return { op: 'normalize', mode: nMode, value: v };
-        if (nMode === 'factor' ? eq(v, 1) : nMode === 'flux' ? Math.abs(v - s.flux.total) < 0.05 : Math.abs(v - s.peak.value) < 0.05) return null;
-        return { op: 'normalize', mode: nMode, value: v };
-      }
       case 'mirror':
         return plane ? { op: 'mirror', plane } : null;
       case 'rotate': {
@@ -208,7 +206,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
       default:
         return null;
     }
-  }, [op, nMode, nValue, plane, axis, angle, symT, cStep, gStep, gRange, steps, sWidth, keepFlux, s]);
+  }, [op, plane, axis, angle, symT, cStep, gStep, gRange, steps, sWidth, keepFlux, s]);
 
   const comp = (f: OpenFile, r: SumRow) => ({
     name: baseName(f.name),
@@ -260,8 +258,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const apply = () => {
     if (!ok) return;
     if (op === 'sum') {
-      const name = sumComps.map((c) => c.name).join(' + ');
-      onCreate(name, ok.p, ok.issues, t('ops.label.sum', { n: sumComps.length }), ok.work);
+      onApply(ok.p, ok.issues, t('ops.label.sumWith', { name: secondFile?.name ?? '' }), undefined, ok.work);
     } else if (spec) onApply(ok.p, ok.issues, opLabel(t, lang, spec), spec, ok.work);
     reset();
   };
@@ -341,45 +338,36 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     </div>
   );
 
-  /** Поля слагаемого в одну строку: вес / поток, поворот, смещение. */
+  /** Поля слагаемого в одну строку: поток (он и задаёт вес) и поворот X / Y / Z. */
   const sumFields = (f: OpenFile, r: SumRow, set: (r: SumRow) => void) => (
     <>
-      <div className="seg small">
-        {(['k', 'flux'] as const).map((m) => (
-          <button key={m} className={r.wmode === m ? 'on' : ''} onClick={() => set({ ...r, wmode: m })}>{t(`ops.wmode_${m}`)}</button>
-        ))}
-      </div>
-      {r.wmode === 'k' ? (
-        <NumField value={r.weight} onChange={(v) => set({ ...r, weight: v })} min={0} step={0.1} unit="×" width={72} aria-label={t('ops.weight')} title={t('ops.weightFluxHint', { v: fmtNum(lang, (num(r.weight) || 0) * f.summary.flux.total, 0) })} />
-      ) : (
-        <NumField value={r.flux} onChange={(v) => set({ ...r, flux: v })} min={0} step={10} unit={t('unit.lm')} width={104} aria-label={t('ops.wmode_flux')} title={t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f, r) || 0, 3) })} />
-      )}
-      <span className="oplabel">{t('ops.rot')}</span>
+      <span className="oplabel">{t('ops.sumFlux')}</span>
+      <NumField
+        value={r.flux}
+        onChange={(v) => set({ ...r, flux: v, wmode: 'flux' })}
+        min={0}
+        step={10}
+        unit={t('unit.lm')}
+        width={96}
+        aria-label={t('ops.sumFlux')}
+        title={t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f, { ...r, wmode: 'flux' }) || 0, 3) })}
+      />
+      <span className="opicon" title={t('ops.rot')} aria-label={t('ops.rot')}>
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d={OP_ICONS.rotate} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
       {(['rx', 'ry', 'rz'] as const).map((k) => (
-        <NumField key={k} value={r[k]} onChange={(v) => set({ ...r, [k]: v })} step={1} unit={`° ${k[1].toUpperCase()}`} width={76} aria-label={`${t('ops.rot')} ${k[1].toUpperCase()}`} />
-      ))}
-      <span className="oplabel">{t('ops.offset')}</span>
-      {(['ox', 'oy', 'oz'] as const).map((k) => (
-        <NumField key={k} value={r[k]} onChange={(v) => set({ ...r, [k]: v })} step={1} unit={`${t('unit.mm')} ${k[1]}`} width={86} aria-label={k[1]} />
+        <span key={k} className="axisfield">
+          <span className="oplabel">{k[1].toUpperCase()}</span>
+          <NumField value={r[k]} onChange={(v) => set({ ...r, [k]: v })} step={1} unit="°" width={58} aria-label={`${t('ops.rot')} ${k[1].toUpperCase()}`} />
+        </span>
       ))}
     </>
   );
 
   let fields: React.ReactNode = null;
   switch (op) {
-    case 'normalize':
-      fields = (
-        <>
-          <Select value={nMode} onChange={(e) => { const m = e.target.value as NormalizeMode; setNMode(m); setNValue(neutralValue(m)); }} aria-label={t('batch.stepMode')}>
-            {(['factor', 'flux', 'peak', 'cdklm'] as const).map((m) => <option key={m} value={m}>{t(`ops.norm_${m}`)}</option>)}
-          </Select>
-          {nMode !== 'cdklm' && (
-            <NumField value={nValue} onChange={setNValue} min={0} step={nMode === 'factor' ? 0.1 : nMode === 'flux' ? 10 : 1} unit={nMode === 'flux' ? t('unit.lm') : nMode === 'peak' ? t('unit.cd') : '×'} width={130} aria-label={t(`ops.norm_${nMode}`)} />
-          )}
-          {nMode === 'cdklm' && <span className="muted small">{t('ops.normNowRef', { v: fmtNum(lang, s.referenceFlux, 0), kind: t(`ref.${s.referenceKind}`) })}</span>}
-        </>
-      );
-      break;
     case 'mirror':
       fields = seg(['c0c180', 'c90c270', 'updown'] as const, plane, setPlane, (m) => t(`ops.mirrorBtn_${m}`));
       break;
@@ -430,21 +418,28 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     <div className="ops-layout">
       <div className="ops-main">
         <section className="ops-editor">
-          <div className="opline">
-            <Select value={op} onChange={(e) => onOp(e.target.value as OpKind)} aria-label={t('ops.title')} className="opkind-sel">
-              {OP_KINDS.map((k) => <option key={k} value={k}>{t(`ops.kind_${k}`)}</option>)}
-            </Select>
-            {fields}
-            <span className="grow" />
-            <button className="btn primary opgo" disabled={!canApply} onClick={apply}>
-              {op === 'sum' ? t('ops.applySum') : t('ops.apply')}
-            </button>
-          </div>
+          <div className="opbar">
+            <div className="opmodes" role="tablist" aria-label={t('ops.title')}>
+              {OP_KINDS.map((k) => (
+                <button key={k} role="tab" aria-selected={op === k} className={op === k ? 'opmode on' : 'opmode'} onClick={() => onOp(k)} title={t(`ops.kind_${k}`)}>
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path d={OP_ICONS[k]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>{t(`ops.kind_${k}`)}</span>
+                </button>
+              ))}
+              <button className="btn primary opgo" disabled={!canApply} onClick={apply} title={op === 'sum' ? t('ops.sumHint') : undefined}>
+                {t('ops.apply')}
+              </button>
+            </div>
+            <div className="opright">
+              {op !== 'sum' && <div className="opline">{fields}</div>}
           {op === 'sum' && (
             <div className="sumslots">
               <div className="sumslot">
-                <span className="slotname" title={file.name}><span className="slotno">1</span>{file.name}</span>
+                <span className="slotname" title={file.name}><span className="slotno">1</span><span className="nm">{file.name}</span></span>
                 {sumFields(file, rowA, setRowA)}
+                <span className="close-ph" />
               </div>
               <div
                 className={`sumslot drop${dropOver ? ' over' : ''}${secondFile ? '' : ' empty'}`}
@@ -455,10 +450,10 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
                 {secondFile && rowB ? (
                   <>
                     <span className="slotname" title={secondFile.name}>
-                      <span className="slotno">2</span>{secondFile.name}
-                      <button className="close vis" aria-label={t('files.close')} onClick={() => { setSecond(null); setRowB(null); }}>×</button>
+                      <span className="slotno">2</span><span className="nm">{secondFile.name}</span>
                     </span>
                     {sumFields(secondFile, rowB, (r) => setRowB(r))}
+                    <button className="close vis" aria-label={t('files.close')} onClick={() => { setSecond(null); setRowB(null); }}>×</button>
                   </>
                 ) : (
                   <>
@@ -472,8 +467,10 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
               {dropErr && <p className="error small">{dropErr}</p>}
             </div>
           )}
+            </div>
+          </div>
           {preview && 'error' in preview && <p className="error small opnote">{preview.error}</p>}
-          {ok && ok.issues.length > 0 && <p className="muted small opnote">{ok.issues.map((i) => formatIssue(i, lang)).join(' · ')}</p>}
+          {ok && op !== 'sum' && ok.issues.length > 0 && <p className="muted small opnote">{ok.issues.map((i) => formatIssue(i, lang)).join(' · ')}</p>}
         </section>
 
         <div className="ops-stage">
@@ -486,8 +483,8 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
                     <div className="paper b3d-wrap ops-3d">
                       <ViewPill view={view} custom={custom} onView={(v) => { setView(v); setCustom(false); setNonce(nonce + 1); }} />
                       <HousingToggle on={showHousing} available={!!housing} onToggle={setShowHousing} />
-                      <Suspense fallback={<Fallback height={340} />}>
-                        <Body3D photometry={dense} scale={scale3d} planes={planes} housing={showHousing ? housing : null} view={view} viewNonce={nonce} link={link} height={340} onUserMove={() => setCustom(true)} />
+                      <Suspense fallback={<Fallback height={400} />}>
+                        <Body3D photometry={dense} scale={scale3d} planes={planes} housing={showHousing ? housing : null} view={view} viewNonce={nonce} link={link} height={400} onUserMove={() => setCustom(true)} />
                       </Suspense>
                     </div>
                     <div className="paper ops-polar" dangerouslySetInnerHTML={{ __html: svg }} />
@@ -501,7 +498,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           </div>
         </div>
       </div>
-      <HistoryPanel file={file} onJump={onJump} />
+      <HistoryPanel file={file} onJump={onJump} onDelete={onDelete} onFork={onFork} />
     </div>
   );
 }

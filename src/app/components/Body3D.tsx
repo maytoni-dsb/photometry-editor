@@ -139,6 +139,32 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
     controls.screenSpacePanning = true;
     controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN };
     controls.addEventListener('start', () => moveRef.current?.());
+
+    // двойное нажатие колеса — вписать тело (с корпусом) в область построения, направление взгляда сохраняется
+    let lastMid = 0;
+    const fitBody = () => {
+      const box = new THREE.Box3().setFromObject(body);
+      if (box.isEmpty()) return;
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      const vfov = (camera.fov * Math.PI) / 180;
+      const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+      const dist = (sphere.radius * 1.08) / Math.sin(Math.min(vfov, hfov) / 2);
+      controls.target.copy(sphere.center);
+      camera.position.copy(sphere.center).addScaledVector(dir, dist);
+      controls.update();
+      moveRef.current?.();
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 1) return;
+      e.preventDefault(); // без автопрокрутки браузера
+      const now = performance.now();
+      if (now - lastMid < 400) {
+        lastMid = 0;
+        fitBody();
+      } else lastMid = now;
+    };
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
     controls.minDistance = 1.2;
     controls.maxDistance = 20;
     const view = new THREE.Vector3();
@@ -191,6 +217,7 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
     return () => {
       ro.disconnect();
       link?.subs.delete(sub);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       controls.dispose();
       scene.traverse((o) => {
         const m = o as THREE.Mesh;

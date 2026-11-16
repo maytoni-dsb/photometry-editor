@@ -602,7 +602,7 @@ table.numbers td { cursor: default; }
 .viewpill { position: absolute; top: 8px; left: 8px; z-index: 2; }
 .viewpill .sel { height: 26px; font-size: 12px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
 .ops-pair figure { gap: 8px; }
-.ops-3d { height: 340px; padding: 0; overflow: hidden; }
+.ops-3d { height: 400px; padding: 0; overflow: hidden; }
 .ops-polar { height: 210px; display: flex; align-items: center; justify-content: center; padding: 6px; overflow: hidden; }
 .ops-polar svg { width: 100%; height: 100%; }
 
@@ -665,3 +665,82 @@ table.lamps .pe-num { min-width: 96px; }
 .sumslot.drop.over { border-color: var(--accent); background: var(--accent-soft); }
 .slotname { display: inline-flex; align-items: center; gap: 6px; max-width: 170px; font-weight: 600; font-size: 12.5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 6px; }
 .slotno { width: 18px; height: 18px; flex: none; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; }
+
+/* --- вкладки с историей: слева прокручивается содержимое, справа — история во всю высоту */
+.tab-body.has-history { overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.tab-body.has-history > .with-history, .tab-body.has-history > .ops-layout { flex: 1; min-height: 0; height: 100%; align-items: stretch; }
+.with-history > :first-child, .ops-layout > .ops-main { overflow: auto; min-height: 0; padding-right: 4px; }
+.side-history {
+  position: static; max-height: none; height: 100%; min-height: 0; display: flex; flex-direction: column; gap: 10px;
+  border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px;
+}
+.side-history h3 { font-size: 13px; font-weight: 600; margin: 0; }
+.side-history .hrows { flex: 1; min-height: 0; overflow: auto; }
+.hactions { display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--rule); padding-top: 10px; }
+.iconbtn {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--ink2);
+  display: grid; place-items: center; cursor: pointer;
+}
+.iconbtn:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
+.iconbtn:disabled { opacity: 0.4; cursor: default; }
+@media (max-width: 1300px) {
+  .tab-body.has-history { overflow: auto; display: block; }
+  .tab-body.has-history > .with-history, .tab-body.has-history > .ops-layout { height: auto; }
+  .side-history { height: auto; max-height: 420px; }
+}
+
+/* --- операции: режимы — кнопки с пиктограммами 3 × 2, справа поля */
+.opbar { display: flex; gap: 14px; align-items: flex-start; }
+.opmodes { display: grid; grid-template-columns: repeat(3, 92px); gap: 4px; flex: none; }
+.opmode {
+  height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card); color: var(--ink2); font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap; overflow: hidden;
+}
+.opmode svg { flex: none; }
+.opmode span { overflow: hidden; text-overflow: ellipsis; }
+.opmode:hover { background: var(--soft); color: var(--ink); }
+.opmode.on { background: var(--sel); color: var(--on-sel); border-color: var(--sel); }
+.opright { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.opright .opline { min-height: 30px; }
+.opicon { display: inline-grid; place-items: center; color: var(--ink3); margin-left: 6px; }
+.axisfield { display: inline-flex; align-items: center; gap: 4px; }
+.ops-3d { height: 400px; }
+
+/* --- паспорт v0.15: плашки формы справа, высоты 2 × 2 с подписью слева */
+.pe-head .pe-shape { margin-left: auto; }
+.pe-grid22 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+.pe-grid22 label { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink3); }
+table.lamps td { vertical-align: middle; }
+
+/* --- изометрия: грани разного тона */
+.dw-f1 { fill: var(--card); stroke: var(--ink); }
+.dw-f2 { fill: var(--soft2); stroke: var(--ink); }
+.dw-f3 { fill: var(--soft); stroke: var(--ink); }
+
+table.grid.edit .numf input[type='text'] { padding-left: 21px; border-color: var(--rule); background: var(--card); }
+table.lamps td:first-child { white-space: nowrap; }
+.pp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr); }
+@media (max-width: 1400px) { .pp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .pp-grid { grid-template-columns: 1fr; } }
+.pe-fields .numf input[type='text'] { padding-left: 19px; }
+.seg.icons button { width: 30px; padding: 0; display: inline-grid; place-items: center; }
+.card > .h3row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.card > .h3row h3 { margin: 0; }
+
+/* --- v0.15: «Применить» под сеткой режимов; слагаемые — по строке высотой с кнопку */
+.opmodes { grid-template-columns: repeat(3, 124px); }
+.opmodes .opgo { grid-column: 1 / -1; height: 30px; }
+.opbar .sumslots { gap: 4px; }
+.opbar .sumslot { flex-wrap: nowrap; min-height: 30px; padding: 1px 6px; gap: 6px; border-radius: 8px; }
+.opbar .slotname { flex: 1 1 60px; min-width: 40px; max-width: 200px; margin-right: 2px; }
+.opbar .slotname > :not(.slotno):not(.close) { overflow: hidden; text-overflow: ellipsis; }
+.opbar .sumslot .numf input[type='text'] { height: 24px; }
+.opbar .sumslot .axisfield .oplabel, .opbar .sumslot > .oplabel { font-size: 12px; color: var(--ink3); }
+.opbar .slotname .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.opbar .sumslot .numf .unit { right: 5px; }
+.opmodes { grid-template-columns: repeat(3, 128px); }
+.opmode { padding: 0 6px; gap: 5px; }
+.opbar .slotname { min-width: 64px; }
+.opbar .sumslot .axisfield .numf { width: 52px !important; }
+.opbar .sumslot .close, .opbar .sumslot .close-ph { flex: none; width: 18px; }
+.opmodes { grid-template-columns: repeat(3, 120px); }

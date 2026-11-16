@@ -9,7 +9,7 @@ interface PickerWindow {
   showSaveFilePicker?: (o: {
     suggestedName: string;
     types?: Array<{ description: string; accept: Record<string, string[]> }>;
-  }) => Promise<{ createWritable(): Promise<{ write(d: Blob): Promise<void>; close(): Promise<void> }> }>;
+  }) => Promise<FileSystemFileHandle & { createWritable(): Promise<{ write(d: Blob): Promise<void>; close(): Promise<void> }> }>;
 }
 
 function toBlob(d: Data, mime: string): Blob {
@@ -33,7 +33,7 @@ export function download(blob: Blob, name: string): void {
  * Диалог открывается до построения файла — иначе браузер может отказать без жеста пользователя.
  * Возвращает false, если пользователь отменил сохранение.
  */
-export async function saveFile(name: string, mime: string, ext: string, produce: () => Promise<Data> | Data): Promise<boolean> {
+export async function saveFile(name: string, mime: string, ext: string, produce: () => Promise<Data> | Data): Promise<boolean | { name: string; handle: FileSystemFileHandle }> {
   const w = window as unknown as PickerWindow;
   if (w.showSaveFilePicker && window.self === window.top) {
     let handle;
@@ -48,7 +48,7 @@ export async function saveFile(name: string, mime: string, ext: string, produce:
       const wr = await handle.createWritable();
       await wr.write(blob);
       await wr.close();
-      return true;
+      return { name: handle.name, handle };
     }
   }
   download(toBlob(await produce(), mime), name);
