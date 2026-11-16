@@ -785,3 +785,23 @@ table.lamps td:first-child { white-space: nowrap; }
 .sumdrop { width: 100px; }
 .ops-editor.ctrlpanel { flex-wrap: wrap; align-items: stretch; gap: 8px 0; padding: 8px 4px; }
 .cgroup { padding: 0 9px; }
+
+/* --- v0.18: панель «Операций» сеткой — пиктограмма слева, поля и кнопки колонками друг под другом */
+.ops-editor.ctrlpanel { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 0; padding: 10px 6px; }
+.csec { display: grid; grid-auto-rows: 30px; row-gap: 8px; column-gap: 6px; align-items: center; padding: 0 14px; }
+.csec + .csec { border-left: 1px solid var(--rule); }
+.csec-l { grid-template-columns: 30px repeat(3, 72px); }
+.csec-r { grid-template-columns: 30px 92px 92px 78px 92px repeat(3, 72px); }
+.cicon { width: 30px; height: 30px; display: grid; place-items: center; color: var(--ink2); border-radius: 8px; cursor: default; }
+.ccell { display: flex; align-items: center; gap: 4px; min-width: 0; height: 30px; }
+.ccell .oplabel { flex: none; min-width: 10px; font-size: 12px; color: var(--ink3); text-align: right; }
+.ccell .numf { flex: 1; min-width: 0; }
+.ccell .check.small { font-size: 12px; gap: 5px; white-space: nowrap; }
+.seg.cseg { display: grid; height: 30px; }
+.seg.cseg button { min-width: 0; padding: 0 4px; }
+.csec .sumdrop { width: auto; height: 30px; margin: 0; min-width: 0; }
+.csec { column-gap: 4px; }
+.csec-l { grid-template-columns: 30px repeat(3, 66px); }
+.csec-r { grid-template-columns: 30px 84px 84px 70px 84px repeat(3, 64px); }
+.csec-l { grid-template-columns: 30px repeat(3, 72px); }
+.csec-r { grid-template-columns: 30px 84px 84px 70px 84px repeat(3, 66px); }

@@ -375,105 +375,95 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
     return t('ops.hintXY', { c: fmtNum(lang, d.c), g: fmtNum(lang, d.g) });
   };
 
-  /** Кнопки-переключатели; повторное нажатие отжимает кнопку. */
+  /** Кнопки-переключатели (повторное нажатие отжимает); каждая — над своей колонкой полей. */
   const seg = <T extends string>(list: readonly T[], isOn: (v: T) => boolean, toggle: (v: T) => void, label: (v: T) => string, title?: (v: T) => string) => (
-    <div className="seg small">
+    <div className="seg small cseg" style={{ gridColumn: `span ${list.length}`, gridTemplateColumns: `repeat(${list.length}, 1fr)` }}>
       {list.map((v) => (
         <button key={v} className={isOn(v) ? 'on' : ''} aria-pressed={isOn(v)} onClick={() => toggle(v)} title={title?.(v)}>{label(v)}</button>
       ))}
     </div>
   );
-  /** Группа панели: подпись с пиктограммой над полями. */
-  const group = (k: OpKind, children: React.ReactNode, title?: string) => (
-    <div className={`cgroup cg-${k}`} title={title}>
-      <div className="cghead">
-        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-          <path d={OP_ICONS[k]} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {t(`ops.kind_${k}`)}
-      </div>
-      <div className="cgrow">{children}</div>
-    </div>
-  );
-  const axisField = (a: 'x' | 'y' | 'z', value: string, onChange: (v: string) => void, disabled = false, label = a.toUpperCase()) => (
-    <span key={a} className="axisfield">
-      <span className="oplabel">{label}</span>
-      <NumField value={value} onChange={onChange} step={1} unit="°" width={58} disabled={disabled} aria-label={`${t('ops.rot')} ${a.toUpperCase()}`} />
+  /** Пиктограмма операции — первая колонка строки панели (название — во всплывающей подсказке). */
+  const icon = (k: OpKind, title?: string) => (
+    <span className={`cicon ci-${k}`} title={title ? `${t(`ops.kind_${k}`)} — ${title}` : t(`ops.kind_${k}`)} aria-label={t(`ops.kind_${k}`)} role="img">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path d={OP_ICONS[k]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </span>
   );
+  /** Ячейка колонки: короткая подпись слева и поле на всю оставшуюся ширину. */
+  const cell = (key: string, label: React.ReactNode, field: React.ReactNode, span = 1, title?: string) => (
+    <span key={key} className="ccell" style={span > 1 ? { gridColumn: `span ${span}` } : undefined} title={title}>
+      {label != null && <span className="oplabel">{label}</span>}
+      {field}
+    </span>
+  );
+  const blank = (key: string, n = 1) => <span key={key} className="cblank" style={{ gridColumn: `span ${n}` }} />;
+  const axisField = (a: 'x' | 'y' | 'z', value: string, onChange: (v: string) => void, disabled = false, k = '') =>
+    cell(`${k}${a}`, a.toUpperCase(), <NumField value={value} onChange={onChange} step={1} unit="°" width="100%" disabled={disabled} aria-label={`${t('ops.rot')} ${a.toUpperCase()}`} />);
   const v = s.asC.vAngles;
   const rowB = prm.rowB;
+  const fluxTitle = (f: { summary: PhotometrySummary }, r: SumRow) => t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f, r) || 0, 3) });
 
   return (
     <div className="ops-layout">
       <div className="ops-main">
         <section className="ops-editor ctrlpanel">
-          {group(
-            'mirror',
-            seg(MIRRORS, (m) => prm.mirror.includes(m), (m) => set({ mirror: prm.mirror.includes(m) ? prm.mirror.filter((x) => x !== m) : [...prm.mirror, m] }), (m) => t(`ops.mirrorBtn_${m}`), (m) => t(`ops.mirror_${m}`)),
-          )}
-          {group(
-            'rotate',
-            (['x', 'y', 'z'] as const).map((a) => axisField(a, prm.rot[a], (x) => set({ rot: { ...prm.rot, [a]: x } }))),
-            rotHint(),
-          )}
-          {group(
-            'symmetrize',
-            seg(
+          {/* левая часть: отражение, поворот, симметрия — по три колонки (XZ / YZ / XY над X / Y / Z над Z / XZ / YZ) */}
+          <div className="csec csec-l">
+            {icon('mirror')}
+            {seg(MIRRORS, (m) => prm.mirror.includes(m), (m) => set({ mirror: prm.mirror.includes(m) ? prm.mirror.filter((x) => x !== m) : [...prm.mirror, m] }), (m) => t(`ops.mirrorBtn_${m}`), (m) => t(`ops.mirror_${m}`))}
+
+            {icon('rotate', rotHint())}
+            {(['x', 'y', 'z'] as const).map((a) => axisField(a, prm.rot[a], (x) => set({ rot: { ...prm.rot, [a]: x } })))}
+
+            {icon('symmetrize')}
+            {seg(
               ['axial', 'c0c180', 'c90c270'] as const,
               (m) => prm.sym.includes(m),
               (m) => set({ sym: prm.sym.includes(m) ? prm.sym.filter((x) => x !== m) : m === 'axial' ? ['axial'] : [...prm.sym.filter((x) => x !== 'axial'), m] }),
               (m) => t(`ops.symBtn_${m}`),
               (m) => t(`ops.sym_${m}`),
-            ),
-          )}
-          {group(
-            'smooth',
-            <>
-              <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" width={72} aria-label={t('ops.smoothWidth')} title={t('ops.smoothWidth')} />
-              <label className="check small" title={t('ops.keepFlux')}><input type="checkbox" checked={prm.keepFlux} onChange={(e) => set({ keepFlux: e.target.checked })} />Φ</label>
-            </>,
-          )}
-          {group(
-            'sum',
-            <>
-              <span className="oplabel" title={t('ops.weightKHint', { own: fmtNum(lang, s.flux.total, 0), k: fmtNum(lang, sumWeight(base, prm.rowA) || 0, 3) })}>Φ</span>
-              <NumField value={prm.rowA.flux} onChange={(x) => set({ rowA: { ...prm.rowA, flux: x } })} def={Math.round(s.flux.total * 10) / 10} min={0} step={10} unit={t('unit.lm')} width={84} disabled={!secondFile} aria-label={t('ops.sumFlux')} />
-              <span
-                className={`sumdrop${dropOver ? ' over' : ''}${secondFile ? ' full' : ''}`}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDropOver(true); }}
-                onDragLeave={() => setDropOver(false)}
-                onDrop={(e) => void onDrop(e)}
-                title={secondFile ? secondFile.name : t('ops.sumDrop')}
-              >
-                {secondFile ? (
-                  <>
-                    <span className="nm">{secondFile.name}</span>
-                    <button className="close vis" aria-label={t('files.close')} onClick={() => set({ second: null, rowB: null })}>×</button>
-                  </>
-                ) : (
-                  <button className="linkbtn" onClick={() => fileInput.current?.click()}>{t('ops.sumSlot')}</button>
-                )}
-                <input ref={fileInput} type="file" accept=".ies,.ldt,.IES,.LDT" hidden onChange={(e) => { if (e.target.files) void addFromDisk(e.target.files); e.target.value = ''; }} />
-              </span>
-              <span className="oplabel" title={secondFile && rowB ? t('ops.weightKHint', { own: fmtNum(lang, secondFile.summary.flux.total, 0), k: fmtNum(lang, sumWeight(secondFile, rowB) || 0, 3) }) : undefined}>Φ</span>
-              <NumField value={rowB?.flux ?? ''} onChange={(x) => rowB && set({ rowB: { ...rowB, flux: x } })} def={secondFile ? Math.round(secondFile.summary.flux.total * 10) / 10 : 0} min={0} step={10} unit={t('unit.lm')} width={84} disabled={!rowB} aria-label={t('ops.sumFlux')} />
-              {(['x', 'y', 'z'] as const).map((a) => axisField(a, rowB?.[`r${a}`] ?? '0', (x) => rowB && set({ rowB: { ...rowB, [`r${a}`]: x } }), !rowB))}
-            </>,
-          )}
-          {group(
-            'regrid',
-            <>
-              <span className="oplabel">ΔC</span>
-              <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" disabled={s.asC.symmetry === 'axial'} width={60} aria-label={t('ops.cStep')} />
-              <span className="oplabel">Δγ</span>
-              <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" width={58} aria-label={t('ops.gStep')} />
-              <span className="oplabel">γ</span>
-              <NumField value={prm.g0} onChange={(x) => set({ g0: x })} def={v[0]} min={0} max={180} step={5} unit="°" width={58} aria-label={t('ops.gFrom')} />
-              <span className="oplabel">–</span>
-              <NumField value={prm.g1} onChange={(x) => set({ g1: x })} def={v[v.length - 1]} min={0} max={180} step={5} unit="°" width={68} aria-label={t('ops.gTo')} />
-            </>,
-          )}
+            )}
+          </div>
+
+          {/* правая часть: сглаживание, сложение, сетка — общие колонки */}
+          <div className="csec csec-r">
+            {icon('smooth')}
+            {cell('sw', null, <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" width="100%" aria-label={t('ops.smoothWidth')} />, 1, t('ops.smoothWidth'))}
+            {cell('kf', null, <label className="check small"><input type="checkbox" checked={prm.keepFlux} onChange={(e) => set({ keepFlux: e.target.checked })} />Φ</label>, 1, t('ops.keepFlux'))}
+            {blank('s-rest', 5)}
+
+            {icon('sum')}
+            {cell('fa', null, <NumField value={prm.rowA.flux} onChange={(x) => set({ rowA: { ...prm.rowA, flux: x } })} def={Math.round(s.flux.total * 10) / 10} min={0} step={10} unit={t('unit.lm')} width="100%" disabled={!secondFile} aria-label={t('ops.sumFlux')} />, 1, fluxTitle(base, prm.rowA))}
+            <span
+              className={`sumdrop${dropOver ? ' over' : ''}${secondFile ? ' full' : ''}`}
+              style={{ gridColumn: 'span 2' }}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDropOver(true); }}
+              onDragLeave={() => setDropOver(false)}
+              onDrop={(e) => void onDrop(e)}
+              title={secondFile ? secondFile.name : t('ops.sumDrop')}
+            >
+              {secondFile ? (
+                <>
+                  <span className="nm">{secondFile.name}</span>
+                  <button className="close vis" aria-label={t('files.close')} onClick={() => set({ second: null, rowB: null })}>×</button>
+                </>
+              ) : (
+                <button className="linkbtn" onClick={() => fileInput.current?.click()}>{t('ops.sumSlot')}</button>
+              )}
+              <input ref={fileInput} type="file" accept=".ies,.ldt,.IES,.LDT" hidden onChange={(e) => { if (e.target.files) void addFromDisk(e.target.files); e.target.value = ''; }} />
+            </span>
+            {cell('fb', null, <NumField value={rowB?.flux ?? ''} onChange={(x) => rowB && set({ rowB: { ...rowB, flux: x } })} def={secondFile ? Math.round(secondFile.summary.flux.total * 10) / 10 : 0} min={0} step={10} unit={t('unit.lm')} width="100%" disabled={!rowB} aria-label={t('ops.sumFlux')} />, 1, secondFile && rowB ? fluxTitle(secondFile, rowB) : undefined)}
+            {(['x', 'y', 'z'] as const).map((a) => axisField(a, rowB?.[`r${a}`] ?? '0', (x) => rowB && set({ rowB: { ...rowB, [`r${a}`]: x } }), !rowB, 'b'))}
+
+            {icon('regrid')}
+            {cell('dc', 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
+            {cell('dg', 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" width="100%" aria-label={t('ops.gStep')} />)}
+            {cell('g0', 'γ', <NumField value={prm.g0} onChange={(x) => set({ g0: x })} def={v[0]} min={0} max={180} step={5} unit="°" width="100%" aria-label={t('ops.gFrom')} />, 1, t('ops.gFrom'))}
+            {cell('g1', '–', <NumField value={prm.g1} onChange={(x) => set({ g1: x })} def={v[v.length - 1]} min={0} max={180} step={5} unit="°" width="100%" aria-label={t('ops.gTo')} />, 1, t('ops.gTo'))}
+            {blank('g-rest', 3)}
+          </div>
         </section>
         {(chain.error || dropErr) && <p className="error small opnote">{chain.error ?? dropErr}</p>}
         {!chain.error && last && last.issues.length > 0 && <p className="muted small opnote">{last.issues.map((i) => formatIssue(i, lang)).join(' · ')}</p>}
