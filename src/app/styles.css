@@ -512,7 +512,7 @@ table.grid.edit tr.bad td { background: color-mix(in srgb, var(--warn) 8%, trans
 .form-grid .numf { width: 100%; }
 
 /* --- операции: до / после (КСС + 3D) и форма слева, история справа; всё на одном экране */
-.ops-layout { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 14px; align-items: start; }
+.ops-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; align-items: start; }
 .ops-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .ops-main .ops-stage { background: var(--soft2); border-radius: 12px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
 .ops-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -589,7 +589,7 @@ table.lamps input.pe { width: 100%; text-align: left; }
 .form-grid .sel { width: 100%; }
 
 /* --- история справа на вкладках с правкой данных */
-.with-history { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 14px; align-items: start; }
+.with-history { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; align-items: start; }
 .side-history { border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; position: sticky; top: 0; max-height: calc(100vh - 190px); overflow: auto; }
 .side-history .history { gap: 10px; }
 @media (max-width: 1300px) { .with-history { grid-template-columns: 1fr; } .side-history { position: static; max-height: none; } }
@@ -602,7 +602,7 @@ table.numbers td { cursor: default; }
 .viewpill { position: absolute; top: 8px; left: 8px; z-index: 2; }
 .viewpill .sel { height: 26px; font-size: 12px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
 .ops-pair figure { gap: 8px; }
-.ops-3d { height: 230px; padding: 0; overflow: hidden; }
+.ops-3d { height: 340px; padding: 0; overflow: hidden; }
 .ops-polar { height: 210px; display: flex; align-items: center; justify-content: center; padding: 6px; overflow: hidden; }
 .ops-polar svg { width: 100%; height: 100%; }
 
@@ -634,3 +634,34 @@ table.lamps .pe-num { min-width: 96px; }
 .drawing svg { max-height: 300px; }
 .sel svg.sel-caret { width: 10px !important; height: 6px !important; max-width: none; flex: none; }
 .numf .spin svg { width: 8px !important; height: 5px !important; }
+
+/* --- история: строки с разделителями, без нумерации */
+.hrows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.hrows li { border-bottom: 1px solid var(--rule); }
+.hrows button {
+  display: block; width: 100%; border: 0; background: none; padding: 7px 8px; font: inherit; font-size: 12.5px; line-height: 1.35;
+  color: var(--ink); text-align: left; vertical-align: top; cursor: pointer; border-radius: 0;
+}
+.hrows button:hover:not(:disabled) { background: var(--soft); }
+.hrows li.cur button { background: var(--accent-soft); color: var(--accent); font-weight: 600; cursor: default; }
+.hrows li.undone button { color: var(--muted); }
+
+/* --- 3D: кнопка корпуса в углу */
+.housingbtn {
+  position: absolute; top: 8px; right: 8px; z-index: 2; width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink3); display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.housingbtn.on { color: var(--accent); border-color: var(--accent); }
+.housingbtn:disabled { opacity: 0.4; cursor: default; }
+.housingbtn svg { width: 18px !important; height: 18px !important; }
+
+/* --- операции: режим и поля — строкой сверху; сложение — два слагаемых */
+.ops-main .ops-editor { padding: 10px 14px; gap: 8px; }
+.opkind-sel { font-weight: 600; }
+.sumslots { display: flex; flex-direction: column; gap: 6px; }
+.sumslot { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 10px; min-height: 40px; }
+.sumslot.drop.empty { border-style: dashed; justify-content: flex-start; }
+.sumslot.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.slotname { display: inline-flex; align-items: center; gap: 6px; max-width: 170px; font-weight: 600; font-size: 12.5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-right: 6px; }
+.slotno { width: 18px; height: 18px; flex: none; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; }

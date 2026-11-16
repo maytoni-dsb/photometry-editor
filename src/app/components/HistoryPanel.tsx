@@ -10,15 +10,15 @@ export function HistoryPanel({ file, onJump }: { file: OpenFile; onJump: (i: num
     <aside className="side-history">
       <fieldset className="history">
         <legend>{t('ops.history')}</legend>
-        <ol>
+        <ul className="hrows">
           {timeline.map((label, i) => (
             <li key={i} className={i === cur ? 'cur' : i > cur ? 'undone' : ''}>
-              <button className="link" onClick={() => onJump(i)} disabled={i === cur}>
+              <button onClick={() => onJump(i)} disabled={i === cur} aria-current={i === cur ? 'step' : undefined}>
                 {label || (file.derived ? t('ops.created') : t('ops.original'))}
               </button>
             </li>
           ))}
-        </ol>
+        </ul>
         <p className="muted small">{t('ops.historyNote')}</p>
       </fieldset>
     </aside>

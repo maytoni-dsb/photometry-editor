@@ -50,9 +50,13 @@ interface Props {
   viewNonce?: number;
   link?: CameraLink;
   height: number;
+  /** Пользователь повернул / сдвинул / приблизил камеру мышью (вид уже не «изометрия» и т. п.). */
+  onUserMove?: () => void;
 }
 
-export default function Body3D({ photometry, scale, planes, housing = null, view = 'iso', viewNonce = 0, link, height }: Props) {
+export default function Body3D({ photometry, scale, planes, housing = null, view = 'iso', viewNonce = 0, link, height, onUserMove }: Props) {
+  const moveRef = useRef(onUserMove);
+  moveRef.current = onUserMove;
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const nadirEl = useRef<HTMLDivElement | null>(null);
@@ -130,7 +134,11 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
     scene.add(body);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enablePan = false;
+    // левая кнопка — вращение, колесо — приближение, нажатое колесо (и правая кнопка) — панорамирование
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN };
+    controls.addEventListener('start', () => moveRef.current?.());
     controls.minDistance = 1.2;
     controls.maxDistance = 20;
     const view = new THREE.Vector3();

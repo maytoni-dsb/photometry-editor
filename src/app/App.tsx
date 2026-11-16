@@ -721,6 +721,30 @@ export default function App() {
                     onApply={applyToActive}
                     onCreate={createDoc}
                     onJump={jump}
+                    onAddFile={(name, bytes) => {
+                      try {
+                        const f = openBytes(name, bytes);
+                        setFiles((prev) => [...prev, f]);
+                        return f;
+                      } catch (e) {
+                        setErrors([t('error.read', { name, msg: (e as Error).message })]);
+                        return null;
+                      }
+                    }}
+                    onOpenEntry={async (path) => {
+                      const have = filesRef.current.find((f) => f.folderPath === path);
+                      if (have) return have;
+                      const e = folder?.entries.find((x) => x.path === path);
+                      if (!e) return null;
+                      try {
+                        const f = { ...openBytes(e.name, await readEntry(e)), folderPath: e.path };
+                        setFiles((prev) => [...prev, f]);
+                        return f;
+                      } catch (err) {
+                        setErrors([t('error.read', { name: e.path, msg: (err as Error).message })]);
+                        return null;
+                      }
+                    }}
                   />
                 )}
                 {(tab === 'polar' || tab === 'linear') && (

@@ -389,7 +389,19 @@
     "wmode_flux": "Flux, lm",
     "weightFluxHint": "Component flux: {{v}} lm",
     "weightKHint": "Own flux {{own}} lm → weight {{k}}",
-    "sumFile": "File"
+    "sumFile": "File",
+    "mirrorBtn_c0c180": "C0–C180",
+    "mirrorBtn_c90c270": "C90–C270",
+    "mirrorBtn_updown": "γ90–γ180",
+    "symBtn_none": "none",
+    "symBtn_axial": "axial",
+    "symBtn_c0c180": "C0–C180",
+    "symBtn_c90c270": "C90–C270",
+    "offset": "Offset",
+    "sumSame": "This is the current file — choose another one.",
+    "sumNotPhotometry": "An IES or LDT file is needed.",
+    "sumDrop": "Drag a file here from the list on the left or from disk",
+    "sumLoad": "Load…"
   },
   "b3d": {
     "title": "3D photometric body",
@@ -404,14 +416,17 @@
     "viewHint_side": "Looking at the C90–C270 plane, C90 on the right",
     "viewHint_below": "From below the luminaire, along the nadir",
     "viewHint_above": "From above",
-    "mouse": "Mouse: drag to rotate, wheel to zoom.",
+    "mouse": "Left button — rotate, wheel — zoom, pressed wheel (or right button) — pan.",
     "planesNote": "Outlined planes: {{planes}} (as on the polar curve: the first one solid).",
     "note": "The distance from the centre to the surface is proportional to the intensity in that direction. Mesh: C-planes and γ-cones every 10°.",
     "nadir": "nadir",
     "loading": "Loading 3D…",
     "housing": "Luminaire housing",
     "housingNote": "Housing and luminous area are drawn from the file dimensions. Millimetres and candelas are not comparable, so the largest housing dimension is shown as a third of the body radius.",
-    "noHousing": "The file has no luminaire dimensions."
+    "noHousing": "The file has no luminaire dimensions.",
+    "view_custom": "Custom",
+    "housingShow": "Show luminaire housing",
+    "housingHide": "Hide luminaire housing"
   },
   "batch": {
     "summaryFile": "Summary",

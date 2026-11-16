@@ -389,7 +389,19 @@
     "wmode_flux": "Lichtstrom, lm",
     "weightFluxHint": "Lichtstrom des Summanden: {{v}} lm",
     "weightKHint": "Eigener Lichtstrom {{own}} lm → Gewicht {{k}}",
-    "sumFile": "Datei"
+    "sumFile": "Datei",
+    "mirrorBtn_c0c180": "C0–C180",
+    "mirrorBtn_c90c270": "C90–C270",
+    "mirrorBtn_updown": "γ90–γ180",
+    "symBtn_none": "keine",
+    "symBtn_axial": "rotations­symmetrisch",
+    "symBtn_c0c180": "C0–C180",
+    "symBtn_c90c270": "C90–C270",
+    "offset": "Versatz",
+    "sumSame": "Das ist die aktuelle Datei — bitte eine andere wählen.",
+    "sumNotPhotometry": "Eine IES- oder LDT-Datei wird benötigt.",
+    "sumDrop": "Datei aus der Liste links oder vom Datenträger hierher ziehen",
+    "sumLoad": "Laden…"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",
@@ -404,14 +416,17 @@
     "viewHint_side": "Blick auf die Ebene C90–C270, C90 rechts",
     "viewHint_below": "Von unten, entlang des Nadirs",
     "viewHint_above": "Von oben",
-    "mouse": "Maus: ziehen — drehen, Rad — zoomen.",
+    "mouse": "Linke Taste — drehen, Rad — zoomen, gedrücktes Rad (oder rechte Taste) — verschieben.",
     "planesNote": "Umrandete Ebenen: {{planes}} (wie in der Polarkurve: die erste durchgezogen).",
     "note": "Der Abstand vom Mittelpunkt zur Oberfläche ist proportional zur Lichtstärke in dieser Richtung. Netz: C-Ebenen und γ-Kegel alle 10°.",
     "nadir": "Nadir",
     "loading": "3D wird geladen…",
     "housing": "Leuchtengehäuse",
     "housingNote": "Gehäuse und leuchtende Fläche nach den Maßen der Datei. Millimeter und Candela sind nicht vergleichbar, daher ist das größte Gehäusemaß als ein Drittel des Körperradius dargestellt.",
-    "noHousing": "Die Datei enthält keine Leuchtenmaße."
+    "noHousing": "Die Datei enthält keine Leuchtenmaße.",
+    "view_custom": "Frei",
+    "housingShow": "Leuchtengehäuse zeigen",
+    "housingHide": "Leuchtengehäuse ausblenden"
   },
   "batch": {
     "summaryFile": "Übersicht",

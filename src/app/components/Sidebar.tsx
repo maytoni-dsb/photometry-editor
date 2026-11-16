@@ -10,6 +10,7 @@ import type { ChartSettings } from '../App';
 import { isModified, type OpenFile } from '../doc';
 import type { FolderEntry, FolderState } from '../folder';
 import { screenFamily, type LoadedFonts } from '../fonts';
+import { DRAG_ENTRY, DRAG_FILE } from './OpsPanel';
 
 interface Props {
   files: OpenFile[];
@@ -34,7 +35,7 @@ function FileRow({ f, active, onSelect, onClose, label, liRef }: { f: OpenFile; 
   const fmt = f.parse.photometry.source.format;
   return (
     <li ref={liRef} className={active ? 'active' : ''}>
-      <button className="file-item" onClick={onSelect} title={label ?? f.name}>
+      <button className="file-item" onClick={onSelect} title={label ?? f.name} draggable onDragStart={(e) => { e.dataTransfer.setData(DRAG_FILE, f.id); e.dataTransfer.setData('text/plain', f.name); e.dataTransfer.effectAllowed = 'copy'; }}>
         <span className={`fmt fmt-${fmt.toLowerCase()}`}>{fmt === 'none' ? '∑' : fmt}</span>
         <span className="fname">{label ?? f.name}</span>
         {f.disk && <span className={`diskmark ${f.disk}`} title={t(`files.disk_${f.disk}`)}>{f.disk === 'removed' ? '⊘' : '↻'}</span>}
@@ -136,7 +137,7 @@ export function Sidebar(props: Props) {
                       const ext = /\.ldt$/i.test(e.name) ? 'ldt' : 'ies';
                       return (
                         <li key={e.path} className="idle">
-                          <button className="file-item" onClick={() => onOpenEntry(e)} title={e.path}>
+                          <button className="file-item" onClick={() => onOpenEntry(e)} title={e.path} draggable onDragStart={(ev) => { ev.dataTransfer.setData(DRAG_ENTRY, e.path); ev.dataTransfer.setData('text/plain', e.name); ev.dataTransfer.effectAllowed = 'copy'; }}>
                             <span className={`fmt fmt-${ext}`}>{ext.toUpperCase()}</span>
                             <span className="fname">{e.path}</span>
                           </button>
