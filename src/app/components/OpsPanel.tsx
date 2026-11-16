@@ -1,5 +1,6 @@
 import { Suspense, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select } from './Select';
 import { fontMeasure } from '../../charts/fonts';
 import { buildPolar } from '../../charts/polar';
 import { renderSvg } from '../../charts/render-svg';
@@ -30,7 +31,8 @@ import type { ChartSettings } from '../App';
 import { baseName, workOf, type OpenFile } from '../doc';
 import { screenFamily, type LoadedFonts } from '../fonts';
 import { createCameraLink, housingBox, type View3D } from '../../charts/body3d';
-import { Body3D, Fallback, ViewButtons } from './Body3DTab';
+import { Body3D, Fallback, ViewPill } from './Body3DTab';
+import { HistoryPanel } from './HistoryPanel';
 import { NumField } from './NumField';
 
 export type OpKind = 'normalize' | 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'regrid' | 'sum';
@@ -210,21 +212,33 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     } else if (spec) onApply(ok.p, ok.issues, opLabel(t, lang, spec), spec, ok.work);
   };
 
-  const statRow = (label: string, sm: PhotometrySummary | null, ph: Photometry | null) => (
-    <tr>
-      <th>{label}</th>
-      {sm && ph ? (
-        <>
-          <td>{fmtNum(lang, sm.flux.total, 0)} {t('unit.lm')}</td>
-          <td>{fmtNum(lang, sm.peak.value, 0)} {t('unit.cd')} <span className="muted">C{fmtNum(lang, sm.peak.c)} γ{fmtNum(lang, sm.peak.g)}°</span></td>
-          <td>{fmtNum(lang, sm.dlor, 1)} %</td>
-          <td>{t(`sym.${sm.asC.symmetry}`)}</td>
-          <td>{sm.asC.hAngles.length} × {sm.asC.vAngles.length}{ph.photometryType === 'B' ? ' (B→C)' : ''}</td>
-        </>
-      ) : (
-        <td colSpan={5} className="muted">{preview && 'error' in preview ? preview.error : '—'}</td>
-      )}
-    </tr>
+  const stats = (sm: PhotometrySummary | null, ph: Photometry | null) => (
+    <table className="grid small opstable">
+      <thead>
+        <tr>
+          <th>Φ</th>
+          <th>Iₘₐₓ</th>
+          <th>{t('ops.down')}</th>
+          <th>{t('passport.symmetry')}</th>
+          <th>{t('passport.grid')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          {sm && ph ? (
+            <>
+              <td>{fmtNum(lang, sm.flux.total, 0)} {t('unit.lm')}</td>
+              <td>{fmtNum(lang, sm.peak.value, 0)} {t('unit.cd')} <span className="muted">C{fmtNum(lang, sm.peak.c)} γ{fmtNum(lang, sm.peak.g)}°</span></td>
+              <td>{fmtNum(lang, sm.dlor, 1)} %</td>
+              <td>{t(`sym.${sm.asC.symmetry}`)}</td>
+              <td>{sm.asC.hAngles.length} × {sm.asC.vAngles.length}{ph.photometryType === 'B' ? ' (B→C)' : ''}</td>
+            </>
+          ) : (
+            <td colSpan={5} className="muted">—</td>
+          )}
+        </tr>
+      </tbody>
+    </table>
   );
 
   // подсказка, куда уходит надир / C0 после поворота
@@ -235,9 +249,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     const d = rotatedDirection([{ axis, angle: a }]);
     return t('ops.hintXY', { c: fmtNum(lang, d.c), g: fmtNum(lang, d.g) });
   };
-
-  const timeline = [...file.past.map((x) => x.label), file.label, ...file.future.map((x) => x.label)];
-  const cur = file.past.length;
 
   const applyBtn = (
     <button className="btn primary opgo" disabled={!ok} onClick={apply}>
@@ -258,9 +269,9 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     case 'normalize':
       line = (
         <>
-          <select value={nMode} onChange={(e) => setNMode(e.target.value as NormalizeMode)} aria-label={t('batch.stepMode')}>
+          <Select value={nMode} onChange={(e) => setNMode(e.target.value as NormalizeMode)} aria-label={t('batch.stepMode')}>
             {(['flux', 'cdklm', 'peak', 'factor'] as const).map((m) => <option key={m} value={m}>{t(`ops.norm_${m}`)}</option>)}
-          </select>
+          </Select>
           {nMode !== 'cdklm' && (
             <NumField value={nValue} onChange={setNValue} min={0} step={nMode === 'factor' ? 0.1 : nMode === 'flux' ? 100 : 10} unit={nMode === 'flux' ? t('unit.lm') : nMode === 'peak' ? t('unit.cd') : '×'} width={130} aria-label={t(`ops.norm_${nMode}`)} />
           )}
@@ -282,7 +293,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           <span className="oplabel">{t('ops.axis')}</span>
           {seg(['x', 'y', 'z'] as const, axis, setAxis, (a) => a.toUpperCase())}
           <span className="oplabel">{t('ops.angle')}</span>
-          <NumField value={angle} onChange={setAngle} step={15} unit="°" width={96} aria-label={t('ops.angle')} />
+          <NumField value={angle} onChange={setAngle} step={1} unit="°" width={96} aria-label={t('ops.angle')} />
           <span className="muted small">{rotHint()}</span>
         </>
       );
@@ -310,14 +321,13 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           <span className="oplabel">Δγ</span>
           <NumField value={gStep} onChange={setGStep} min={0} step={0.5} unit="°" placeholder={String(steps.gStep)} width={88} aria-label={t('ops.gStep')} />
           <span className="oplabel">γ</span>
-          <select value={gRange} onChange={(e) => setGRange(e.target.value as GammaRange)} aria-label={t('ops.gRange')}>
+          <Select value={gRange} onChange={(e) => setGRange(e.target.value as GammaRange)} aria-label={t('ops.gRange')}>
             <option value="keep">{t('ops.gRange_keep')}</option>
             <option value="lower">0…90°</option>
             <option value="full">0…180°</option>
-          </select>
+          </Select>
         </>
       );
-      note = t('ops.regridNote');
       break;
     case 'sum':
       note = t('ops.sumNote');
@@ -329,43 +339,26 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
       <div className="ops-main">
         <div className="ops-stage">
           <div className="ops-pair">
-            {([['before', before, work.dense, housingBefore], ['after', after, ok?.work.dense ?? null, housingAfter]] as const).map(([k, svg, dense, housing]) => (
+            {([['before', before, work.dense, housingBefore, s, p], ['after', after, ok?.work.dense ?? null, housingAfter, ok?.summary ?? null, ok?.p ?? null]] as const).map(([k, svg, dense, housing, sm, ph]) => (
               <figure key={k}>
-                <figcaption>
-                  {t(`ops.${k}`)}
-                  {k === 'after' && <ViewButtons onView={(v) => { setView(v); setNonce(nonce + 1); }} />}
-                </figcaption>
-                <div className="ops-views">
-                  {svg && dense ? (
-                    <>
-                      <div className="paper" dangerouslySetInnerHTML={{ __html: svg }} />
-                      <Suspense fallback={<Fallback height={250} />}>
-                        <Body3D photometry={dense} scale={scale3d} planes={planes} housing={housing} view={view} viewNonce={nonce} link={link} height={250} />
+                <figcaption>{t(`ops.${k}`)}</figcaption>
+                {svg && dense ? (
+                  <>
+                    <div className="paper b3d-wrap ops-3d">
+                      <ViewPill view={view} onView={(v) => { setView(v); setNonce(nonce + 1); }} />
+                      <Suspense fallback={<Fallback height={230} />}>
+                        <Body3D photometry={dense} scale={scale3d} planes={planes} housing={housing} view={view} viewNonce={nonce} link={link} height={230} />
                       </Suspense>
-                    </>
-                  ) : (
-                    <div className="paper empty-preview">{preview && 'error' in preview ? preview.error : '—'}</div>
-                  )}
-                </div>
+                    </div>
+                    <div className="paper ops-polar" dangerouslySetInnerHTML={{ __html: svg }} />
+                  </>
+                ) : (
+                  <div className="paper empty-preview">{preview && 'error' in preview ? preview.error : '—'}</div>
+                )}
+                {stats(sm, ph)}
               </figure>
             ))}
           </div>
-          <table className="grid small opstable">
-            <thead>
-              <tr>
-                <th />
-                <th>Φ</th>
-                <th>Iₘₐₓ</th>
-                <th>{t('ops.down')}</th>
-                <th>{t('passport.symmetry')}</th>
-                <th>{t('passport.grid')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {statRow(t('ops.before'), s, p)}
-              {statRow(t('ops.after'), ok?.summary ?? null, ok?.p ?? null)}
-            </tbody>
-          </table>
         </div>
 
         <section className="ops-editor">
@@ -447,21 +440,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           {ok && ok.issues.length > 0 && <p className="muted small opnote">{ok.issues.map((i) => formatIssue(i, lang)).join(' · ')}</p>}
         </section>
       </div>
-      <aside className="ops-history">
-        <fieldset className="history">
-          <legend>{t('ops.history')}</legend>
-          <ol>
-            {timeline.map((label, i) => (
-              <li key={i} className={i === cur ? 'cur' : i > cur ? 'undone' : ''}>
-                <button className="link" onClick={() => onJump(i)} disabled={i === cur}>
-                  {label || (file.derived ? t('ops.created') : t('ops.original'))}
-                </button>
-              </li>
-            ))}
-          </ol>
-          <p className="muted small">{t('ops.historyNote')}</p>
-        </fieldset>
-      </aside>
+      <HistoryPanel file={file} onJump={onJump} />
     </div>
   );
 }

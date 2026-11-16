@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select } from './Select';
 import { NumField, parseNum } from './NumField';
 import type { Color } from '../../charts/scene';
 import { defaultStyle, hexToRgb, naiveCmyk, rgbHex, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../../charts/style';
@@ -89,7 +90,7 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
         <div className="modal-body">
           <div className="form-grid">
             <label>{t('style.preset')}</label>
-            <select
+            <Select
               value=""
               onChange={(e) => {
                 const pr = STYLE_PRESETS.find((x) => x.id === e.target.value);
@@ -103,7 +104,7 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
               {STYLE_PRESETS.map((x) => (
                 <option key={x.id} value={x.id}>{t(`style.preset${x.id[0].toUpperCase()}${x.id.slice(1)}`)}</option>
               ))}
-            </select>
+            </Select>
             <label>{t('style.name')}</label>
             <input type="text" value={s.name} onChange={(e) => set({ name: e.target.value })} />
           </div>
@@ -221,15 +222,15 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
             <div className="row">
               <label>
                 {t('style.angleStep')}{' '}
-                <select value={s.grid.angleStep} onChange={(e) => set({ grid: { ...s.grid, angleStep: Number(e.target.value) } })}>
+                <Select value={s.grid.angleStep} onChange={(e) => set({ grid: { ...s.grid, angleStep: Number(e.target.value) } })}>
                   {[5, 10, 15, 30].map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
+                </Select>
               </label>
               <label>
                 {t('style.labelEvery')}{' '}
-                <select value={s.grid.angleLabelEvery} onChange={(e) => set({ grid: { ...s.grid, angleLabelEvery: Number(e.target.value) } })}>
+                <Select value={s.grid.angleLabelEvery} onChange={(e) => set({ grid: { ...s.grid, angleLabelEvery: Number(e.target.value) } })}>
                   {[1, 2, 3, 6].map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
+                </Select>
               </label>
             </div>
           </fieldset>

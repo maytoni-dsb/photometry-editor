@@ -102,7 +102,7 @@ export function NumField({ value, onChange, unit, step = 1, min, max, placeholde
         placeholder={placeholder != null && comma ? placeholder.replace('.', ',') : placeholder}
         disabled={disabled}
         aria-label={rest['aria-label']}
-        style={unit ? { paddingRight: `${8 + unit.length * 6.5}px` } : undefined}
+        style={unit ? { paddingRight: `${12 + unit.length * 6.5}px` } : undefined}
         onChange={(e) => onChange(e.target.value.replace(comma ? '.' : ',', comma ? ',' : '.'))}
         onKeyDown={(e) => {
           if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {

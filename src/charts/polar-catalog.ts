@@ -11,7 +11,7 @@
 import { intensityC } from '../core/angles';
 import type { Photometry } from '../core/model';
 import type { PhotometrySummary } from '../core/summary';
-import { capHeight, overlapPolygon, makeContext, seriesStroke } from './common';
+import { capHeight, catalogLegend, overlapPolygon, makeContext, seriesStroke } from './common';
 import { chartLabels } from './labels';
 import { PT_TO_MM, type MeasureText, type Prim, type Scene, type Stroke } from './scene';
 import { catalogScale, chartData, type ChartOptions } from './series';
@@ -51,7 +51,9 @@ export function buildPolarCatalog(
   const showTitle = opts.show.title;
   const titleBlock = showTitle ? 0.33 * capTitle + capTitle + 1.25 * capTitle : 0.6 * capT;
   const cy = full ? titleBlock + gap + below + capT + R - (showTitle ? 0.4 * capTitle : 0) : titleBlock + (showTitle ? 0 : capT / 2);
-  const H = cy + R + gap + below + capT + 0.33 * capT;
+  const H0 = cy + R + gap + below + capT + 0.33 * capT;
+  const leg = catalogLegend(ctx, data, cx, H0 + 0.5 * capT);
+  const H = leg.height ? H0 + 0.5 * capT + leg.height + 0.4 * capT : H0;
 
   const dash = style.gridDash.length ? style.gridDash : undefined;
   const gridStroke: Stroke = { color: style.colors.grid, width: style.widths.grid, dash };
@@ -140,6 +142,7 @@ export function buildPolarCatalog(
       { t: 'group', id: 'grid', children: grid },
       { t: 'group', id: 'labels', children: labels },
       ...(title.length ? [{ t: 'group', id: 'title', children: title } as Prim] : []),
+      ...(leg.prims.length ? [{ t: 'group', id: 'legend', children: leg.prims } as Prim] : []),
     ],
   };
 }

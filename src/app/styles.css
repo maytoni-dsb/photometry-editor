@@ -507,7 +507,7 @@ table.grid.edit tr.bad td { background: color-mix(in srgb, var(--warn) 8%, trans
 .numf .spin button:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
 .numf .spin button:active:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
 .numf .spin button + button { border-top: 1px solid var(--rule); }
-.numf .unit { position: absolute; right: 8px; font-size: 11.5px; color: var(--muted); pointer-events: none; }
+.numf .unit { position: absolute; right: 7px; font-size: 11px; color: var(--muted); pointer-events: none; }
 .numf.off { opacity: 0.55; }
 .form-grid .numf { width: 100%; }
 
@@ -542,7 +542,7 @@ table.grid.edit tr.bad td { background: color-mix(in srgb, var(--warn) 8%, trans
 .sumweight { display: flex; align-items: center; gap: 6px; }
 .trio { display: flex; gap: 4px; }
 .seg.small button { height: 22px; padding: 0 9px; font-size: 11.5px; }
-.ops-history { border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; position: sticky; top: 0; max-height: calc(100vh - 190px); overflow: auto; }
+
 @media (max-width: 1300px) {
   .ops-layout { grid-template-columns: 1fr; }
   .ops-history { position: static; max-height: none; }
@@ -556,7 +556,7 @@ table.grid.edit tr.bad td { background: color-mix(in srgb, var(--warn) 8%, trans
 .kv.edit dd { font-weight: 400; display: flex; justify-content: flex-end; }
 input.pe { height: 26px; width: 160px; font-weight: 500; text-align: right; }
 input.pe.pe-wide { width: min(100%, 340px); }
-input.pe:not(:focus):not(:hover) { border-color: transparent; background: transparent; }
+
 .pe-dims { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .pe-shape { height: 26px; }
 table.lamps input.pe { width: 100%; text-align: left; }
@@ -567,3 +567,70 @@ table.lamps input.pe { width: 100%; text-align: left; }
 .kv.edit.stack dt { max-width: none; }
 .kv.edit.stack dd { justify-content: flex-start; }
 .kv.edit.stack .pe-dims { justify-content: flex-start; flex-wrap: nowrap; }
+
+/* --- выпадающий список в оформлении меню верхней панели */
+.sel {
+  display: inline-flex; align-items: center; gap: 8px; height: 28px; min-width: 0; max-width: 100%; padding: 0 10px 0 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink); font: inherit; font-size: 12.5px;
+  cursor: pointer; text-align: left; white-space: nowrap;
+}
+.sel:hover:not(:disabled) { background: var(--soft); }
+.sel.open { background: var(--sel); color: var(--on-sel); border-color: var(--sel); }
+.sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sel:disabled { opacity: 0.5; cursor: default; }
+.sel-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sel-caret { flex: none; opacity: 0.6; }
+.sel-drop {
+  position: fixed; z-index: 200; background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.13); padding: 5px; display: flex; flex-direction: column; max-height: 320px; overflow: auto;
+}
+.sel-drop .mitem { height: 28px; font-size: 12.5px; }
+.sel-drop .mitem.hi:not(:disabled) { background: var(--soft); }
+.form-grid .sel { width: 100%; }
+
+/* --- история справа на вкладках с правкой данных */
+.with-history { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 14px; align-items: start; }
+.side-history { border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; position: sticky; top: 0; max-height: calc(100vh - 190px); overflow: auto; }
+.side-history .history { gap: 10px; }
+@media (max-width: 1300px) { .with-history { grid-template-columns: 1fr; } .side-history { position: static; max-height: none; } }
+table.numbers td.editing { padding: 0; }
+table.numbers td.editing input { width: 100%; min-width: 70px; height: 24px; text-align: right; border-color: var(--accent); }
+table.numbers td { cursor: default; }
+
+/* --- операции: 3D над КСС, вид — таблеткой на холсте */
+.b3d-wrap { position: relative; }
+.viewpill { position: absolute; top: 8px; left: 8px; z-index: 2; }
+.viewpill .sel { height: 26px; font-size: 12px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+.ops-pair figure { gap: 8px; }
+.ops-3d { height: 230px; padding: 0; overflow: hidden; }
+.ops-polar { height: 210px; display: flex; align-items: center; justify-content: center; padding: 6px; overflow: hidden; }
+.ops-polar svg { width: 100%; height: 100%; }
+
+/* --- паспорт: сетка 3 × 2, поля слева, текст в полях по левому краю */
+.pp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+.pp-grid .card { margin: 0; }
+@media (max-width: 1400px) { .pp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .pp-grid { grid-template-columns: 1fr; } }
+.kv.grid2 > div { display: grid; grid-template-columns: minmax(110px, 38%) minmax(0, 1fr); gap: 14px; align-items: center; justify-content: start; }
+.kv.grid2 dt { max-width: none; }
+.kv.grid2 dd { text-align: left; font-weight: 500; justify-content: flex-start; display: flex; }
+.kv.grid2 input.pe { width: 100%; text-align: left; font-weight: 500; }
+input.pe { text-align: left; }
+.pe-num { display: block; min-width: 0; }
+.pe-num .numf { width: 100%; }
+.pe-block { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 10px; }
+.pe-block + .pe-block { border-top: 1px solid var(--rule); padding-top: 10px; }
+.pe-head { display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--ink3); }
+.pe-head > span { min-width: 0; }
+.pe-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pe-fields.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1800px) { .pe-fields.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pe-head .sel { flex: none; }
+.pe-head > span { flex: none; }
+table.grid.edit.lamps { table-layout: auto; }
+table.lamps .pe-num { min-width: 96px; }
+.pe-fields label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--ink3); min-width: 0; }
+.pe-fields label.off .numf { opacity: 0.4; }
+.drawing svg { max-height: 300px; }
+.sel svg.sel-caret { width: 10px !important; height: 6px !important; max-width: none; flex: none; }
+.numf .spin svg { width: 8px !important; height: 5px !important; }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select } from './Select';
 import type { Dimensions, Lang, LampSet, Metadata, Photometry } from '../../core/index';
 import { saveAs } from '../actions';
 import type { OpenFile } from '../doc';
@@ -33,7 +34,7 @@ function EditText({ value, onCommit, placeholder, wide }: { value: string; onCom
   return (
     <input
       type="text"
-      className={wide ? 'pe pe-wide' : 'pe'}
+      className="pe"
       value={v}
       placeholder={placeholder ?? '—'}
       onChange={(e) => setV(e.target.value)}
@@ -53,7 +54,7 @@ function EditText({ value, onCommit, placeholder, wide }: { value: string; onCom
  * Числовое поле паспорта: стрелки, колесо, ввод. В историю — через полсекунды после последнего
  * изменения, по Enter или при уходе из поля (одна правка — один шаг истории).
  */
-function EditNum({ value, onCommit, unit, step = 1, min = 0, width = 96 }: { value: number | null | undefined; onCommit: (v: number) => void; unit?: string; step?: number; min?: number; width?: number }) {
+function EditNum({ value, onCommit, unit, step = 1, min = 0, width = 96, disabled }: { value: number | null | undefined; onCommit: (v: number) => void; unit?: string; step?: number; min?: number; width?: number | string; disabled?: boolean }) {
   const shown = value == null || !Number.isFinite(value) ? '' : String(Math.round(value * 1000) / 1000);
   const [v, setV] = useState(shown);
   const timer = useRef(0);
@@ -82,6 +83,7 @@ function EditNum({ value, onCommit, unit, step = 1, min = 0, width = 96 }: { val
         step={step}
         min={min}
         width={width}
+        disabled={disabled}
       />
     </span>
   );
@@ -127,22 +129,34 @@ export function Passport({ file, onPatch }: { file: OpenFile; onPatch: PassportP
     </div>
   );
 
-  const dimRow = (which: 'luminaire' | 'luminous') => {
+  /** Блок размеров: «Корпус» / «Световое отверстие», форма, затем длина (диаметр) — ширина — высота. */
+  const dimBlock = (which: 'luminaire' | 'luminous') => {
     const d = p[which];
     const circle = d.shape === 'circle';
+    const mm = t('unit.mm');
     return (
-      <div className="pe-dims">
-        <select value={d.shape} onChange={(e) => setDim(which, { shape: e.target.value as Dimensions['shape'] })} className="pe-shape">
-          {(['rect', 'circle', 'point'] as const).map((sh) => <option key={sh} value={sh}>{t(`passport.shape_${sh}`)}</option>)}
-          {d.shape === 'other' && <option value="other">{t('passport.shape_other')}</option>}
-        </select>
-        {d.shape !== 'point' && (
-          <>
-            <EditNum value={d.length} onCommit={(v) => setDim(which, { length: v })} unit={circle ? '⌀' : t('passport.l')} step={10} width={88} />
-            {!circle && <EditNum value={d.width} onCommit={(v) => setDim(which, { width: v })} unit={t('passport.w')} step={10} width={88} />}
-            <EditNum value={d.height} onCommit={(v) => setDim(which, { height: v })} unit={t('passport.h')} step={5} width={88} />
-          </>
-        )}
+      <div className="pe-block">
+        <div className="pe-head">
+          <span>{t(which === 'luminaire' ? 'passport.housing' : 'passport.aperture')}</span>
+          <Select value={circle ? 'circle' : 'rect'} onChange={(e) => setDim(which, { shape: e.target.value as Dimensions['shape'] })} aria-label={t('passport.shape')}>
+            <option value="rect">{t('passport.shape_box')}</option>
+            <option value="circle">{t('passport.shape_cylinder')}</option>
+          </Select>
+        </div>
+        <div className="pe-fields">
+          <label>
+            <span>{circle ? t('passport.diameterL') : t('passport.lengthL')}</span>
+            <EditNum value={d.length} onCommit={(v) => setDim(which, { length: v, shape: d.shape === 'point' ? 'rect' : d.shape })} unit={mm} step={1} width="100%" />
+          </label>
+          <label className={circle ? 'off' : ''}>
+            <span>{circle ? '\u00a0' : t('passport.widthL')}</span>
+            <EditNum value={circle ? null : d.width} onCommit={(v) => setDim(which, { width: v, shape: d.shape === 'point' ? 'rect' : d.shape })} unit={mm} step={1} width="100%" disabled={circle} />
+          </label>
+          <label>
+            <span>{t('passport.heightL')}</span>
+            <EditNum value={d.height} onCommit={(v) => setDim(which, { height: v, shape: d.shape === 'point' ? 'rect' : d.shape })} unit={mm} step={1} width="100%" />
+          </label>
+        </div>
       </div>
     );
   };
@@ -155,68 +169,67 @@ export function Passport({ file, onPatch }: { file: OpenFile; onPatch: PassportP
         <span className="muted small">{t('passport.editHint')}</span>
       </div>
 
-      <div className="pp-top">
-        <div className="pp-col">
-          <section className="card drawing-card">
-            <h3>{t('drawing.title')}</h3>
-            <LuminaireDrawing photometry={p} />
-          </section>
-          <section className="card">
-            <h3>{t('passport.dims')}</h3>
-            <dl className="kv edit stack">
-              {kv(t('passport.dimsLuminaire'), dimRow('luminaire'))}
-              {kv(t('passport.dimsLuminous'), dimRow('luminous'))}
-              {p.ldt &&
-                kv(
-                  t('passport.luminousHeights'),
-                  <div className="pe-dims">
-                    {p.ldt.luminousHeights.map((h, i) => (
-                      <EditNum
-                        key={i}
-                        value={h}
-                        onCommit={(v) =>
-                          onPatch(label(t('passport.luminousHeights')), (q) => {
-                            if (q.ldt) q.ldt.luminousHeights = q.ldt.luminousHeights.map((x, j) => (j === i ? v : x)) as [number, number, number, number];
-                          })
-                        }
-                        step={5}
-                        width={74}
-                      />
-                    ))}
-                  </div>,
-                )}
-            </dl>
-          </section>
-        </div>
+      <div className="pp-grid">
+        <section className="card drawing-card">
+          <h3>{t('drawing.title')}</h3>
+          <LuminaireDrawing photometry={p} />
+        </section>
+
+        <section className="card">
+          <h3>{t('passport.dims')}</h3>
+          {dimBlock('luminaire')}
+          {dimBlock('luminous')}
+          {p.ldt && (
+            <div className="pe-block">
+              <div className="pe-head"><span>{t('passport.luminousHeights')}</span></div>
+              <div className="pe-fields four">
+                {p.ldt.luminousHeights.map((h, i) => (
+                  <label key={i}>
+                    <span>C{i * 90}</span>
+                    <EditNum
+                      value={h}
+                      onCommit={(v) =>
+                        onPatch(label(t('passport.luminousHeights')), (q) => {
+                          if (q.ldt) q.ldt.luminousHeights = q.ldt.luminousHeights.map((x, j) => (j === i ? v : x)) as [number, number, number, number];
+                        })
+                      }
+                      unit={t('unit.mm')}
+                      step={1}
+                      width="100%"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
 
         <section className="card">
           <h3>{t('passport.luminaire')}</h3>
-          <dl className="kv edit">
+          <dl className="kv grid2">
             {(['manufacturer', 'luminaireName', 'article', 'testReport', 'testLab', 'date', 'issueDate', 'lampCatalog'] as const).map((k) =>
-              kv(t(`passport.${k}`), <EditText value={meta[k]} onCommit={(v) => setMeta(k, v)} wide />, k),
+              kv(t(`passport.${k}`), <EditText value={meta[k]} onCommit={(v) => setMeta(k, v)} />, k),
             )}
-            {kv(t('passport.inputWatts'), <EditNum value={p.inputWatts} onCommit={(v) => onPatch(label(t('passport.inputWatts')), (q) => (q.inputWatts = v))} unit={t('unit.w')} step={1} />)}
+            {kv(t('passport.inputWatts'), <EditNum value={p.inputWatts} onCommit={(v) => onPatch(label(t('passport.inputWatts')), (q) => (q.inputWatts = v))} unit={t('unit.w')} step={1} width={120} />)}
           </dl>
         </section>
-      </div>
 
-      <div className="cards">
         <section className="card">
           <h3>{t('passport.calc')}</h3>
-          <dl className="kv">
+          <dl className="kv grid2">
             {kv(t('passport.flux'), `${n(s.flux.total)} ${t('unit.lm')}`)}
             {kv(t('passport.fluxDownUp'), `${n(s.dlor)} % / ${n(100 - s.dlor)} %`)}
             {kv(t('passport.reference'), `${n(s.referenceFlux)} ${t('unit.lm')} — ${t(`ref.${s.referenceKind}`)}`)}
             {kv(t('passport.peak'), t('passport.peakValue', { cd: n(s.peak.value), cdklm: n(peakCdklm), c: n(s.peak.c), g: n(s.peak.g) }))}
             {kv(t('passport.efficacy'), s.efficacy != null ? `${n(s.efficacy)} ${t('unit.lmw')}` : '')}
             {kv(t('passport.lor'), s.lor != null ? `${n(s.lor)} %` : '')}
-            {p.ldt && kv('', t('passport.ldtStated', { lorl: n(p.ldt.lorl), dff: n(p.ldt.dff) }), 'ldt')}
+            {p.ldt && kv(t('passport.ldtFile'), t('passport.ldtStated', { lorl: n(p.ldt.lorl), dff: n(p.ldt.dff) }), 'ldt')}
           </dl>
         </section>
 
         <section className="card">
           <h3>{t('passport.photometry')}</h3>
-          <dl className="kv">
+          <dl className="kv grid2">
             {kv(t('passport.photometryType'), p.photometryType)}
             {kv(t('passport.symmetry'), t(`sym.${p.symmetry}`))}
             {kv(t('passport.grid'), t('passport.gridValue', { h: p.hAngles.length, v: p.vAngles.length, hName, vName, hRange: range(p.hAngles), vRange: range(p.vAngles) }))}
@@ -230,7 +243,7 @@ export function Passport({ file, onPatch }: { file: OpenFile; onPatch: PassportP
 
         <section className="card">
           <h3>{t('passport.file')}</h3>
-          <dl className="kv">
+          <dl className="kv grid2">
             {kv(t('passport.fileName'), file.name)}
             {kv(t('passport.format'), p.source.format)}
             {kv(t('passport.version'), version)}

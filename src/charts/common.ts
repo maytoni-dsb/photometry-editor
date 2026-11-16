@@ -96,6 +96,32 @@ export function legend(ctx: BuildContext, data: ChartData, x: number, y: number,
 }
 
 /**
+ * Легенда оформления «каталог»: одна строка по центру под графиком — образец линии и плоскость
+ * («— C0–C180   - - - C90–C270»), кегль подписей углов. Возвращает примитивы и высоту строки.
+ */
+export function catalogLegend(ctx: BuildContext, data: ChartData, cx: number, y: number): { prims: Prim[]; height: number } {
+  const { style, opts } = ctx;
+  if (!opts.show.legend || data.series.length === 0) return { prims: [], height: 0 };
+  const size = style.font.tick;
+  const cap = capHeight(size);
+  const sample = 4.2 * cap;
+  const gap = 0.8 * cap;
+  const itemGap = 2.2 * cap;
+  const widths = data.series.map((sr) => sample + gap + ctx.measure(sr.label, size));
+  const total = widths.reduce((a, b) => a + b, 0) + itemGap * (widths.length - 1);
+  let x = cx - total / 2;
+  const base = y + cap;
+  const mid = base - cap / 2;
+  const prims: Prim[] = [];
+  data.series.forEach((sr, i) => {
+    prims.push({ t: 'line', x1: x, y1: mid, x2: x + sample, y2: mid, stroke: seriesStroke(style, i) });
+    prims.push({ t: 'text', x: x + sample + gap, y: base, text: sr.label, size, color: style.colors.text, anchor: 'start' });
+    x += widths[i] + itemGap;
+  });
+  return { prims, height: cap };
+}
+
+/**
  * Область, где перекрываются две и больше полярных кривых (как в образце каталога TR106:
  * перекрытие заливается плотнее). Кривые заданы точками на одних и тех же направлениях
  * (одинаковые γ и стороны), поэтому на каждом направлении берётся второй по величине радиус;

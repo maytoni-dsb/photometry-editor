@@ -43,9 +43,9 @@
     "passport": "Datenblatt",
     "table": "Lichtstärketabelle",
     "polar": "Polar-LVK",
-    "linear": "Lineare LVK",
+    "linear": "Kartesische LVK",
     "ops": "Operationen",
-    "body": "3D-Körper"
+    "body": "3D"
   },
   "passport": {
     "file": "Datei",
@@ -62,10 +62,10 @@
     "date": "Datum",
     "issueDate": "Ausgabedatum",
     "lampCatalog": "Lampenkatalog",
-    "dims": "Abmessungen, mm",
+    "dims": "Abmessungen",
     "dimsLuminaire": "Leuchte (L × B × H)",
     "dimsLuminous": "Leuchtfläche (L × B × H)",
-    "luminousHeights": "Höhe der Leuchtfläche C0 / C90 / C180 / C270",
+    "luminousHeights": "Höhe der Lichtaustrittsöffnung an den Seiten",
     "diameter": "⌀ {{d}}",
     "lamps": "Lampen",
     "lampCount": "Anzahl",
@@ -95,7 +95,7 @@
     "peakValue": "{{cd}} cd ({{cdklm}} cd/klm) bei C{{c}}, γ {{g}}°",
     "efficacy": "Lichtausbeute",
     "lor": "LOR (aus Daten)",
-    "ldtStated": "Im LDT angegeben: LOR {{lorl}} %, Anteil unten {{dff}} %",
+    "ldtStated": "LOR {{lorl}} %, nach unten {{dff}} %",
     "keywords": "IES-Schlüsselwörter",
     "saveIes": "Als IES speichern",
     "saveLdt": "Als LDT speichern",
@@ -109,7 +109,17 @@
     "l": "L",
     "w": "B",
     "h": "H",
-    "lampFluxNote": "Relative Photometrie: der Lampenlichtstrom bestimmt den Maßstab der Lichtstärken — cd/klm bleiben, Candela ändern sich proportional."
+    "lampFluxNote": "Relative Photometrie: der Lampenlichtstrom bestimmt den Maßstab der Lichtstärken — cd/klm bleiben, Candela ändern sich proportional.",
+    "housing": "Gehäuse",
+    "aperture": "Lichtaustrittsöffnung",
+    "shape": "Form",
+    "shape_box": "Quader",
+    "shape_cylinder": "Zylinder",
+    "diameterL": "Durchmesser",
+    "lengthL": "Länge",
+    "widthL": "Breite",
+    "heightL": "Höhe",
+    "ldtFile": "In der LDT-Datei"
   },
   "sym": {
     "none": "keine",
@@ -130,14 +140,18 @@
     "copy": "Tabelle kopieren",
     "copied": "Kopiert",
     "maxNote": "Maximum hervorgehoben",
-    "size": "{{rows}} × {{cols}}"
+    "size": "{{rows}} × {{cols}}",
+    "editLabel": "Tabelle: {{h}}, {{v}}",
+    "editHint": "Doppelklick auf eine Zelle zum Bearbeiten (Enter speichern, Esc abbrechen).",
+    "editFullOff": "Bearbeiten in den gespeicherten Ebenen (ohne „ausklappen“)."
   },
   "unit": {
     "cd": "cd",
     "cdklm": "cd/klm",
     "lm": "lm",
     "lmw": "lm/W",
-    "w": "W"
+    "w": "W",
+    "mm": "mm"
   },
   "chart": {
     "settings": "Diagrammeinstellungen",

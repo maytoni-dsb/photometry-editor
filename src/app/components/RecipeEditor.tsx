@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select } from './Select';
 import type { GammaRange, MirrorPlane, NormalizeMode, OpSpec, RotationAxis, Symmetry } from '../../core/index';
 import { parseStep, recipeFromJson, recipeToJson, RecipeError, type Recipe } from '../../batch/recipe';
 import { safeFileName, saveFile } from '../save-file';
@@ -124,7 +125,7 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
   return (
     <div className="recipe">
       <div className="row">
-        <select
+        <Select
           value=""
           aria-label={t('batch.recipeSavedList')}
           onChange={(e) => {
@@ -139,7 +140,7 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
         >
           <option value="">{saved.length ? t('batch.recipeOpen') : t('batch.recipeNone')}</option>
           {saved.map((r) => <option key={r.name} value={r.name}>{r.name} ({r.steps.length})</option>)}
-        </select>
+        </Select>
         <input type="text" className="grow" placeholder={t('batch.recipeName')} value={name} onChange={(e) => onName(e.target.value)} />
         <button className="btn small" disabled={!steps.length} onClick={saveRecipe}>{t('batch.recipeSave')}</button>
         {saved.some((r) => r.name === name.trim()) && (
@@ -181,15 +182,15 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
       <div className="stepform">
         <div className="form-grid">
           <label>{t('batch.stepKind')}</label>
-          <select value={kind} onChange={(e) => setKind(e.target.value as StepKind)}>
+          <Select value={kind} onChange={(e) => setKind(e.target.value as StepKind)}>
             {STEP_KINDS.map((k) => <option key={k} value={k}>{t(`ops.kind_${k}`)}</option>)}
-          </select>
+          </Select>
           {kind === 'normalize' && (
             <>
               <label>{t('batch.stepMode')}</label>
-              <select value={nMode} onChange={(e) => setNMode(e.target.value as NormalizeMode)}>
+              <Select value={nMode} onChange={(e) => setNMode(e.target.value as NormalizeMode)}>
                 {(['cdklm', 'flux', 'peak', 'factor'] as const).map((m) => <option key={m} value={m}>{t(`ops.norm_${m}`)}</option>)}
-              </select>
+              </Select>
               {nMode !== 'cdklm' && (
                 <>
                   <label>{nMode === 'flux' ? t('batch.valueLm') : nMode === 'peak' ? t('batch.valueCd') : t('batch.valueK')}</label>
@@ -201,17 +202,17 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
           {kind === 'mirror' && (
             <>
               <label>{t('batch.stepPlane')}</label>
-              <select value={plane} onChange={(e) => setPlane(e.target.value as MirrorPlane)}>
+              <Select value={plane} onChange={(e) => setPlane(e.target.value as MirrorPlane)}>
                 {(['c0c180', 'c90c270', 'updown'] as const).map((m) => <option key={m} value={m}>{t(`ops.mirror_${m}`)}</option>)}
-              </select>
+              </Select>
             </>
           )}
           {kind === 'rotate' && (
             <>
               <label>{t('ops.axis')}</label>
-              <select value={axis} onChange={(e) => setAxis(e.target.value as RotationAxis)}>
+              <Select value={axis} onChange={(e) => setAxis(e.target.value as RotationAxis)}>
                 {(['z', 'x', 'y'] as const).map((a) => <option key={a} value={a}>{a.toUpperCase()}</option>)}
-              </select>
+              </Select>
               <label>{t('ops.angle')}</label>
               <NumField value={angle} onChange={setAngle} step={15} unit="°" width="100%" />
             </>
@@ -219,9 +220,9 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
           {kind === 'symmetrize' && (
             <>
               <label>{t('batch.stepSym')}</label>
-              <select value={sym} onChange={(e) => setSym(e.target.value as SymTarget)}>
+              <Select value={sym} onChange={(e) => setSym(e.target.value as SymTarget)}>
                 {(['axial', 'c0c180', 'c90c270', 'quadrant', 'none'] as const).map((m) => <option key={m} value={m}>{t(`ops.sym_${m}`)}</option>)}
-              </select>
+              </Select>
             </>
           )}
           {kind === 'smooth' && (
@@ -239,11 +240,11 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
               <label>{t('ops.gStep')}</label>
               <NumField value={gStep} onChange={setGStep} min={0} step={0.5} unit="°" width="100%" />
               <label>{t('ops.gRange')}</label>
-              <select value={gRange} onChange={(e) => setGRange(e.target.value as GammaRange)}>
+              <Select value={gRange} onChange={(e) => setGRange(e.target.value as GammaRange)}>
                 <option value="keep">{t('ops.gRange_keep')}</option>
                 <option value="lower">{t('chart.rangeLower')}</option>
                 <option value="full">{t('chart.rangeFull')}</option>
-              </select>
+              </Select>
             </>
           )}
         </div>

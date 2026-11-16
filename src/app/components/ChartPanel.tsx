@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select } from './Select';
 import { fontMeasure } from '../../charts/fonts';
 import { buildLinear } from '../../charts/linear';
 import { buildPolar } from '../../charts/polar';
@@ -137,16 +138,16 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
 
         <div className="form-grid">
           <label>{t('chart.layout')}</label>
-          <select value={settings.layout} onChange={(e) => set(layoutPatch(settings, e.target.value as ChartSettings['layout']))}>
+          <Select value={settings.layout} onChange={(e) => set(layoutPatch(settings, e.target.value as ChartSettings['layout']))}>
             <option value="catalog">{t('chart.layoutCatalog')}</option>
             <option value="standard">{t('chart.layoutStandard')}</option>
-          </select>
+          </Select>
 
           <label>{t('chart.unit')}</label>
-          <select value={settings.unit} onChange={(e) => set({ unit: e.target.value as IntensityUnit })}>
+          <Select value={settings.unit} onChange={(e) => set({ unit: e.target.value as IntensityUnit })}>
             <option value="cdklm">{t('unit.cdklm')}</option>
             <option value="cd">{t('unit.cd')}</option>
-          </select>
+          </Select>
 
           <label>{t('chart.scale')}</label>
           <NumField
@@ -158,22 +159,22 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
           />
 
           <label>{t('chart.range')}</label>
-          <select value={settings.range} onChange={(e) => set({ range: e.target.value as ChartSettings['range'] })}>
+          <Select value={settings.range} onChange={(e) => set({ range: e.target.value as ChartSettings['range'] })}>
             <option value="auto">{t('chart.rangeAuto')}</option>
             <option value="lower">{t('chart.rangeLower')}</option>
             <option value="full">{t('chart.rangeFull')}</option>
-          </select>
+          </Select>
 
           <label>{t('chart.cSide')}</label>
-          <select value={settings.cSide} onChange={(e) => set({ cSide: e.target.value as 'right' | 'left' })}>
+          <Select value={settings.cSide} onChange={(e) => set({ cSide: e.target.value as 'right' | 'left' })}>
             <option value="right">{t('chart.cRight')}</option>
             <option value="left">{t('chart.cLeft')}</option>
-          </select>
+          </Select>
 
           <label>{t('chart.labelLang')}</label>
-          <select value={settings.lang} onChange={(e) => set({ lang: e.target.value as Lang })}>
+          <Select value={settings.lang} onChange={(e) => set({ lang: e.target.value as Lang })}>
             {LANGS.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-          </select>
+          </Select>
 
           <label>{t('chart.width')}</label>
           {kind === 'polar' ? (
@@ -195,7 +196,7 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
 
         <fieldset>
           <legend>{t('chart.show')}</legend>
-          {(catalog ? (['title'] as const) : (['title', 'info', 'legend'] as const)).map((k) => (
+          {(catalog ? (['title', 'legend'] as const) : (['title', 'info', 'legend'] as const)).map((k) => (
             <label key={k} className="check">
               <input type="checkbox" checked={settings.show[k]} onChange={(e) => set({ show: { ...settings.show, [k]: e.target.checked } })} />
               {t(`chart.show${k[0].toUpperCase()}${k.slice(1)}`)}
@@ -242,9 +243,9 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
           </div>
           <div className="row">
             <button className="btn" disabled={busy || !fonts} onClick={() => void doExport('png')}>PNG</button>
-            <select value={dpi} aria-label={t('export.dpi')} onChange={(e) => { setDpi(Number(e.target.value)); save('export-dpi', Number(e.target.value)); }}>
+            <Select value={dpi} aria-label={t('export.dpi')} onChange={(e) => { setDpi(Number(e.target.value)); save('export-dpi', Number(e.target.value)); }}>
               {[150, 300, 600].map((d) => <option key={d} value={d}>{d} dpi</option>)}
-            </select>
+            </Select>
             <span className="muted small">{t('export.pngSize', { w: Math.round((scene.width / 25.4) * dpi), h: Math.round((scene.height / 25.4) * dpi) })}</span>
           </div>
           {!fonts && <p className="muted small">{t('export.fontLoading')}</p>}

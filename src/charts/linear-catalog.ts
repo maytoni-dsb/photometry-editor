@@ -8,7 +8,7 @@
 import { intensityC } from '../core/angles';
 import type { Photometry } from '../core/model';
 import type { PhotometrySummary } from '../core/summary';
-import { capHeight, makeContext, seriesStroke } from './common';
+import { capHeight, catalogLegend, makeContext, seriesStroke } from './common';
 import { catalogTitle } from './polar-catalog';
 import type { MeasureText, Prim, Scene, Stroke } from './scene';
 import { catalogScale, chartData, type ChartOptions } from './series';
@@ -67,7 +67,9 @@ export function buildLinearCatalog(
   const showTitle = opts.show.title;
   const y0 = showTitle ? 0.33 * capTitle + capTitle + 1.25 * capTitle : 0.6 * capT;
   const y1 = y0 + ph;
-  const H = y1 + gap + below + capT + 0.33 * capT;
+  const H0 = y1 + gap + below + capT + 0.33 * capT;
+  const leg = catalogLegend(ctx, data, (x0 + x1) / 2, H0 + 0.5 * capT);
+  const H = leg.height ? H0 + 0.5 * capT + leg.height + 0.4 * capT : H0;
 
   const X = (g: number) => x0 + ((g + gLim) / (2 * gLim)) * pw;
   const Y = (v: number) => y1 - (Math.min(v, scale.max) / scale.max) * ph;
@@ -136,6 +138,7 @@ export function buildLinearCatalog(
       { t: 'group', id: 'grid', children: grid },
       { t: 'group', id: 'labels', children: labels },
       ...(title.length ? [{ t: 'group', id: 'title', children: title } as Prim] : []),
+      ...(leg.prims.length ? [{ t: 'group', id: 'legend', children: leg.prims } as Prim] : []),
     ],
   };
 }

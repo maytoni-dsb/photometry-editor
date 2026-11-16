@@ -15,6 +15,7 @@ import { Body3DTab } from './components/Body3DTab';
 import { BatchPanel, type BatchInputFile, type BatchPreset } from './components/BatchPanel';
 import { droppedFiles } from './drop';
 import { Sidebar } from './components/Sidebar';
+import { HistoryPanel } from './components/HistoryPanel';
 import {
   canWatchFolders,
   diffEntries,
@@ -33,14 +34,14 @@ import {
 } from './folder';
 import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
 import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
-import { applyWork, patchWork, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry, type Work } from '../core/index';
+import { applyWork, patchWork, workFrom, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry, type Work } from '../core/index';
 import { loadFonts, type LoadedFonts } from './fonts';
 import { LANGS } from './i18n';
 import { load, save } from './storage';
 
 type Tab = 'passport' | 'table' | 'polar' | 'linear' | 'body' | 'ops';
 type Theme = 'system' | 'light' | 'dark';
-const TABS: Tab[] = ['passport', 'table', 'polar', 'linear', 'body', 'ops'];
+const TABS: Tab[] = ['passport', 'ops', 'table', 'polar', 'linear', 'body'];
 
 /** Настройки графиков, общие для всех файлов. planes = null — плоскости по умолчанию для файла. */
 export interface ChartSettings extends Omit<ChartOptions, 'planes'> {
@@ -340,6 +341,14 @@ export default function App() {
     if (!active) return;
     const r = patchWork(workOf(active), fn);
     applyToActive(r.photometry, [], label, undefined, r.work);
+  };
+  /** Правка ячейки таблицы сил света (в канделах); рабочее тело строится заново по новым данным. */
+  const editCell = (i: number, j: number, cd: number) => {
+    if (!active) return;
+    const q = { ...active.parse.photometry, candela: active.parse.photometry.candela.map((row, a) => (a === i ? row.map((x, b) => (b === j ? cd : x)) : row)) };
+    const p0 = active.parse.photometry;
+    const label = t('table.editLabel', { h: `${p0.photometryType === 'B' ? 'H' : 'C'}${p0.hAngles[i]}`, v: `${p0.photometryType === 'B' ? 'V' : 'γ'}${p0.vAngles[j]}` });
+    applyToActive(q, [], label, undefined, workFrom(q).work);
   };
   const createDoc = (name: string, p: Photometry, issues: Issue[], label: string, work: Work) => {
     const d = newDoc(name, p, issues, label, work);
@@ -687,8 +696,18 @@ export default function App() {
                 </nav>
               </div>
               <div className="tab-body">
-                {tab === 'passport' && <Passport file={active} onPatch={patchActive} />}
-                {tab === 'table' && <IntensityTable file={active} />}
+                {tab === 'passport' && (
+                  <div className="with-history">
+                    <Passport file={active} onPatch={patchActive} />
+                    <HistoryPanel file={active} onJump={jump} />
+                  </div>
+                )}
+                {tab === 'table' && (
+                  <div className="with-history">
+                    <IntensityTable file={active} onEdit={editCell} />
+                    <HistoryPanel file={active} onJump={jump} />
+                  </div>
+                )}
                 {tab === 'body' && <Body3DTab file={active} settings={settings} />}
                 {tab === 'ops' && (
                   <OpsPanel

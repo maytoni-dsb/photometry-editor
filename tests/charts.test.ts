@@ -241,7 +241,9 @@ describe('оформление «каталог MAYTONI» (образец LIC ep
 
   it('размеры как у образца: 39,1 × 22,3 мм, R ≈ 15,3 мм, заголовок с индексом', () => {
     const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
-    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, lang: 'en' }), catalogStyle(), fontMeasure(fonts));
+    // образец — без легенды (легенда плоскостей добавлена 16.11.2026, отключается флажком)
+    const noLegend = { title: true, info: true, legend: false };
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, lang: 'en', show: noLegend }), catalogStyle(), fontMeasure(fonts));
     expect(scene.width).toBeCloseTo(39.1, 6);
     expect(Math.abs(scene.height - 22.27)).toBeLessThan(0.3);
     const outer = prims(scene, 'grid').filter((x) => x.t === 'arc').reduce((a, b) => ((a as { r: number }).r > (b as { r: number }).r ? a : b)) as { r: number };
@@ -260,12 +262,26 @@ describe('оформление «каталог MAYTONI» (образец LIC ep
     expect(svg).toContain('stroke-dasharray');
   });
 
+  it('легенда плоскостей под графиком каталога: сплошная C0–C180, пунктир C90–C270', () => {
+    const p = makeC(asym, { cStep: 15, gStep: 5 });
+    const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, lang: 'ru', planes: [0, 90] }), catalogStyle(), fontMeasure(fonts));
+    const leg = prims(scene, 'legend');
+    expect(leg.filter((x) => x.t === 'text').map((x) => (x as { text: string }).text)).toEqual(['C0–C180', 'C90–C270']);
+    const lines = leg.filter((x) => x.t === 'line') as Array<{ stroke: { dash?: number[] } }>;
+    expect(lines[0].stroke.dash).toBeUndefined();
+    expect(lines[1].stroke.dash?.length).toBeGreaterThan(0);
+    const off = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, planes: [0, 90], show: { title: true, info: true, legend: false } }), catalogStyle(), fontMeasure(fonts));
+    expect(off.height).toBeLessThan(scene.height);
+    const lin = buildLinear(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, planes: [0, 90] }), catalogStyle(), fontMeasure(fonts));
+    expect(prims(lin, 'legend').length).toBe(4);
+  });
+
   it('заголовок с индексом в PDF и EPS', async () => {
     const p = makeC(lambert, { symmetry: 'axial', flux: 1000 });
     const scene = buildPolar(p, summarize(p), opts({ layout: 'catalog', width: CATALOG_WIDTH, lang: 'ru' }), catalogStyle(), fontMeasure(fonts));
     const eps = await renderEps(scene, { color: 'cmyk', fonts });
     expect(eps).toContain('0 0 0.2 0 setcmykcolor');
-    expect((eps.match(/% text: /g) ?? []).length).toBe(8); // 7 подписей углов + заголовок
+    expect((eps.match(/% text: /g) ?? []).length).toBe(9); // 7 подписей углов + заголовок + легенда «C0–C180»
     expect(eps).toContain('% text: I???? = 1000 ??/???');
     const pdf = await renderPdf(scene, { color: 'cmyk', fonts });
     expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);

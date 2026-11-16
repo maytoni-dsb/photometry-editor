@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select } from './Select';
 import type { ChartStyle } from '../../charts/style';
 import type { ColorMode } from '../../charts/vector';
 import { writeIES, writeLDT, typeBToC, type Lang, type OpSpec } from '../../core/index';
@@ -357,14 +358,14 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
             <h3><span className="bnum">4</span>{t('batch.output')}</h3>
             <div className="form-grid wide">
               <label>{t('batch.photometryFiles')}</label>
-              <select value={opts.files} onChange={(e) => set({ files: e.target.value as FilesMode })}>
+              <Select value={opts.files} onChange={(e) => set({ files: e.target.value as FilesMode })}>
                 {(['same', 'other', 'ies', 'ldt', 'both', 'none'] as const).map((m) => <option key={m} value={m}>{t(`batch.files_${m}`)}</option>)}
-              </select>
+              </Select>
               <label>{t('batch.naming')}</label>
-              <select value={opts.naming} onChange={(e) => set({ naming: e.target.value as NamingMode })}>
+              <Select value={opts.naming} onChange={(e) => set({ naming: e.target.value as NamingMode })}>
                 <option value="source">{t('batch.naming_source')}</option>
                 <option value="article">{t('batch.naming_article')}</option>
-              </select>
+              </Select>
             </div>
             <p className="muted small">{opts.variantsOn ? t('batch.namingVariants') : t('batch.namingNote')}</p>
 

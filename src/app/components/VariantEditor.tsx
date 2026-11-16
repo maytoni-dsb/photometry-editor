@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select } from './Select';
 import {
   cellNumber,
   defaultSuffix,
@@ -89,7 +90,7 @@ export function VariantEditor({ rows, onRows, name, onName, saved, onSaved }: Pr
   return (
     <div className="variants">
       <div className="row">
-        <select
+        <Select
           value=""
           aria-label={t('batch.varSavedList')}
           onChange={(e) => {
@@ -103,7 +104,7 @@ export function VariantEditor({ rows, onRows, name, onName, saved, onSaved }: Pr
         >
           <option value="">{saved.length ? t('batch.varOpen') : t('batch.varNone')}</option>
           {saved.map((s) => <option key={s.name} value={s.name}>{s.name} ({s.rows.length})</option>)}
-        </select>
+        </Select>
         <input type="text" className="grow" placeholder={t('batch.varName')} value={name} onChange={(e) => onName(e.target.value)} />
         <button className="btn small" disabled={!rows.length} onClick={saveTemplate}>{t('batch.recipeSave')}</button>
         {saved.some((s) => s.name === name.trim()) && (

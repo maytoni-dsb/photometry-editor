@@ -43,9 +43,9 @@
     "passport": "Data sheet",
     "table": "Intensity table",
     "polar": "Polar curve",
-    "linear": "Linear curve",
+    "linear": "Cartesian",
     "ops": "Operations",
-    "body": "3D body"
+    "body": "3D"
   },
   "passport": {
     "file": "File",
@@ -62,10 +62,10 @@
     "date": "Date",
     "issueDate": "Issue date",
     "lampCatalog": "Lamp catalog",
-    "dims": "Dimensions, mm",
+    "dims": "Dimensions",
     "dimsLuminaire": "Luminaire (L × W × H)",
     "dimsLuminous": "Luminous area (L × W × H)",
-    "luminousHeights": "Luminous height C0 / C90 / C180 / C270",
+    "luminousHeights": "Luminous opening height at sides",
     "diameter": "⌀ {{d}}",
     "lamps": "Lamps",
     "lampCount": "Count",
@@ -95,7 +95,7 @@
     "peakValue": "{{cd}} cd ({{cdklm}} cd/klm) at C{{c}}, γ {{g}}°",
     "efficacy": "Efficacy",
     "lor": "LOR (from data)",
-    "ldtStated": "Stated in LDT: LOR {{lorl}} %, downward {{dff}} %",
+    "ldtStated": "LOR {{lorl}} %, downward {{dff}} %",
     "keywords": "IES keywords",
     "saveIes": "Save as IES",
     "saveLdt": "Save as LDT",
@@ -109,7 +109,17 @@
     "l": "L",
     "w": "W",
     "h": "H",
-    "lampFluxNote": "Relative photometry: the lamp flux sets the intensity scale — cd/klm stay, candelas change proportionally."
+    "lampFluxNote": "Relative photometry: the lamp flux sets the intensity scale — cd/klm stay, candelas change proportionally.",
+    "housing": "Housing",
+    "aperture": "Luminous opening",
+    "shape": "Shape",
+    "shape_box": "box",
+    "shape_cylinder": "cylinder",
+    "diameterL": "Diameter",
+    "lengthL": "Length",
+    "widthL": "Width",
+    "heightL": "Height",
+    "ldtFile": "In the LDT file"
   },
   "sym": {
     "none": "none",
@@ -130,14 +140,18 @@
     "copy": "Copy table",
     "copied": "Copied",
     "maxNote": "Peak is highlighted",
-    "size": "{{rows}} × {{cols}}"
+    "size": "{{rows}} × {{cols}}",
+    "editLabel": "Table: {{h}}, {{v}}",
+    "editHint": "Double-click a cell to edit (Enter to save, Esc to cancel).",
+    "editFullOff": "Editing works on the stored planes (without “expand”)."
   },
   "unit": {
     "cd": "cd",
     "cdklm": "cd/klm",
     "lm": "lm",
     "lmw": "lm/W",
-    "w": "W"
+    "w": "W",
+    "mm": "mm"
   },
   "chart": {
     "settings": "Chart settings",
