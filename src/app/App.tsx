@@ -33,7 +33,7 @@ import {
   type FolderState,
 } from './folder';
 import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
-import { applyStep, baseName, deleteCurrent, isModified, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
+import { applyStep, baseName, deleteCurrent, isModified, liveStep, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
 import { applyWork, patchWork, workFrom, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry, type Work } from '../core/index';
 import { loadFonts, type LoadedFonts } from './fonts';
 import { LANGS } from './i18n';
@@ -83,6 +83,7 @@ export default function App() {
   const [fonts, setFonts] = useState<LoadedFonts | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [showFiles, setShowFiles] = useState(() => load('show-files', true));
+  const [showHistory, setShowHistory] = useState(() => load('show-history', true));
   const [theme, setTheme] = useState<Theme>(() => load<Theme | null>('theme', null) ?? 'system');
   const [opKind, setOpKind] = useState<OpKind>('rotate');
   // пакетная обработка (этап 5): окно не размонтируется, чтобы список файлов и ход работы сохранялись
@@ -560,8 +561,6 @@ export default function App() {
           disabled: !active?.future.length,
           onClick: doRedo,
         },
-        'sep',
-        { label: t('menu.history'), disabled: !active, onClick: () => setTab('ops') },
       ],
     },
     {
@@ -571,6 +570,7 @@ export default function App() {
         ...TABS.map((k, i): MenuItem => ({ label: t(`tabs.${k}`), shortcut: `${mod}${i + 1}`, checked: tab === k, disabled: !active, onClick: () => setTab(k) })),
         'sep',
         { label: t('menu.fileList'), checked: showFiles, onClick: () => { setShowFiles(!showFiles); save('show-files', !showFiles); } },
+        { label: t('menu.historyPanel'), checked: showHistory, onClick: () => { setShowHistory(!showHistory); save('show-history', !showHistory); } },
         'sep',
         {
           label: t('menu.theme'),
@@ -757,19 +757,11 @@ export default function App() {
                   ))}
                 </nav>
               </div>
-              <div className={tab === 'passport' || tab === 'table' || tab === 'ops' ? 'tab-body has-history' : 'tab-body'}>
+              <div className={tab === 'table' ? 'tab-body fill' : 'tab-body'}>
                 {tab === 'passport' && (
-                  <div className="with-history">
                     <Passport file={active} onPatch={patchActive} onOp={(spec, label) => { try { const r = applyWork(workOf(active), spec); applyToActive(r.photometry, r.issues, label, spec, r.work); } catch (e) { setErrors([e instanceof OpError ? t(`ops.err.${e.code}`, e.params) : String(e)]); } }} />
-                    <HistoryPanel file={active} onJump={jump} onDelete={deleteState} onFork={forkState} />
-                  </div>
                 )}
-                {tab === 'table' && (
-                  <div className="with-history">
-                    <IntensityTable file={active} onEdit={editCell} />
-                    <HistoryPanel file={active} onJump={jump} onDelete={deleteState} onFork={forkState} />
-                  </div>
-                )}
+                {tab === 'table' && <IntensityTable file={active} onEdit={editCell} />}
                 {tab === 'body' && <Body3DTab file={active} settings={settings} />}
                 {tab === 'ops' && (
                   <OpsPanel
@@ -780,11 +772,7 @@ export default function App() {
                     settings={settings}
                     style={style}
                     fonts={fonts}
-                    onApply={applyToActive}
-                    onCreate={createDoc}
-                    onJump={jump}
-                    onDelete={deleteState}
-                    onFork={forkState}
+                    onLive={(id, base, r) => updateFile(id, (f) => liveStep(f, base, r))}
                     onAddFile={(name, bytes) => {
                       try {
                         const f = openBytes(name, bytes);
@@ -827,6 +815,7 @@ export default function App() {
             </>
           )}
         </main>
+        {showHistory && active && <HistoryPanel file={active} onJump={jump} onDelete={deleteState} onFork={forkState} />}
       </div>
 
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}

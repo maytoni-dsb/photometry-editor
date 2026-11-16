@@ -298,7 +298,8 @@
     "batchSummary": "Übersichtstabelle…",
     "save": "Speichern",
     "saveAs": "Speichern unter",
-    "editing": "Bearbeiten"
+    "editing": "Bearbeiten",
+    "historyPanel": "Verlauf"
   },
   "about": {
     "version": "Version",
@@ -373,7 +374,8 @@
       "sum": "Summe von {{n}} Körpern",
       "smooth": "Geglättet {{w}}°",
       "smoothFree": "Geglättet {{w}}° (Lichtstrom nicht erhalten)",
-      "sumWith": "Summe mit „{{name}}“"
+      "sumWith": "Summe mit „{{name}}“",
+      "rotateMulti": "Drehung {{list}}"
     },
     "err": {
       "bad-value": "Positive Zahl eingeben",
@@ -382,7 +384,8 @@
       "c-step": "C-Schritt {{step}}° teilt {{span}}° nicht",
       "g-step": "γ-Schritt {{step}}° teilt den Bereich {{span}}° nicht",
       "no-components": "Mindestens einen Körper auswählen",
-      "smooth-width": "Glättungsbreite höchstens 30°"
+      "smooth-width": "Glättungsbreite höchstens 30°",
+      "g-range": "γ-Bereich: 0…180°, „bis“ größer als „von“"
     },
     "preview_2d": "Polarkurve",
     "preview_3d": "3D-Körper",
@@ -401,7 +404,7 @@
     "mirrorBtn_c90c270": "C90–C270",
     "mirrorBtn_updown": "γ90–γ180",
     "symBtn_none": "keine",
-    "symBtn_axial": "rotations­symmetrisch",
+    "symBtn_axial": "Rotations­symmetrisch",
     "symBtn_c0c180": "C0–C180",
     "symBtn_c90c270": "C90–C270",
     "offset": "Versatz",
@@ -413,7 +416,9 @@
     "sumHint": "Die zweite Datei wird zur aktuellen addiert — das Ergebnis wird in die aktuelle Datei geschrieben.",
     "deleteState": "Aktuellen Zustand löschen",
     "forkState": "Neue Datei aus dem aktuellen Zustand",
-    "forked": "Erstellt aus „{{name}}“"
+    "forked": "Erstellt aus „{{name}}“",
+    "gFrom": "γ von",
+    "gTo": "γ bis"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",

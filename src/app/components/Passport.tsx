@@ -52,7 +52,7 @@ function EditText({ value, onCommit, placeholder, wide }: { value: string; onCom
  * Числовое поле паспорта: стрелки, колесо, ввод. В историю — через полсекунды после последнего
  * изменения, по Enter или при уходе из поля (одна правка — один шаг истории).
  */
-function EditNum({ value, onCommit, unit, step = 1, min = 0, width = 96, disabled }: { value: number | null | undefined; onCommit: (v: number) => void; unit?: string; step?: number; min?: number; width?: number | string; disabled?: boolean }) {
+function EditNum({ value, onCommit, unit, step = 1, min = 0, width = 96, disabled, def = 0 }: { value: number | null | undefined; onCommit: (v: number) => void; unit?: string; step?: number; min?: number; width?: number | string; disabled?: boolean; def?: number }) {
   const shown = value == null || !Number.isFinite(value) ? '' : String(Math.round(value * 1000) / 1000);
   const [v, setV] = useState(shown);
   const timer = useRef(0);
@@ -72,6 +72,7 @@ function EditNum({ value, onCommit, unit, step = 1, min = 0, width = 96, disable
     >
       <NumField
         value={v}
+        def={def}
         onChange={(t) => {
           setV(t);
           window.clearTimeout(timer.current);
@@ -99,6 +100,9 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
   const vName = isB ? 'V' : 'γ';
   const version = p.source.format === 'IES' ? p.ies?.versionLine || 'LM-63-1986' : p.source.format === 'LDT' ? 'EULUMDAT' : '';
   const peakCdklm = (s.peak.value * 1000) / s.referenceFlux;
+  /** Исходное состояние файла — значения по умолчанию (правая кнопка) для потока, КПД, ламп. */
+  const orig = file.past[0] ?? file;
+  const r1 = (x: number | null | undefined) => (x == null ? 0 : Math.round(x * 10) / 10);
 
   const label = (field: string) => t('passport.edit', { field });
   const setMeta = (k: keyof Omit<Metadata, 'keywords'>, v: string) => onPatch(label(t(`passport.${k}`)), (q) => (q.meta[k] = v));
@@ -237,7 +241,7 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
           <h3>{t('passport.characteristics')}</h3>
           <dl className="kv grid2">
             {p.absolute
-              ? kv(t('passport.flux'), <EditNum value={Math.round(s.flux.total * 10) / 10} onCommit={(v) => onOp({ op: 'normalize', mode: 'flux', value: v }, label(t('passport.flux')))} unit={t('unit.lm')} step={10} width="100%" />)
+              ? kv(t('passport.flux'), <EditNum value={Math.round(s.flux.total * 10) / 10} onCommit={(v) => onOp({ op: 'normalize', mode: 'flux', value: v }, label(t('passport.flux')))} unit={t('unit.lm')} step={10} width="100%" def={r1(orig.summary.flux.total)} />)
               : kv(
                   t('passport.lor'),
                   <EditNum
@@ -246,6 +250,7 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
                     unit="%"
                     step={1}
                     width="100%"
+                    def={r1(orig.summary.lor ?? 100)}
                   />,
                 )}
             {kv(t('passport.fluxDownUp'), `${n(s.dlor)} % / ${n(100 - s.dlor)} %`)}
@@ -307,8 +312,8 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
                 {p.lamps.map((l, i) => (
                   <tr key={i} className={i > 0 ? 'muted' : ''}>
                     <td>{i + 1}{i > 0 ? ` (${t('passport.lampAlt')})` : ''}</td>
-                    <td><EditNum value={Math.abs(l.count)} onCommit={(v) => setLamp(i, { count: Math.max(1, Math.round(v)) }, t('passport.lampCount'))} step={1} min={1} width={84} /></td>
-                    <td><EditNum value={l.flux} onCommit={(v) => setLamp(i, { flux: v }, t('passport.lampFlux'))} unit={t('unit.lm')} step={10} width={124} /></td>
+                    <td><EditNum value={Math.abs(l.count)} onCommit={(v) => setLamp(i, { count: Math.max(1, Math.round(v)) }, t('passport.lampCount'))} step={1} min={1} width={84} def={1} /></td>
+                    <td><EditNum value={l.flux} onCommit={(v) => setLamp(i, { flux: v }, t('passport.lampFlux'))} unit={t('unit.lm')} step={10} width={124} def={r1(orig.parse.photometry.lamps[i]?.flux ?? orig.summary.flux.total)} /></td>
                     <td><EditText value={l.type} onCommit={(v) => setLamp(i, { type: v }, t('passport.lampType'))} /></td>
                     <td><EditText value={l.cct} onCommit={(v) => setLamp(i, { cct: v }, t('passport.lampCct'))} /></td>
                     <td><EditText value={l.cri} onCommit={(v) => setLamp(i, { cri: v }, t('passport.lampCri'))} /></td>

@@ -298,7 +298,8 @@
     "batchSummary": "Summary table…",
     "save": "Save",
     "saveAs": "Save as",
-    "editing": "Edit"
+    "editing": "Edit",
+    "historyPanel": "History"
   },
   "about": {
     "version": "Version",
@@ -373,7 +374,8 @@
       "sum": "Sum of {{n}} bodies",
       "smooth": "Smooth {{w}}°",
       "smoothFree": "Smooth {{w}}° (flux not kept)",
-      "sumWith": "Sum with “{{name}}”"
+      "sumWith": "Sum with “{{name}}”",
+      "rotateMulti": "Rotate {{list}}"
     },
     "err": {
       "bad-value": "Enter a positive number",
@@ -382,7 +384,8 @@
       "c-step": "C step {{step}}° does not divide {{span}}°",
       "g-step": "γ step {{step}}° does not divide the {{span}}° range",
       "no-components": "Select at least one body",
-      "smooth-width": "Smoothing width must not exceed 30°"
+      "smooth-width": "Smoothing width must not exceed 30°",
+      "g-range": "γ range must be within 0…180°, “to” greater than “from”"
     },
     "preview_2d": "Polar curve",
     "preview_3d": "3D body",
@@ -401,7 +404,7 @@
     "mirrorBtn_c90c270": "C90–C270",
     "mirrorBtn_updown": "γ90–γ180",
     "symBtn_none": "none",
-    "symBtn_axial": "axial",
+    "symBtn_axial": "Axial",
     "symBtn_c0c180": "C0–C180",
     "symBtn_c90c270": "C90–C270",
     "offset": "Offset",
@@ -413,7 +416,9 @@
     "sumHint": "The second file is added to the current one — the result is written to the current file.",
     "deleteState": "Delete the current state",
     "forkState": "New file from the current state",
-    "forked": "Created from “{{name}}”"
+    "forked": "Created from “{{name}}”",
+    "gFrom": "γ from",
+    "gTo": "γ to"
   },
   "b3d": {
     "title": "3D photometric body",

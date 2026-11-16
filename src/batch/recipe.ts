@@ -52,7 +52,14 @@ export function parseStep(x: unknown, index = 0): OpSpec {
       return { op: 'symmetrize', symmetry: s.symmetry };
     case 'regrid': {
       if (!isNum(s.cStep) || !isNum(s.gStep) || s.cStep <= 0 || s.gStep <= 0) return bad();
-      const gRange = s.gRange == null ? undefined : oneOf(s.gRange, ['keep', 'lower', 'full'] as const) ? s.gRange : bad();
+      const gRange =
+        s.gRange == null
+          ? undefined
+          : oneOf(s.gRange, ['keep', 'lower', 'full'] as const)
+            ? s.gRange
+            : Array.isArray(s.gRange) && s.gRange.length === 2 && s.gRange.every((x: unknown) => typeof x === 'number')
+              ? ([s.gRange[0], s.gRange[1]] as [number, number])
+              : bad();
       return gRange ? { op: 'regrid', cStep: s.cStep, gStep: s.gStep, gRange } : { op: 'regrid', cStep: s.cStep, gStep: s.gStep };
     }
     case 'smooth':

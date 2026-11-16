@@ -84,7 +84,7 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
       case 'regrid':
         setCStep(String(s.cStep));
         setGStep(String(s.gStep));
-        setGRange(s.gRange ?? 'keep');
+        setGRange(Array.isArray(s.gRange) ? 'keep' : (s.gRange ?? 'keep'));
         break;
     }
   };

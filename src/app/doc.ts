@@ -22,8 +22,8 @@ export interface DocState {
   issues: Issue[];
   /** Название шага, который привёл к этому состоянию (пусто — исходный файл). */
   label: string;
-  /** Описание операции — шаг рецепта. */
-  spec?: OpSpec;
+  /** Описание операции — шаг (или несколько шагов) рецепта. */
+  spec?: OpSpec | OpSpec[];
   /** Рабочее тело операций (интерполянт); у исходного файла создаётся при первой операции. */
   work?: Work;
 }
@@ -52,7 +52,7 @@ const HISTORY_LIMIT = 50;
 
 let seq = 0;
 
-function makeState(parse: ParseResult, extra: Issue[], label: string, spec?: OpSpec, fileName?: string, work?: Work): DocState {
+function makeState(parse: ParseResult, extra: Issue[], label: string, spec?: OpSpec | OpSpec[], fileName?: string, work?: Work): DocState {
   const p = parse.photometry;
   const summary = summarize(p);
   const issues = [...parse.issues, ...extra];
@@ -73,7 +73,7 @@ export function newDoc(name: string, p: Photometry, issues: Issue[], label: stri
   return { id: `f${++seq}`, name, ...makeState({ photometry: p, issues: [] }, issues, label, undefined, undefined, work), past: [], future: [], derived: true };
 }
 
-function stateOf(f: OpenFile): DocState {
+export function stateOf(f: OpenFile): DocState {
   return { parse: f.parse, summary: f.summary, issues: f.issues, label: f.label, spec: f.spec, work: f.work };
 }
 
@@ -94,7 +94,7 @@ export function workOf(s: DocState): Work {
  * Новый шаг истории: модель после операции. Замечания разбора исходного файла
  * больше не относятся к данным — остаются замечания операции и проверки.
  */
-export function applyStep(f: OpenFile, p: Photometry, opIssues: Issue[], label: string, spec?: OpSpec, work?: Work): OpenFile {
+export function applyStep(f: OpenFile, p: Photometry, opIssues: Issue[], label: string, spec?: OpSpec | OpSpec[], work?: Work): OpenFile {
   const next = makeState({ photometry: p, issues: [] }, opIssues, label, spec, f.derived ? undefined : f.name, work);
   return { ...f, ...next, past: [...f.past, stateOf(f)].slice(-HISTORY_LIMIT), future: [] };
 }
@@ -130,6 +130,29 @@ export function deleteCurrent(f: OpenFile): OpenFile {
   const prev = f.past[f.past.length - 1];
   const savedLen = f.savedLen != null && f.savedLen >= f.past.length ? f.savedLen - 1 : f.savedLen;
   return { ...f, ...prev, past: f.past.slice(0, -1), savedLen };
+}
+
+/** Результат «живой» операции (параметры меняются в полях — шаг истории заменяется на месте). */
+export interface LiveResult {
+  p: Photometry;
+  issues: Issue[];
+  label: string;
+  spec?: OpSpec | OpSpec[];
+  work: Work;
+}
+
+/**
+ * Шаг «живой» операции от состояния base (его summary): если текущее состояние — уже результат этой
+ * операции (предыдущее = base), он заменяется; если текущее = base — добавляется новый шаг.
+ * r = null — параметры ничего не меняют: результат операции убирается, текущим снова становится base.
+ * Если файл тем временем ушёл от base (отмена, другая правка), ничего не делается.
+ */
+export function liveStep(f: OpenFile, base: object, r: LiveResult | null): OpenFile {
+  let g: OpenFile;
+  if (f.summary === base) g = f;
+  else if (f.past.length && f.past[f.past.length - 1].summary === base) g = { ...deleteCurrent(f), future: [] };
+  else return f;
+  return r ? applyStep(g, r.p, r.issues, r.label, r.spec, r.work) : g;
 }
 
 /** Имя без расширения. */

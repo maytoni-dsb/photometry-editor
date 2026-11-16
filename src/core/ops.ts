@@ -42,7 +42,7 @@ export type OpSpec =
   | { op: 'mirror'; plane: MirrorPlane }
   | { op: 'rotate'; axis: RotationAxis; angle: number }
   | { op: 'symmetrize'; symmetry: Exclude<Symmetry, 'bilateral'> }
-  | { op: 'regrid'; cStep: number; gStep: number; gRange?: GammaRange }
+  | { op: 'regrid'; cStep: number; gStep: number; /** диапазон γ: как в файле / 0…90 / 0…180 или точно [от, до] */ gRange?: GammaRange | [number, number] }
   | { op: 'smooth'; /** ширина гауссова ядра на половине высоты, ° */ width: number; /** вернуть исходный поток (по умолчанию да) */ keepFlux?: boolean };
 
 export interface OpResult {
@@ -53,7 +53,7 @@ export interface OpResult {
 /** Ошибка в параметрах операции. Текст собирает интерфейс по коду (ops.err.<code>). */
 export class OpError extends Error {
   constructor(
-    public code: 'bad-value' | 'zero-flux' | 'zero-peak' | 'c-step' | 'g-step' | 'no-components' | 'smooth-width',
+    public code: 'bad-value' | 'zero-flux' | 'zero-peak' | 'c-step' | 'g-step' | 'no-components' | 'smooth-width' | 'g-range',
     public params: Record<string, string | number> = {},
   ) {
     super(code);
@@ -429,7 +429,7 @@ export function symmetrize(p: Photometry, target: Exclude<Symmetry, 'bilateral'>
 
 // ——— смена сетки ———
 
-export function regrid(p: Photometry, cStep: number, gStep: number, gRange: GammaRange = 'keep'): OpResult {
+export function regrid(p: Photometry, cStep: number, gStep: number, gRange: GammaRange | [number, number] = 'keep'): OpResult {
   const issues: Issue[] = [];
   const src = asTypeC(p, issues);
   if (!(gStep > 0) || !Number.isFinite(gStep)) throw new OpError('g-step', { step: gStep });
@@ -440,7 +440,8 @@ export function regrid(p: Photometry, cStep: number, gStep: number, gRange: Gamm
     q.hAngles = storedPlanesFor(src.symmetry, cStep);
   }
   const v = src.vAngles;
-  const [g0, g1] = gRange === 'lower' ? [0, 90] : gRange === 'full' ? [0, 180] : [v[0], v[v.length - 1]];
+  const [g0, g1] = Array.isArray(gRange) ? gRange : gRange === 'lower' ? [0, 90] : gRange === 'full' ? [0, 180] : [v[0], v[v.length - 1]];
+  if (!(g0 >= 0 && g1 <= 180 && g1 > g0)) throw new OpError('g-range', { from: g0, to: g1 });
   if (Math.abs((g1 - g0) / gStep - Math.round((g1 - g0) / gStep)) > 1e-6) throw new OpError('g-step', { step: gStep, span: g1 - g0 });
   q.vAngles = range(g0, g1, gStep);
   q.candela = q.hAngles.map((c) => q.vAngles.map((g) => (isAxial(src) ? planeValue(src, 0, g) : intensityC(src, c, g))));

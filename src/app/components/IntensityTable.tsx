@@ -101,6 +101,10 @@ export function IntensityTable({ file, onEdit }: { file: OpenFile; onEdit?: (i: 
                           autoFocus
                           value={editing.text}
                           onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setEditing({ ...editing, text: '0' });
+                          }}
                           onBlur={commit}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') commit();

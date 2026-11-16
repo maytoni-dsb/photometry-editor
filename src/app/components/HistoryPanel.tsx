@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { OpenFile } from '../doc';
 
 /**
- * История изменений файла — во всю высоту рабочей области. Щелчок по строке возвращает к шагу
+ * История изменений файла — отдельная панель справа от рабочей области (как список файлов слева; меню «Вид»). Щелчок по строке возвращает к шагу
  * (Ctrl+Z / Ctrl+Y — отмена и повтор). Внизу: удалить текущее состояние, новый файл из текущего состояния.
  */
 export function HistoryPanel({ file, onJump, onDelete, onFork }: { file: OpenFile; onJump: (i: number) => void; onDelete: () => void; onFork: () => void }) {
@@ -10,8 +10,8 @@ export function HistoryPanel({ file, onJump, onDelete, onFork }: { file: OpenFil
   const timeline = [...file.past.map((x) => x.label), file.label, ...file.future.map((x) => x.label)];
   const cur = file.past.length;
   return (
-    <aside className="side-history">
-      <h3>{t('ops.history')}</h3>
+    <aside className="sidebar histbar">
+      <div className="sidebar-head">{t('ops.history')}</div>
       <ul className="hrows">
         {timeline.map((label, i) => (
           <li key={i} className={i === cur ? 'cur' : i > cur ? 'undone' : ''}>

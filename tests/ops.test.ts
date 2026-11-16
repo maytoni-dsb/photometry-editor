@@ -435,3 +435,15 @@ describe('сглаживание', () => {
     expect(performance.now() - t0).toBeLessThan(1500);
   });
 });
+
+describe('regrid with explicit γ range', () => {
+  it('cuts to [0, 90] and rejects bad ranges', async () => {
+    const { regrid, OpError } = await import('../src/core/index');
+    const { makeC, lambert } = await import('./helpers');
+    const p = makeC(lambert, { cStep: 30, gStep: 5 });
+    const r = regrid(p, 30, 10, [0, 90]).photometry;
+    expect(r.vAngles[0]).toBe(0);
+    expect(r.vAngles[r.vAngles.length - 1]).toBe(90);
+    expect(() => regrid(p, 30, 10, [90, 10])).toThrow(OpError);
+  });
+});

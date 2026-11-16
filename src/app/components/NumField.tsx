@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
  * Числовое поле как в «Расчёте освещения»: стрелки слева, единица измерения внутри поля справа.
  * Стрелки, ↑ / ↓ (с Shift — ×10) и колесо мыши (когда поле в фокусе) меняют значение на шаг.
  * Принимает и запятую, и точку; показывает десятичный разделитель языка интерфейса.
+ * Правая кнопка мыши — значение по умолчанию (`def`, иначе 0 в пределах min…max).
  */
 
 interface Props {
@@ -21,6 +22,8 @@ interface Props {
   width?: number | string;
   'aria-label'?: string;
   title?: string;
+  /** Значение по умолчанию для правой кнопки мыши (нет — 0, ограниченный min / max). */
+  def?: number | string;
 }
 
 const UP = (
@@ -47,7 +50,7 @@ const decimalsOf = (x: number) => {
   return i < 0 ? 0 : s.length - i - 1;
 };
 
-export function NumField({ value, onChange, unit, step = 1, min, max, placeholder, disabled, className, width, title, ...rest }: Props) {
+export function NumField({ value, onChange, unit, step = 1, min, max, placeholder, disabled, className, width, title, def, ...rest }: Props) {
   const { i18n } = useTranslation();
   const comma = i18n.language !== 'en';
   const ref = useRef<HTMLInputElement>(null);
@@ -66,6 +69,17 @@ export function NumField({ value, onChange, unit, step = 1, min, max, placeholde
     const d = Math.max(decimalsOf(st), decimalsOf(x) > 6 ? 0 : decimalsOf(x));
     onChange(String(Math.round(y * 10 ** d) / 10 ** d));
   };
+  const reset = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (disabled) return;
+    let d: number | string = def ?? 0;
+    if (typeof d === 'number') {
+      if (min != null) d = Math.max(min, d);
+      if (max != null) d = Math.min(max, d);
+      d = String(Math.round(d * 1e6) / 1e6);
+    }
+    onChange(d);
+  };
   const bumpRef = useRef(bump);
   bumpRef.current = bump;
 
@@ -83,7 +97,7 @@ export function NumField({ value, onChange, unit, step = 1, min, max, placeholde
   }, []);
 
   return (
-    <span className={`numf${disabled ? ' off' : ''}${className ? ` ${className}` : ''}`} style={width != null ? { width } : undefined} title={title}>
+    <span className={`numf${disabled ? ' off' : ''}${className ? ` ${className}` : ''}`} style={width != null ? { width } : undefined} title={title} onContextMenu={reset}>
       <span className="spin">
         <button type="button" tabIndex={-1} disabled={disabled} onClick={() => bump(1)} aria-label="+">
           {UP}

@@ -744,3 +744,18 @@ table.lamps td:first-child { white-space: nowrap; }
 .opbar .sumslot .axisfield .numf { width: 52px !important; }
 .opbar .sumslot .close, .opbar .sumslot .close-ph { flex: none; width: 18px; }
 .opmodes { grid-template-columns: repeat(3, 120px); }
+
+/* --- v0.16: история — отдельная панель справа (как список файлов) */
+.histbar { width: 260px; }
+.histbar .hrows { flex: 1; min-height: 0; overflow: auto; border-top: 0; }
+.histbar .hactions { padding: 10px 12px; }
+.ops-layout { grid-template-columns: minmax(0, 1fr); }
+.tab-body.fill { overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.tab-body.fill > * { flex: 1; min-height: 0; }
+@media (max-width: 1100px) { .histbar { display: none; } }
+/* --- «Операции»: режимы — только пиктограммы 3 × 2, поля по центру панели по высоте */
+.opbar { align-items: center; }
+.opmodes { grid-template-columns: repeat(3, 40px); gap: 4px; }
+.opmode { width: 40px; height: 34px; padding: 0; justify-content: center; }
+.tab-body.fill > .table-view { display: flex; flex-direction: column; gap: 10px; }
+.tab-body.fill .table-scroll.big { flex: 1; min-height: 0; max-height: none; }

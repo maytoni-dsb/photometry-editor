@@ -100,7 +100,7 @@ function openFileToInput(f: OpenFile): BatchInputFile {
 
 /** Шаги истории файла (операции этапа 4) — для рецепта. */
 export function historySteps(f: OpenFile): OpSpec[] {
-  return [...f.past.slice(1).map((s) => s.spec), f.past.length ? f.spec : undefined].filter((s): s is OpSpec => !!s);
+  return [...f.past.slice(1).map((s) => s.spec), f.past.length ? f.spec : undefined].flat().filter((s): s is OpSpec => !!s);
 }
 
 const fmtBytes = (n: number, lang: string, t: (k: string, o?: Record<string, unknown>) => string) =>

@@ -1,6 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Select } from './Select';
 import { fontMeasure } from '../../charts/fonts';
 import { buildPolar } from '../../charts/polar';
 import { renderSvg } from '../../charts/render-svg';
@@ -16,7 +15,6 @@ import {
   sumWorks,
   summarize,
   type Work,
-  type GammaRange,
   type Issue,
   type Lang,
   type MirrorPlane,
@@ -27,11 +25,10 @@ import {
   type Symmetry,
 } from '../../core/index';
 import type { ChartSettings } from '../App';
-import { baseName, workOf, type OpenFile } from '../doc';
+import { baseName, stateOf, workOf, type DocState, type LiveResult, type OpenFile } from '../doc';
 import { screenFamily, type LoadedFonts } from '../fonts';
 import { createCameraLink, housingBox, type View3D } from '../../charts/body3d';
 import { Body3D, Fallback, HousingToggle, useHousingPref, ViewPill } from './Body3DTab';
-import { HistoryPanel } from './HistoryPanel';
 import { NumField } from './NumField';
 
 export type OpKind = 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'regrid' | 'sum';
@@ -47,7 +44,10 @@ const OP_ICONS: Record<OpKind, string> = {
   sum: 'M12 5v14M5 12h14',
 };
 
-type SymTarget = Exclude<Symmetry, 'bilateral'>;
+type SymKey = 'axial' | 'c0c180' | 'c90c270';
+/** Нажатые кнопки симметрии → симметрия (обе плоскости — четвертная). */
+const symOf = (on: SymKey[]): Exclude<Symmetry, 'bilateral'> | null =>
+  on.includes('axial') ? 'axial' : on.length === 2 ? 'quadrant' : on.length === 1 ? on[0] : null;
 
 /** Параметры слагаемого. */
 interface SumRow {
@@ -77,11 +77,8 @@ interface Props {
   settings: ChartSettings;
   style: ChartStyle;
   fonts: LoadedFonts | null;
-  onApply: (p: Photometry, issues: Issue[], label: string, spec: OpSpec | undefined, work: Work) => void;
-  onDelete: () => void;
-  onFork: () => void;
-  onCreate: (name: string, p: Photometry, issues: Issue[], label: string, work: Work) => void;
-  onJump: (index: number) => void;
+  /** «Живое» применение: шаг от состояния base (его summary) — новый или заменяющий прежний результат; null — вернуть base. */
+  onLive: (fileId: string, base: object, r: LiveResult | null) => void;
   /** Открыть файл с диска (байты) — он появится в списке файлов, но не станет текущим. */
   onAddFile: (name: string, bytes: Uint8Array) => OpenFile | null;
   /** Открыть файл подключённой папки по пути, не делая его текущим. */
@@ -123,55 +120,93 @@ function errorText(t: (k: string, o?: Record<string, unknown>) => string, e: unk
   return String((e as Error)?.message ?? e);
 }
 
-export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onApply, onJump, onAddFile, onOpenEntry, onDelete, onFork }: Props) {
+/** Название шага поворота по осям X → Y → Z. */
+function rotateLabel(t: (k: string, o?: Record<string, unknown>) => string, lang: string, steps: { axis: RotationAxis; angle: number }[]): string {
+  return t('ops.label.rotateMulti', { list: steps.map((r) => `${r.axis.toUpperCase()} ${signed(lang, r.angle)}`).join(', ') });
+}
+
+/** Параметры операций; по умолчанию — значения, которые ничего не меняют (от состояния base). */
+interface Params {
+  plane: MirrorPlane | null;
+  rot: { x: string; y: string; z: string };
+  sym: SymKey[];
+  cStep: string;
+  gStep: string;
+  g0: string;
+  g1: string;
+  sWidth: string;
+  keepFlux: boolean;
+  rowA: SumRow;
+  second: string | null;
+  rowB: SumRow | null;
+}
+
+function neutral(base: DocState, name: string): Params {
+  const st = naturalSteps(base.summary.asC);
+  const v = base.summary.asC.vAngles;
+  const f = { name, summary: base.summary } as OpenFile;
+  return {
+    plane: null,
+    rot: { x: '0', y: '0', z: '0' },
+    sym: [],
+    cStep: String(st.cStep),
+    gStep: String(st.gStep),
+    g0: String(v[0]),
+    g1: String(v[v.length - 1]),
+    sWidth: '0',
+    keepFlux: true,
+    rowA: neutralRow(f),
+    second: null,
+    rowB: null,
+  };
+}
+
+/** Сеанс операции: состояние, от которого считается результат, и параметры. */
+interface Session {
+  fileId: string;
+  op: OpKind;
+  base: DocState;
+  /** Результат сеанса сейчас записан в историю (текущее состояние файла — он). */
+  applied: boolean;
+}
+
+export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onLive, onAddFile, onOpenEntry }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Lang;
-  const p = file.parse.photometry;
-  const s = file.summary;
-  const work = useMemo(() => workOf(file), [file]);
-  const steps = useMemo(() => naturalSteps(s.asC), [s.asC]);
 
-  // ——— параметры операций; по умолчанию — значения, которые ничего не меняют
-  const [plane, setPlane] = useState<MirrorPlane | null>(null);
-  const [axis, setAxis] = useState<RotationAxis>('z');
-  const [angle, setAngle] = useState('0');
-  const [symT, setSymT] = useState<SymTarget>('none');
-  const [cStep, setCStep] = useState(String(steps.cStep));
-  const [gStep, setGStep] = useState(String(steps.gStep));
-  const [gRange, setGRange] = useState<GammaRange>('keep');
-  const [sWidth, setSWidth] = useState('0');
-  const [keepFlux, setKeepFlux] = useState(true);
-  const [rowA, setRowA] = useState<SumRow>(() => neutralRow(file));
-  const [second, setSecond] = useState<string | null>(null);
-  const [rowB, setRowB] = useState<SumRow | null>(null);
+  // ——— сеанс: пока поля меняются, шаг истории заменяется на месте; другой режим, файл, отмена — новый сеанс
+  const sessionOk = (ss: Session | null) =>
+    !!ss &&
+    ss.fileId === file.id &&
+    ss.op === op &&
+    (ss.applied ? file.past.length > 0 && file.past[file.past.length - 1].summary === ss.base.summary && file.summary !== ss.base.summary : file.summary === ss.base.summary);
+  const sessionRef = useRef<Session | null>(null);
+  const [prm, setPrm] = useState<Params>(() => neutral(stateOf(file), file.name));
+  if (!sessionOk(sessionRef.current)) {
+    sessionRef.current = { fileId: file.id, op, base: stateOf(file), applied: false };
+  }
+  const session = sessionRef.current!;
+  const base = session.base;
+  // новый сеанс → поля к значениям по умолчанию (во время отрисовки, без лишнего кадра)
+  const [prmFor, setPrmFor] = useState<Session>(session);
+  if (prmFor !== session) {
+    setPrmFor(session);
+    setPrm(neutral(base, file.name));
+  }
+
+  const p = base.parse.photometry;
+  const s = base.summary;
+  const work = useMemo(() => workOf(base), [base]);
+  const steps = useMemo(() => naturalSteps(s.asC), [s.asC]);
+  const [rev, setRev] = useState(0);
+  /** Изменение поля пользователем — после паузы результат пишется в историю. */
+  const set = (patch: Partial<Params>) => {
+    setPrm((x) => ({ ...x, ...patch }));
+    setRev((r) => r + 1);
+  };
   const [dropOver, setDropOver] = useState(false);
   const [dropErr, setDropErr] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-
-  const reset = () => {
-    setPlane(null);
-    setAngle('0');
-    setSymT('none');
-    setCStep(String(steps.cStep));
-    setGStep(String(steps.gStep));
-    setGRange('keep');
-    setSWidth('0');
-    setKeepFlux(true);
-    setRowA(neutralRow(file));
-    setSecond(null);
-    setRowB(null);
-    setDropErr(null);
-  };
-  // смена режима или файла — всё к значениям по умолчанию
-  const resetRef = useRef(reset);
-  resetRef.current = reset;
-  useEffect(() => resetRef.current(), [op, file.id]);
-  // после применения меняется сам файл (поток, сетка) — «нейтральные» значения пересчитываются
-  useEffect(() => {
-    setCStep(String(steps.cStep));
-    setGStep(String(steps.gStep));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s]);
 
   const [view, setView] = useState<View3D>('iso');
   const [custom, setCustom] = useState(false);
@@ -179,68 +214,106 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const link = useMemo(createCameraLink, []);
   const [showHousing, setShowHousing] = useHousingPref();
 
-  const secondFile = second ? files.find((f) => f.id === second) ?? null : null;
+  const secondFile = prm.second ? files.find((f) => f.id === prm.second) ?? null : null;
+  const rowA = prm.rowA;
+  const rowB = prm.rowB;
+
+  const rotSteps = useMemo(
+    () => (['x', 'y', 'z'] as const).map((a) => ({ axis: a, angle: num(prm.rot[a]) })).filter((r) => !(Number.isFinite(r.angle) && Math.abs(r.angle % 360) < 1e-9)),
+    [prm.rot],
+  );
 
   /** Операция с текущими параметрами; null — параметры ничего не меняют (или не заданы). */
-  const spec: OpSpec | null = useMemo(() => {
+  const spec: OpSpec | OpSpec[] | null = useMemo(() => {
     const eq = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
     switch (op) {
       case 'mirror':
-        return plane ? { op: 'mirror', plane } : null;
-      case 'rotate': {
-        const a = num(angle);
-        return Number.isFinite(a) && Math.abs(a % 360) < 1e-9 ? null : { op: 'rotate', axis, angle: a };
+        return prm.plane ? { op: 'mirror', plane: prm.plane } : null;
+      case 'rotate':
+        return rotSteps.length ? rotSteps.map((r) => ({ op: 'rotate' as const, axis: r.axis, angle: r.angle })) : null;
+      case 'symmetrize': {
+        const sym = symOf(prm.sym);
+        return sym ? { op: 'symmetrize', symmetry: sym } : null;
       }
-      case 'symmetrize':
-        return symT === 'none' ? null : { op: 'symmetrize', symmetry: symT };
       case 'smooth': {
-        const w = num(sWidth);
-        return Number.isFinite(w) && w <= 0 ? null : { op: 'smooth', width: w, keepFlux };
+        const w = num(prm.sWidth);
+        return Number.isFinite(w) && w <= 0 ? null : { op: 'smooth', width: w, keepFlux: prm.keepFlux };
       }
       case 'regrid': {
-        const c = num(cStep);
-        const g = num(gStep);
-        if (eq(c, steps.cStep) && eq(g, steps.gStep) && gRange === 'keep') return null;
-        return { op: 'regrid', cStep: c, gStep: g, gRange };
+        const c = num(prm.cStep);
+        const g = num(prm.gStep);
+        const a = num(prm.g0);
+        const b = num(prm.g1);
+        const v = s.asC.vAngles;
+        const keep = eq(a, v[0]) && eq(b, v[v.length - 1]);
+        if (eq(c, steps.cStep) && eq(g, steps.gStep) && keep) return null;
+        return keep ? { op: 'regrid', cStep: c, gStep: g } : { op: 'regrid', cStep: c, gStep: g, gRange: [a, b] };
       }
       default:
         return null;
     }
-  }, [op, plane, axis, angle, symT, cStep, gStep, gRange, steps, sWidth, keepFlux, s]);
+  }, [op, prm, rotSteps, steps, s]);
 
-  const comp = (f: OpenFile, r: SumRow) => ({
-    name: baseName(f.name),
+  const comp = (f: OpenFile | DocState, name: string, r: SumRow) => ({
+    name: baseName(name),
     work: workOf(f),
-    weight: sumWeight(f, r),
+    weight: sumWeight(f as OpenFile, r),
     rotations: (['x', 'y', 'z'] as const).map((a) => ({ axis: a, angle: num(r[`r${a}`]) || 0 })).filter((x) => x.angle !== 0),
-    offset: { x: num(r.ox) || 0, y: num(r.oy) || 0, z: num(r.oz) || 0 },
+    offset: { x: 0, y: 0, z: 0 },
   });
   const sumComps = useMemo(() => {
     if (op !== 'sum') return [];
-    const list = [comp(file, rowA)];
-    if (secondFile && rowB) list.push(comp(secondFile, rowB));
+    const list = [comp(base, file.name, rowA)];
+    if (secondFile && rowB) list.push(comp(secondFile, secondFile.name, rowB));
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [op, file, rowA, secondFile, rowB]);
+  }, [op, base, rowA, secondFile, rowB]);
 
-  // предпросмотр: операция над рабочим телом (интерполянтом)
-  const preview = useMemo((): { p: Photometry; summary: PhotometrySummary; issues: Issue[]; work: Work } | { error: string } | null => {
+  // результат: операция над рабочим телом (интерполянтом) состояния base
+  const preview = useMemo((): (LiveResult & { summary: PhotometrySummary }) | { error: string } | null => {
     try {
       if (op === 'sum') {
         if (sumComps.length < 2) return null;
         const r = sumWorks(sumComps);
-        return { p: r.photometry, summary: summarize(r.photometry), issues: r.issues, work: r.work };
+        return { p: r.photometry, summary: summarize(r.photometry), issues: r.issues, work: r.work, label: t('ops.label.sumWith', { name: secondFile?.name ?? '' }) };
       }
       if (!spec) return null;
-      const r = applyWork(work, spec);
-      return { p: r.photometry, summary: summarize(r.photometry), issues: r.issues, work: r.work };
+      const list = Array.isArray(spec) ? spec : [spec];
+      let w = work;
+      let ph = p;
+      const issues: Issue[] = [];
+      for (const sp of list) {
+        const r = applyWork(w, sp);
+        w = r.work;
+        ph = r.photometry;
+        issues.push(...r.issues);
+      }
+      const label = Array.isArray(spec) ? (spec.length === 1 ? opLabel(t, lang, spec[0]) : rotateLabel(t, lang, rotSteps)) : opLabel(t, lang, spec);
+      return { p: ph, summary: summarize(ph), issues, work: w, label, spec: Array.isArray(spec) && spec.length === 1 ? spec[0] : spec };
     } catch (e) {
       return { error: errorText(t, e) };
     }
-  }, [op, spec, sumComps, work, t]);
+  }, [op, spec, sumComps, work, p, t, lang, rotSteps, secondFile]);
   const ok = preview && !('error' in preview) ? preview : null;
   // пока параметры ничего не меняют — «после» = «до»
   const shown = ok ?? (preview ? null : { p, summary: s, issues: [] as Issue[], work });
+
+  // запись в историю: через паузу после последнего изменения поля
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
+  useEffect(() => {
+    if (!rev) return;
+    const id = window.setTimeout(() => {
+      const pr = previewRef.current;
+      if (pr && 'error' in pr) return; // ошибка в полях — история не меняется
+      const ss = sessionRef.current;
+      if (!ss) return;
+      ss.applied = !!pr;
+      onLive(ss.fileId, ss.base.summary, pr ? { p: pr.p, issues: pr.issues, label: pr.label, spec: pr.spec, work: pr.work } : null);
+    }, 350);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rev]);
 
   const measure = useMemo(() => (fonts ? fontMeasure(fonts.set) : approxTextWidth), [fonts]);
   const planes = useMemo(() => {
@@ -255,14 +328,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   const housingAfter = useMemo(() => (shown ? housingBox(shown.p) : null), [shown]);
   const scale3d = Math.max(s.peak.value, shown?.summary.peak.value ?? 0) || 1;
 
-  const apply = () => {
-    if (!ok) return;
-    if (op === 'sum') {
-      onApply(ok.p, ok.issues, t('ops.label.sumWith', { name: secondFile?.name ?? '' }), undefined, ok.work);
-    } else if (spec) onApply(ok.p, ok.issues, opLabel(t, lang, spec), spec, ok.work);
-    reset();
-  };
-
   // ——— второе слагаемое: перетаскивание из списка файлов или с диска, либо «Загрузить…»
   const takeSecond = (f: OpenFile | null) => {
     if (!f) return;
@@ -271,8 +336,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
       return;
     }
     setDropErr(null);
-    setSecond(f.id);
-    setRowB(neutralRow(f));
+    set({ second: f.id, rowB: neutralRow(f) });
   };
   const addFromDisk = async (list: FileList | File[]) => {
     const f = [...list].find((x) => /\.(ies|ldt)$/i.test(x.name));
@@ -292,7 +356,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
     else if (path) takeSecond(await onOpenEntry(path));
     else if (e.dataTransfer.files.length) await addFromDisk(e.dataTransfer.files);
   };
-
   const stats = (sm: PhotometrySummary | null, ph: Photometry | null) => (
     <table className="grid small opstable">
       <thead>
@@ -323,34 +386,35 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
   );
 
   const rotHint = () => {
-    const a = num(angle);
-    if (!Number.isFinite(a) || Math.abs(a) < 1e-9) return null;
-    if (axis === 'z') return t('ops.hintZ', { c: fmtNum(lang, ((a % 360) + 360) % 360) });
-    const d = rotatedDirection([{ axis, angle: a }]);
+    if (!rotSteps.length || rotSteps.some((r) => !Number.isFinite(r.angle))) return null;
+    if (rotSteps.length === 1 && rotSteps[0].axis === 'z') return t('ops.hintZ', { c: fmtNum(lang, ((rotSteps[0].angle % 360) + 360) % 360) });
+    const d = rotatedDirection(rotSteps);
     return t('ops.hintXY', { c: fmtNum(lang, d.c), g: fmtNum(lang, d.g) });
   };
 
-  const seg = <T extends string>(list: readonly T[], value: T | null, set: (v: T) => void, label: (v: T) => string) => (
+  /** Кнопки-переключатели; повторное нажатие отжимает кнопку. */
+  const seg = <T extends string>(list: readonly T[], isOn: (v: T) => boolean, toggle: (v: T) => void, label: (v: T) => string) => (
     <div className="seg">
       {list.map((v) => (
-        <button key={v} className={value === v ? 'on' : ''} onClick={() => set(v)}>{label(v)}</button>
+        <button key={v} className={isOn(v) ? 'on' : ''} aria-pressed={isOn(v)} onClick={() => toggle(v)}>{label(v)}</button>
       ))}
     </div>
   );
 
   /** Поля слагаемого в одну строку: поток (он и задаёт вес) и поворот X / Y / Z. */
-  const sumFields = (f: OpenFile, r: SumRow, set: (r: SumRow) => void) => (
+  const sumFields = (f: OpenFile | DocState, r: SumRow, setRow: (r: SumRow) => void) => (
     <>
       <span className="oplabel">{t('ops.sumFlux')}</span>
       <NumField
         value={r.flux}
-        onChange={(v) => set({ ...r, flux: v, wmode: 'flux' })}
+        onChange={(v) => setRow({ ...r, flux: v, wmode: 'flux' })}
+        def={Math.round(f.summary.flux.total * 10) / 10}
         min={0}
         step={10}
         unit={t('unit.lm')}
         width={96}
         aria-label={t('ops.sumFlux')}
-        title={t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f, { ...r, wmode: 'flux' }) || 0, 3) })}
+        title={t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f as OpenFile, { ...r, wmode: 'flux' }) || 0, 3) })}
       />
       <span className="opicon" title={t('ops.rot')} aria-label={t('ops.rot')}>
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
@@ -360,37 +424,50 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
       {(['rx', 'ry', 'rz'] as const).map((k) => (
         <span key={k} className="axisfield">
           <span className="oplabel">{k[1].toUpperCase()}</span>
-          <NumField value={r[k]} onChange={(v) => set({ ...r, [k]: v })} step={1} unit="°" width={58} aria-label={`${t('ops.rot')} ${k[1].toUpperCase()}`} />
+          <NumField value={r[k]} onChange={(v) => setRow({ ...r, [k]: v })} step={1} unit="°" width={58} aria-label={`${t('ops.rot')} ${k[1].toUpperCase()}`} />
         </span>
       ))}
     </>
   );
 
+  const v = s.asC.vAngles;
   let fields: React.ReactNode = null;
   switch (op) {
     case 'mirror':
-      fields = seg(['c0c180', 'c90c270', 'updown'] as const, plane, setPlane, (m) => t(`ops.mirrorBtn_${m}`));
+      fields = seg(['c0c180', 'c90c270', 'updown'] as const, (m) => prm.plane === m, (m) => set({ plane: prm.plane === m ? null : m }), (m) => t(`ops.mirrorBtn_${m}`));
       break;
     case 'rotate':
       fields = (
         <>
-          <span className="oplabel">{t('ops.axis')}</span>
-          <span title={t(`ops.axisNote_${axis}`)}>{seg(['x', 'y', 'z'] as const, axis, setAxis, (a) => a.toUpperCase())}</span>
-          <span className="oplabel">{t('ops.angle')}</span>
-          <NumField value={angle} onChange={setAngle} step={1} unit="°" width={96} aria-label={t('ops.angle')} />
+          <span className="opicon" title={t('ops.rot')}>
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d={OP_ICONS.rotate} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          {(['x', 'y', 'z'] as const).map((a) => (
+            <span key={a} className="axisfield" title={t(`ops.axisNote_${a}`)}>
+              <span className="oplabel">{a.toUpperCase()}</span>
+              <NumField value={prm.rot[a]} onChange={(x) => set({ rot: { ...prm.rot, [a]: x } })} step={1} unit="°" width={84} aria-label={`${t('ops.rot')} ${a.toUpperCase()}`} />
+            </span>
+          ))}
           <span className="muted small">{rotHint()}</span>
         </>
       );
       break;
     case 'symmetrize':
-      fields = seg(['none', 'axial', 'c0c180', 'c90c270'] as const, symT, setSymT, (m) => t(`ops.symBtn_${m}`));
+      fields = seg(
+        ['axial', 'c0c180', 'c90c270'] as const,
+        (m) => prm.sym.includes(m),
+        (m) => set({ sym: prm.sym.includes(m) ? prm.sym.filter((x) => x !== m) : m === 'axial' ? ['axial'] : [...prm.sym.filter((x) => x !== 'axial'), m] }),
+        (m) => t(`ops.symBtn_${m}`),
+      );
       break;
     case 'smooth':
       fields = (
         <>
           <span className="oplabel">{t('ops.smoothWidth')}</span>
-          <NumField value={sWidth} onChange={setSWidth} min={0} max={30} step={1} unit="°" width={88} aria-label={t('ops.smoothWidth')} />
-          <label className="check"><input type="checkbox" checked={keepFlux} onChange={(e) => setKeepFlux(e.target.checked)} />{t('ops.keepFlux')}</label>
+          <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" width={88} aria-label={t('ops.smoothWidth')} />
+          <label className="check"><input type="checkbox" checked={prm.keepFlux} onChange={(e) => set({ keepFlux: e.target.checked })} />{t('ops.keepFlux')}</label>
         </>
       );
       break;
@@ -398,21 +475,17 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
       fields = (
         <>
           <span className="oplabel">ΔC</span>
-          <NumField value={cStep} onChange={setCStep} min={0} step={2.5} unit="°" disabled={s.asC.symmetry === 'axial'} width={88} aria-label={t('ops.cStep')} />
+          <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" disabled={s.asC.symmetry === 'axial'} width={80} aria-label={t('ops.cStep')} />
           <span className="oplabel">Δγ</span>
-          <NumField value={gStep} onChange={setGStep} min={0} step={0.5} unit="°" width={88} aria-label={t('ops.gStep')} />
+          <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" width={80} aria-label={t('ops.gStep')} />
           <span className="oplabel">γ</span>
-          <Select value={gRange} onChange={(e) => setGRange(e.target.value as GammaRange)} aria-label={t('ops.gRange')}>
-            <option value="keep">{t('ops.gRange_keep')}</option>
-            <option value="lower">0…90°</option>
-            <option value="full">0…180°</option>
-          </Select>
+          <NumField value={prm.g0} onChange={(x) => set({ g0: x })} def={v[0]} min={0} max={180} step={5} unit="°" width={80} aria-label={t('ops.gFrom')} />
+          <span className="oplabel">…</span>
+          <NumField value={prm.g1} onChange={(x) => set({ g1: x })} def={v[v.length - 1]} min={0} max={180} step={5} unit="°" width={80} aria-label={t('ops.gTo')} />
         </>
       );
       break;
   }
-
-  const canApply = !!ok && (op === 'sum' ? sumComps.length === 2 : !!spec);
 
   return (
     <div className="ops-layout">
@@ -421,16 +494,12 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           <div className="opbar">
             <div className="opmodes" role="tablist" aria-label={t('ops.title')}>
               {OP_KINDS.map((k) => (
-                <button key={k} role="tab" aria-selected={op === k} className={op === k ? 'opmode on' : 'opmode'} onClick={() => onOp(k)} title={t(`ops.kind_${k}`)}>
-                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <button key={k} role="tab" aria-selected={op === k} className={op === k ? 'opmode on' : 'opmode'} onClick={() => onOp(k)} title={t(`ops.kind_${k}`)} aria-label={t(`ops.kind_${k}`)}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
                     <path d={OP_ICONS[k]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span>{t(`ops.kind_${k}`)}</span>
                 </button>
               ))}
-              <button className="btn primary opgo" disabled={!canApply} onClick={apply} title={op === 'sum' ? t('ops.sumHint') : undefined}>
-                {t('ops.apply')}
-              </button>
             </div>
             <div className="opright">
               {op !== 'sum' && <div className="opline">{fields}</div>}
@@ -438,7 +507,7 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
             <div className="sumslots">
               <div className="sumslot">
                 <span className="slotname" title={file.name}><span className="slotno">1</span><span className="nm">{file.name}</span></span>
-                {sumFields(file, rowA, setRowA)}
+                {sumFields(base, rowA, (r) => set({ rowA: r }))}
                 <span className="close-ph" />
               </div>
               <div
@@ -452,8 +521,8 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
                     <span className="slotname" title={secondFile.name}>
                       <span className="slotno">2</span><span className="nm">{secondFile.name}</span>
                     </span>
-                    {sumFields(secondFile, rowB, (r) => setRowB(r))}
-                    <button className="close vis" aria-label={t('files.close')} onClick={() => { setSecond(null); setRowB(null); }}>×</button>
+                    {sumFields(secondFile, rowB, (r) => set({ rowB: r }))}
+                    <button className="close vis" aria-label={t('files.close')} onClick={() => set({ second: null, rowB: null })}>×</button>
                   </>
                 ) : (
                   <>
@@ -498,7 +567,6 @@ export function OpsPanel({ file, files, op, onOp, settings, style, fonts, onAppl
           </div>
         </div>
       </div>
-      <HistoryPanel file={file} onJump={onJump} onDelete={onDelete} onFork={onFork} />
     </div>
   );
 }
