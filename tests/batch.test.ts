@@ -13,6 +13,8 @@ import { defaultChartOptions } from '../src/charts/series';
 import type { FontSet } from '../src/charts/fonts';
 import {
   applyOp,
+  applyWork,
+  workFrom,
   beamAngles,
   computeFlux,
   parseIES,
@@ -80,8 +82,13 @@ describe('рецепт', () => {
       { op: 'mirror', plane: 'c0c180' },
       { op: 'normalize', mode: 'flux', value: 2000 },
     ] as const;
+    let w = workFrom(p).work;
     let q = p;
-    for (const s of steps) q = applyOp(q, s).photometry;
+    for (const s of steps) {
+      const x = applyWork(w, s);
+      w = x.work;
+      q = x.photometry;
+    }
     const r = applyRecipe(p, [...steps]);
     expect(r.photometry.candela).toEqual(q.candela);
     expect(flux(r.photometry)).toBeCloseTo(2000, 6);

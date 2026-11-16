@@ -97,11 +97,19 @@
     "lor": "LOR (aus Daten)",
     "ldtStated": "Im LDT angegeben: LOR {{lorl}} %, Anteil unten {{dff}} %",
     "keywords": "IES-Schlüsselwörter",
-    "issues": "Hinweise",
-    "noIssues": "Keine Hinweise",
     "saveIes": "Als IES speichern",
     "saveLdt": "Als LDT speichern",
-    "typeBNote": "Photometrie Typ B: Diagramme und Werte nach Umrechnung in Typ C (C-Schritt 5°, γ-Schritt 2,5°)"
+    "typeBNote": "Photometrie Typ B: Diagramme und Werte nach Umrechnung in Typ C (C-Schritt 5°, γ-Schritt 2,5°)",
+    "edit": "Datenblatt: {{field}}",
+    "editHint": "Felder sind bearbeitbar: jede Änderung kommt in den Verlauf (Strg+Z rückgängig).",
+    "shape_rect": "Rechteck",
+    "shape_circle": "Kreis",
+    "shape_point": "keine Maße",
+    "shape_other": "andere",
+    "l": "L",
+    "w": "B",
+    "h": "H",
+    "lampFluxNote": "Relative Photometrie: der Lampenlichtstrom bestimmt den Maßstab der Lichtstärken — cd/klm bleiben, Candela ändern sich proportional."
   },
   "sym": {
     "none": "keine",
@@ -128,7 +136,8 @@
     "cd": "cd",
     "cdklm": "cd/klm",
     "lm": "lm",
-    "lmw": "lm/W"
+    "lmw": "lm/W",
+    "w": "W"
   },
   "chart": {
     "settings": "Diagrammeinstellungen",
@@ -365,7 +374,8 @@
     "wmode_k": "Gewicht",
     "wmode_flux": "Lichtstrom, lm",
     "weightFluxHint": "Lichtstrom des Summanden: {{v}} lm",
-    "weightKHint": "Eigener Lichtstrom {{own}} lm → Gewicht {{k}}"
+    "weightKHint": "Eigener Lichtstrom {{own}} lm → Gewicht {{k}}",
+    "sumFile": "Datei"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",

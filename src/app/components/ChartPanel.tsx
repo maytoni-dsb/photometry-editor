@@ -13,6 +13,7 @@ import type { Lang } from '../../core/issues';
 import type { ChartSettings } from '../App';
 import { baseName, type OpenFile } from '../doc';
 import { screenFamily, type LoadedFonts } from '../fonts';
+import { NumField, parseNum } from './NumField';
 import { FontConnect } from './FontConnect';
 import type { ExportFormat } from '../actions';
 import { renderPng } from '../png';
@@ -126,7 +127,7 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
               </div>
               <div className="row">
                 <span className="prefix">C</span>
-                <input type="number" min={0} max={179} step={1} value={newPlane} onChange={(e) => setNewPlane(e.target.value)} className="w-num" />
+                <NumField value={newPlane} onChange={setNewPlane} min={0} max={179} step={15} unit="°" width={84} />
                 <button className="btn small" onClick={addPlane} disabled={planes.length >= 6}>{t('chart.addPlane')}</button>
                 {settings.planes && <button className="link small" onClick={() => set({ planes: null })}>↺</button>}
               </div>
@@ -148,12 +149,12 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
           </select>
 
           <label>{t('chart.scale')}</label>
-          <input
-            type="number"
+          <NumField
             min={0}
+            step={50}
             placeholder={t('chart.scaleAuto')}
             value={settings.scaleMax ?? ''}
-            onChange={(e) => set({ scaleMax: e.target.value === '' ? null : Math.max(0, Number(e.target.value)) || null })}
+            onChange={(v) => set({ scaleMax: v.trim() === '' ? null : Math.max(0, parseNum(v)) || null })}
           />
 
           <label>{t('chart.range')}</label>
@@ -176,15 +177,15 @@ export function ChartPanel({ kind, file, settings, onSettings, style, onStyle, f
 
           <label>{t('chart.width')}</label>
           {kind === 'polar' ? (
-            <input type="number" min={20} max={400} step={0.1} value={settings.width} onChange={(e) => set({ width: Math.min(400, Math.max(20, Number(e.target.value) || CATALOG_WIDTH)) })} />
+            <NumField min={20} max={400} step={1} value={settings.width} onChange={(v) => { const x = parseNum(v); if (Number.isFinite(x)) set({ width: Math.min(400, Math.max(20, x)) }); }} />
           ) : (
-            <input type="number" min={20} max={400} step={0.1} value={settings.linearWidth} onChange={(e) => set({ linearWidth: Math.min(400, Math.max(20, Number(e.target.value) || CATALOG_WIDTH)) })} />
+            <NumField min={20} max={400} step={1} value={settings.linearWidth} onChange={(v) => { const x = parseNum(v); if (Number.isFinite(x)) set({ linearWidth: Math.min(400, Math.max(20, x)) }); }} />
           )}
 
           {kind === 'linear' && !catalog && (
             <>
               <label>{t('chart.height')}</label>
-              <input type="number" min={15} max={400} value={settings.height} onChange={(e) => set({ height: Math.min(400, Math.max(15, Number(e.target.value) || 60)) })} />
+              <NumField min={15} max={400} step={1} value={settings.height} onChange={(v) => { const x = parseNum(v); if (Number.isFinite(x)) set({ height: Math.min(400, Math.max(15, x)) }); }} />
             </>
           )}
 

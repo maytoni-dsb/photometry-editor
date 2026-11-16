@@ -32,8 +32,8 @@ import {
   type FolderState,
 } from './folder';
 import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
-import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, type OpenFile } from './doc';
-import { applyOp, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry } from '../core/index';
+import { applyStep, isModified, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
+import { applyWork, patchWork, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry, type Work } from '../core/index';
 import { loadFonts, type LoadedFonts } from './fonts';
 import { LANGS } from './i18n';
 import { load, save } from './storage';
@@ -322,21 +322,27 @@ export default function App() {
 
   // ——— операции и история (этап 4)
   const updateFile = (id: string, fn: (f: OpenFile) => OpenFile) => setFiles((prev) => prev.map((f) => (f.id === id ? fn(f) : f)));
-  const applyToActive = (p: Photometry, issues: Issue[], label: string, spec: OpSpec) => {
-    if (active) updateFile(active.id, (f) => applyStep(f, p, issues, label, spec));
+  const applyToActive = (p: Photometry, issues: Issue[], label: string, spec: OpSpec | undefined, work: Work) => {
+    if (active) updateFile(active.id, (f) => applyStep(f, p, issues, label, spec, work));
   };
   /** Быстрая команда меню: операция сразу применяется к активному файлу (отменяется Ctrl+Z). */
   const quickOp = (spec: OpSpec) => {
     if (!active) return;
     try {
-      const r = applyOp(active.parse.photometry, spec);
-      applyToActive(r.photometry, r.issues, opLabel(t, i18n.language, spec), spec);
+      const r = applyWork(workOf(active), spec);
+      applyToActive(r.photometry, r.issues, opLabel(t, i18n.language, spec), spec, r.work);
     } catch (e) {
       setErrors([e instanceof OpError ? t(`ops.err.${e.code}`, e.params) : String(e)]);
     }
   };
-  const createDoc = (name: string, p: Photometry, issues: Issue[], label: string) => {
-    const d = newDoc(name, p, issues, label);
+  /** Правка паспорта — шаг истории (отменяется Ctrl+Z), меняет и файл, и рабочее тело. */
+  const patchActive = (label: string, fn: (p: Photometry) => void) => {
+    if (!active) return;
+    const r = patchWork(workOf(active), fn);
+    applyToActive(r.photometry, [], label, undefined, r.work);
+  };
+  const createDoc = (name: string, p: Photometry, issues: Issue[], label: string, work: Work) => {
+    const d = newDoc(name, p, issues, label, work);
     setFiles((prev) => [...prev, d]);
     setActiveId(d.id);
   };
@@ -576,13 +582,16 @@ export default function App() {
   return (
     <div className="app">
       <header className="sbar">
-        <span className="brand">
-          <MaytoniLogo />
-        </span>
-        <span className="apptitle">
-          {t('app.title')}
-          <span className="appver" title={`commit ${__APP_COMMIT__}`}>v{__APP_VERSION__} · {__APP_COMMIT__}</span>
-        </span>
+        {/* логотип и название — над списком файлов: меню начинается там же, где вкладки рабочей области */}
+        <div className={showFiles ? 'sbar-left' : 'sbar-left narrow'}>
+          <span className="brand">
+            <MaytoniLogo />
+          </span>
+          <span className="apptitle">
+            {t('app.title')}
+            <span className="appver" title={`commit ${__APP_COMMIT__}`}>v{__APP_VERSION__} · {__APP_COMMIT__}</span>
+          </span>
+        </div>
         <MenuBar menus={menus} />
         <div className="sbtools">
           <input
@@ -678,7 +687,7 @@ export default function App() {
                 </nav>
               </div>
               <div className="tab-body">
-                {tab === 'passport' && <Passport file={active} />}
+                {tab === 'passport' && <Passport file={active} onPatch={patchActive} />}
                 {tab === 'table' && <IntensityTable file={active} />}
                 {tab === 'body' && <Body3DTab file={active} settings={settings} />}
                 {tab === 'ops' && (

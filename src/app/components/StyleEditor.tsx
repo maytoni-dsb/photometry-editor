@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { NumField, parseNum } from './NumField';
 import type { Color } from '../../charts/scene';
 import { defaultStyle, hexToRgb, naiveCmyk, rgbHex, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../../charts/style';
 import type { LoadedFonts } from '../fonts';
@@ -33,14 +34,15 @@ function ColorRow({ label, value, onChange, extra }: { label: string; value: Col
         {(['C', 'M', 'Y', 'K'] as const).map((ch, i) => (
           <label key={ch}>
             {ch}
-            <input
-              type="number"
+            <NumField
               min={0}
               max={100}
+              step={5}
+              width={64}
               value={value.cmyk[i]}
-              onChange={(e) => {
+              onChange={(v) => {
                 const cmyk = [...value.cmyk] as Color['cmyk'];
-                cmyk[i] = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                cmyk[i] = Math.min(100, Math.max(0, parseNum(v) || 0));
                 onChange({ ...value, cmyk });
               }}
             />
@@ -63,7 +65,7 @@ export function StyleEditor({ style, onChange, fonts, onFonts, onClose }: Props)
   const set = (patch: Partial<ChartStyle>) => onChange({ ...s, ...patch });
   const setColors = (patch: Partial<ChartStyle['colors']>) => set({ colors: { ...s.colors, ...patch } });
   const numIn = (v: number, on: (x: number) => void, step = 0.05, min = 0.01, max = 30) => (
-    <input type="number" step={step} min={min} max={max} value={Math.round(v * 1000) / 1000} onChange={(e) => { const x = Number(e.target.value); if (Number.isFinite(x) && x >= min) on(Math.min(max, x)); }} />
+    <NumField step={step} min={min} max={max} value={Math.round(v * 1000) / 1000} onChange={(t) => { const x = parseNum(t); if (Number.isFinite(x) && x >= min) on(Math.min(max, x)); }} />
   );
 
   const importStyle = async (f: File) => {

@@ -6,7 +6,7 @@
  *   { "type": "photometry-editor/recipe", "version": 1, "name": "…", "steps": [ {op: …}, … ] }
  */
 
-import { applyOp, OpError, type Issue, type OpSpec, type Photometry } from '../core/index';
+import { applyWork, OpError, workFrom, type Issue, type OpSpec, type Photometry } from '../core/index';
 
 export const RECIPE_TYPE = 'photometry-editor/recipe';
 
@@ -96,13 +96,21 @@ export class StepError extends Error {
   }
 }
 
-/** Применяет шаги по порядку. Ошибка шага — StepError с номером шага и исходной ошибкой (обычно OpError). */
+/**
+ * Применяет шаги по порядку — над рабочим телом (интерполянтом), как на вкладке «Операции»:
+ * смена сетки обратима, симметризация не уменьшает сетку. Ошибка шага — StepError с номером
+ * шага и исходной ошибкой (обычно OpError).
+ */
 export function applyRecipe(p: Photometry, steps: OpSpec[]): RecipeRun {
+  if (!steps.length) return { photometry: p, issues: [] };
+  const start = workFrom(p);
+  let w = start.work;
   let cur = p;
-  const issues: Issue[] = [];
+  const issues: Issue[] = [...start.issues];
   steps.forEach((s, i) => {
     try {
-      const r = applyOp(cur, s);
+      const r = applyWork(w, s);
+      w = r.work;
       cur = r.photometry;
       issues.push(...r.issues);
     } catch (e) {

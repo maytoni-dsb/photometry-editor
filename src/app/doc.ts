@@ -5,7 +5,9 @@ import {
   summarize,
   typeBToC,
   validatePhotometry,
+  workFrom,
   type Issue,
+  type Work,
   type OpSpec,
   type ParseResult,
   type Photometry,
@@ -20,8 +22,10 @@ export interface DocState {
   issues: Issue[];
   /** Название шага, который привёл к этому состоянию (пусто — исходный файл). */
   label: string;
-  /** Описание операции — пригодится для пакетных рецептов (этап 5). */
+  /** Описание операции — шаг рецепта. */
   spec?: OpSpec;
+  /** Рабочее тело операций (интерполянт); у исходного файла создаётся при первой операции. */
+  work?: Work;
 }
 
 export interface OpenFile extends DocState {
@@ -44,7 +48,7 @@ const HISTORY_LIMIT = 50;
 
 let seq = 0;
 
-function makeState(parse: ParseResult, extra: Issue[], label: string, spec?: OpSpec, fileName?: string): DocState {
+function makeState(parse: ParseResult, extra: Issue[], label: string, spec?: OpSpec, fileName?: string, work?: Work): DocState {
   const p = parse.photometry;
   const summary = summarize(p);
   const issues = [...parse.issues, ...extra];
@@ -52,7 +56,7 @@ function makeState(parse: ParseResult, extra: Issue[], label: string, spec?: OpS
   issues.push(...validatePhotometry(summary.asC, { fileName }));
   const order = { error: 0, warning: 1, info: 2 };
   issues.sort((a, b) => order[a.severity] - order[b.severity]);
-  return { parse, summary, issues, label, spec };
+  return { parse, summary, issues, label, spec, work };
 }
 
 export function openBytes(name: string, bytes: Uint8Array): OpenFile {
@@ -61,20 +65,33 @@ export function openBytes(name: string, bytes: Uint8Array): OpenFile {
 }
 
 /** Новый файл из модели (результат сложения). */
-export function newDoc(name: string, p: Photometry, issues: Issue[], label: string): OpenFile {
-  return { id: `f${++seq}`, name, ...makeState({ photometry: p, issues: [] }, issues, label), past: [], future: [], derived: true };
+export function newDoc(name: string, p: Photometry, issues: Issue[], label: string, work?: Work): OpenFile {
+  return { id: `f${++seq}`, name, ...makeState({ photometry: p, issues: [] }, issues, label, undefined, undefined, work), past: [], future: [], derived: true };
 }
 
 function stateOf(f: OpenFile): DocState {
-  return { parse: f.parse, summary: f.summary, issues: f.issues, label: f.label, spec: f.spec };
+  return { parse: f.parse, summary: f.summary, issues: f.issues, label: f.label, spec: f.spec, work: f.work };
+}
+
+const works = new WeakMap<object, Work>();
+
+/** Рабочее тело состояния (для исходного файла — строится один раз и запоминается). */
+export function workOf(s: DocState): Work {
+  if (s.work) return s.work;
+  let w = works.get(s.parse.photometry);
+  if (!w) {
+    w = workFrom(s.parse.photometry).work;
+    works.set(s.parse.photometry, w);
+  }
+  return w;
 }
 
 /**
  * Новый шаг истории: модель после операции. Замечания разбора исходного файла
  * больше не относятся к данным — остаются замечания операции и проверки.
  */
-export function applyStep(f: OpenFile, p: Photometry, opIssues: Issue[], label: string, spec?: OpSpec): OpenFile {
-  const next = makeState({ photometry: p, issues: [] }, opIssues, label, spec, f.derived ? undefined : f.name);
+export function applyStep(f: OpenFile, p: Photometry, opIssues: Issue[], label: string, spec?: OpSpec, work?: Work): OpenFile {
+  const next = makeState({ photometry: p, issues: [] }, opIssues, label, spec, f.derived ? undefined : f.name, work);
   return { ...f, ...next, past: [...f.past, stateOf(f)].slice(-HISTORY_LIMIT), future: [] };
 }
 

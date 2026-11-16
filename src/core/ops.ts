@@ -549,7 +549,7 @@ export function smooth(p: Photometry, width: number, keepFlux = true): OpResult 
  * Записанные в LDT КПД и доля потока вниз после операции устарели — пересчитываются по данным
  * (при записи LDT они и так считаются заново; здесь — чтобы паспорт показывал верные числа).
  */
-function refreshStated(q: Photometry): Photometry {
+export function refreshStated(q: Photometry): Photometry {
   if (!q.ldt) return q;
   const f = computeFlux(q);
   const lamp = q.lamps[0]?.flux;

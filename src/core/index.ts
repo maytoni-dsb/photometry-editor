@@ -46,3 +46,4 @@ export {
   type GammaRange,
 } from './ops';
 export { beamAngles, planeAngles, type PlaneAngles } from './beam';
+export { applyWork, denseFrom, patchWork, pchip, sample, sumWorks, workFrom, type OutGrid, type Work, type WorkComponent, type WorkResult } from './work';

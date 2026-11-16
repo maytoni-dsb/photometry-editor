@@ -4,6 +4,7 @@ import type { GammaRange, MirrorPlane, NormalizeMode, OpSpec, RotationAxis, Symm
 import { parseStep, recipeFromJson, recipeToJson, RecipeError, type Recipe } from '../../batch/recipe';
 import { safeFileName, saveFile } from '../save-file';
 import { opLabel } from './OpsPanel';
+import { NumField } from './NumField';
 
 type StepKind = OpSpec['op'];
 const STEP_KINDS: StepKind[] = ['normalize', 'mirror', 'rotate', 'symmetrize', 'smooth', 'regrid'];
@@ -192,7 +193,7 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
               {nMode !== 'cdklm' && (
                 <>
                   <label>{nMode === 'flux' ? t('batch.valueLm') : nMode === 'peak' ? t('batch.valueCd') : t('batch.valueK')}</label>
-                  <input type="text" inputMode="decimal" value={nValue} onChange={(e) => setNValue(e.target.value)} />
+                  <NumField value={nValue} onChange={setNValue} min={0} step={nMode === 'factor' ? 0.1 : 100} width="100%" />
                 </>
               )}
             </>
@@ -211,8 +212,8 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
               <select value={axis} onChange={(e) => setAxis(e.target.value as RotationAxis)}>
                 {(['z', 'x', 'y'] as const).map((a) => <option key={a} value={a}>{a.toUpperCase()}</option>)}
               </select>
-              <label>{t('ops.angle')}, °</label>
-              <input type="text" inputMode="decimal" value={angle} onChange={(e) => setAngle(e.target.value)} />
+              <label>{t('ops.angle')}</label>
+              <NumField value={angle} onChange={setAngle} step={15} unit="°" width="100%" />
             </>
           )}
           {kind === 'symmetrize' && (
@@ -225,8 +226,8 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
           )}
           {kind === 'smooth' && (
             <>
-              <label>{t('ops.smoothWidth')}, °</label>
-              <input type="text" inputMode="decimal" value={width} onChange={(e) => setWidth(e.target.value)} />
+              <label>{t('ops.smoothWidth')}</label>
+              <NumField value={width} onChange={setWidth} min={0.5} max={30} step={1} unit="°" width="100%" />
               <span />
               <label className="check"><input type="checkbox" checked={keepFlux} onChange={(e) => setKeepFlux(e.target.checked)} />{t('ops.keepFlux')}</label>
             </>
@@ -234,9 +235,9 @@ export function RecipeEditor({ steps, onSteps, name, onName, saved, onSaved, his
           {kind === 'regrid' && (
             <>
               <label>{t('ops.cStep')}</label>
-              <input type="text" inputMode="decimal" value={cStep} onChange={(e) => setCStep(e.target.value)} />
+              <NumField value={cStep} onChange={setCStep} min={0} step={2.5} unit="°" width="100%" />
               <label>{t('ops.gStep')}</label>
-              <input type="text" inputMode="decimal" value={gStep} onChange={(e) => setGStep(e.target.value)} />
+              <NumField value={gStep} onChange={setGStep} min={0} step={0.5} unit="°" width="100%" />
               <label>{t('ops.gRange')}</label>
               <select value={gRange} onChange={(e) => setGRange(e.target.value as GammaRange)}>
                 <option value="keep">{t('ops.gRange_keep')}</option>

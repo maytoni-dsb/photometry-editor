@@ -66,10 +66,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .gsst:hover { background: var(--soft); color: var(--ink); }
 .gsst.cur { background: var(--sel); color: var(--on-sel); font-weight: 600; }
-.sbtools { display: flex; align-items: center; gap: 8px; margin-left: 6px; flex: none; }
+.sbtools { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
 
 /* --- меню */
-.menubar { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.menubar { display: flex; align-items: center; gap: 2px; }
+/* ширина = список файлов (300) + промежуток (16) + отступ вкладок (13) − поле шапки (21) − промежуток (14) */
+.sbar-left { width: 294px; flex: none; display: flex; align-items: center; gap: 14px; }
+.sbar-left.narrow { width: auto; }
 .mtop-wrap { position: relative; }
 .mtop {
   height: 38px; padding: 0 15px; border: 0; border-radius: 999px; background: transparent; color: var(--ink2);
@@ -78,11 +81,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .mtop:hover { background: var(--soft); color: var(--ink); }
 .mtop.open { background: var(--sel); color: var(--on-sel); }
 .mdrop {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 240px; background: var(--card);
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 240px; background: var(--card);
   border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
   padding: 6px; display: flex; flex-direction: column;
 }
-.msub > .mdrop { top: -7px; left: auto; right: calc(100% + 4px); }
+.msub > .mdrop { top: -7px; left: calc(100% + 4px); }
 .mitem-wrap { position: relative; }
 .mitem {
   width: 100%; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border: 0; border-radius: 6px;
@@ -478,10 +481,8 @@ table.grid.edit tr.bad td { background: color-mix(in srgb, var(--warn) 8%, trans
 .warn { color: var(--warn); margin: 0; }
 
 /* --- чертёж светильника в паспорте */
-.drawing-card { grid-column: span 2; }
-@media (max-width: 1100px) { .drawing-card { grid-column: auto; } }
 .drawing { margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.drawing svg { width: 100%; height: auto; max-height: 460px; }
+.drawing svg { width: 100%; height: auto; max-height: 230px; }
 .dw-body { fill: var(--soft2); stroke: var(--ink); }
 .dw-dimline { stroke: var(--ink3); fill: none; }
 .dw-arrow { fill: var(--ink3); stroke: none; }
@@ -491,21 +492,78 @@ table.grid.edit tr.bad td { background: color-mix(in srgb, var(--warn) 8%, trans
 .dw-axis { stroke: var(--muted); }
 .dw-swatch { display: inline-block; width: 12px; height: 10px; border: 1px solid; border-radius: 2px; vertical-align: -1px; }
 
-/* --- операции: до / после и форма слева, история справа */
-.ops-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
-.ops-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.ops-main .ops-stage { background: var(--soft2); border-radius: 12px; padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
-.ops-editor { border: 1px solid var(--rule); border-radius: 12px; padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 14px; }
-.ops-editor h3 { font-size: 14px; }
-.ops-editor .opform { max-width: 760px; }
-.ops-history { border: 1px solid var(--rule); border-radius: 12px; padding: 16px 18px; position: sticky; top: 0; max-height: calc(100vh - 200px); overflow: auto; }
-.ops-history .history { gap: 10px; }
-.sumweight { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.sumweight input { width: 110px !important; }
-.seg.small button { height: 22px; padding: 0 10px; font-size: 11.5px; }
-.sumfields { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-@media (max-width: 1100px) {
+
+/* --- числовое поле: стрелки слева, единица внутри (как в «Расчёте освещения») */
+.numf { position: relative; display: inline-flex; align-items: center; width: 96px; flex: none; }
+.numf input[type='text'] { height: 26px; width: 100%; min-width: 0; padding: 0 8px 0 21px; font-variant-numeric: tabular-nums; }
+.numf .spin {
+  position: absolute; left: 1px; top: 1px; bottom: 1px; width: 15px; display: flex; flex-direction: column;
+  border-right: 1px solid var(--rule); border-radius: 5px 0 0 5px; overflow: hidden; z-index: 1;
+}
+.numf .spin button {
+  flex: 1; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; margin: 0;
+  background: var(--soft2); color: var(--ink3); cursor: pointer;
+}
+.numf .spin button:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
+.numf .spin button:active:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.numf .spin button + button { border-top: 1px solid var(--rule); }
+.numf .unit { position: absolute; right: 8px; font-size: 11.5px; color: var(--muted); pointer-events: none; }
+.numf.off { opacity: 0.55; }
+.form-grid .numf { width: 100%; }
+
+/* --- операции: до / после (КСС + 3D) и форма слева, история справа; всё на одном экране */
+.ops-layout { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 14px; align-items: start; }
+.ops-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ops-main .ops-stage { background: var(--soft2); border-radius: 12px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ops-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ops-pair figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ops-pair figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 12.5px; min-height: 24px; }
+.ops-pair figcaption .b3d-views { gap: 2px; flex-wrap: nowrap; }
+.ops-pair figcaption .b3d-views .btn { height: 22px; padding: 0 8px; font-size: 11px; font-weight: 400; }
+.ops-views { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ops-views .paper { height: 250px; display: flex; align-items: center; justify-content: center; padding: 6px; overflow: hidden; }
+.ops-views .paper svg { width: 100%; height: 100%; }
+.ops-views .empty-preview { grid-column: 1 / -1; }
+.opstable { width: 100%; background: var(--card); border-radius: 8px; overflow: hidden; }
+.opstable th, .opstable td { padding: 4px 10px; white-space: nowrap; }
+.opstable tbody th { text-align: left; font-weight: 600; width: 70px; }
+.ops-editor { border: 1px solid var(--rule); border-radius: 12px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+.opline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 32px; }
+.opline .oplabel { font-size: 12px; color: var(--ink3); }
+.opline .grow { flex: 1; }
+.opline select { height: 26px; }
+.opgo { flex: none; }
+.opnote { margin: 0; }
+.sumtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sumtable th { text-align: left; font-weight: 500; color: var(--ink3); padding: 2px 6px; }
+.sumtable td { padding: 3px 6px; border-top: 1px solid var(--rule); vertical-align: middle; }
+.sumtable tr:not(.on) td.fname { color: var(--ink3); }
+.sumtable td.fname { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sumweight { display: flex; align-items: center; gap: 6px; }
+.trio { display: flex; gap: 4px; }
+.seg.small button { height: 22px; padding: 0 9px; font-size: 11.5px; }
+.ops-history { border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; position: sticky; top: 0; max-height: calc(100vh - 190px); overflow: auto; }
+@media (max-width: 1300px) {
   .ops-layout { grid-template-columns: 1fr; }
   .ops-history { position: static; max-height: none; }
-  .sumfields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* --- паспорт: чертёж слева вверху, «Светильник» справа; поля редактируемые */
+.pp-top { display: grid; grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr); gap: 16px; margin-bottom: 16px; align-items: start; }
+.pp-top .card { margin: 0; }
+@media (max-width: 1100px) { .pp-top { grid-template-columns: 1fr; } }
+.kv.edit > div { align-items: center; }
+.kv.edit dd { font-weight: 400; display: flex; justify-content: flex-end; }
+input.pe { height: 26px; width: 160px; font-weight: 500; text-align: right; }
+input.pe.pe-wide { width: min(100%, 340px); }
+input.pe:not(:focus):not(:hover) { border-color: transparent; background: transparent; }
+.pe-dims { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.pe-shape { height: 26px; }
+table.lamps input.pe { width: 100%; text-align: left; }
+.passport .toolbar { align-items: center; }
+
+.pp-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.kv.edit.stack > div { flex-direction: column; align-items: stretch; gap: 4px; }
+.kv.edit.stack dt { max-width: none; }
+.kv.edit.stack dd { justify-content: flex-start; }
+.kv.edit.stack .pe-dims { justify-content: flex-start; flex-wrap: nowrap; }

@@ -97,11 +97,19 @@
     "lor": "LOR (from data)",
     "ldtStated": "Stated in LDT: LOR {{lorl}} %, downward {{dff}} %",
     "keywords": "IES keywords",
-    "issues": "Issues",
-    "noIssues": "No issues",
     "saveIes": "Save as IES",
     "saveLdt": "Save as LDT",
-    "typeBNote": "Type B photometry: charts and figures use conversion to type C (C step 5°, γ step 2.5°)"
+    "typeBNote": "Type B photometry: charts and figures use conversion to type C (C step 5°, γ step 2.5°)",
+    "edit": "Passport: {{field}}",
+    "editHint": "Fields are editable: each change goes to the history (Ctrl+Z to undo).",
+    "shape_rect": "rectangle",
+    "shape_circle": "circle",
+    "shape_point": "no dimensions",
+    "shape_other": "other",
+    "l": "L",
+    "w": "W",
+    "h": "H",
+    "lampFluxNote": "Relative photometry: the lamp flux sets the intensity scale — cd/klm stay, candelas change proportionally."
   },
   "sym": {
     "none": "none",
@@ -128,7 +136,8 @@
     "cd": "cd",
     "cdklm": "cd/klm",
     "lm": "lm",
-    "lmw": "lm/W"
+    "lmw": "lm/W",
+    "w": "W"
   },
   "chart": {
     "settings": "Chart settings",
@@ -365,7 +374,8 @@
     "wmode_k": "Weight",
     "wmode_flux": "Flux, lm",
     "weightFluxHint": "Component flux: {{v}} lm",
-    "weightKHint": "Own flux {{own}} lm → weight {{k}}"
+    "weightKHint": "Own flux {{own}} lm → weight {{k}}",
+    "sumFile": "File"
   },
   "b3d": {
     "title": "3D photometric body",
