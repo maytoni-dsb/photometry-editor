@@ -419,7 +419,12 @@
     "forked": "Created from “{{name}}”",
     "gFrom": "γ from",
     "gTo": "γ to",
-    "sumSlot": "file…"
+    "sumSlot": "file…",
+    "sumIconTitle": "Sum: drop a second file here from the list or from disk, or click to choose one",
+    "sumWithTitle": "Sum with “{{name}}” — click to replace the file",
+    "sumRemove": "Remove the second file",
+    "sumFluxA": "Flux of the current file",
+    "sumFluxB": "Flux of the second file"
   },
   "b3d": {
     "title": "3D photometric body",

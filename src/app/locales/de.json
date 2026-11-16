@@ -419,7 +419,12 @@
     "forked": "Erstellt aus „{{name}}“",
     "gFrom": "γ von",
     "gTo": "γ bis",
-    "sumSlot": "Datei…"
+    "sumSlot": "Datei…",
+    "sumIconTitle": "Summe: zweite Datei aus der Liste oder vom Datenträger hierher ziehen oder klicken, um sie zu wählen",
+    "sumWithTitle": "Summe mit „{{name}}“ — klicken, um die Datei zu ersetzen",
+    "sumRemove": "Zweite Datei entfernen",
+    "sumFluxA": "Lichtstrom der aktuellen Datei",
+    "sumFluxB": "Lichtstrom der zweiten Datei"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",

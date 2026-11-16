@@ -835,3 +835,31 @@ table.lamps td:first-child { white-space: nowrap; }
 .ops-editor.ctrlpanel { padding: 12px 10px; }
 .ops-editor.ctrlpanel.bad { border-color: var(--err); }
 .cgrid { column-gap: 7px; } .ops-editor.ctrlpanel { padding: 12px 8px; }
+
+/* --- v0.21: единица сразу за числом (как в InDesign) */
+.numf.inlu { overflow: hidden; }
+.numf.inlu input[type='text'] { padding-right: 4px !important; }
+.numf.inlu .unit.inl { left: 18px; right: auto; white-space: pre; font-size: inherit; pointer-events: none; }
+.numf.inlu .unit.inl .ghost { visibility: hidden; font-variant-numeric: tabular-nums; }
+.numf.inlu .unit.inl .u { font-size: 11px; color: var(--muted); }
+
+/* --- v0.21: сетка 2 × 14; второй файл — на пиктограмме сложения; «сохранять поток» — кнопкой */
+.cgrid { grid-template-columns: 30px 92px 92px 30px repeat(3, 76px) 30px 72px 68px 64px 30px 68px 30px; }
+.cgrid .numf input[type='text'] { padding-left: 17px; }
+.cgrid .numf.inlu .unit.inl { left: 18px; }
+.ctoggle, .csumbtn {
+  width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px;
+  background: none; color: var(--ink3); cursor: pointer;
+}
+.ctoggle:hover, .csumbtn:hover { background: var(--soft); color: var(--ink); }
+.ctoggle.on { background: var(--sel); color: var(--on-sel); }
+.cicon.csum { position: relative; border: 1px dashed var(--line); border-radius: 8px; }
+.cicon.csum .csumbtn { width: 28px; height: 28px; border: 0; color: var(--ink2); }
+.cicon.csum.full { border-style: solid; border-color: var(--sel); }
+.cicon.csum.full::after { content: ''; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.cicon.csum.over { border-color: var(--accent); background: var(--accent-soft); }
+.csumx {
+  position: absolute; left: -7px; top: -7px; width: 15px; height: 15px; display: none; place-items: center; padding: 0;
+  border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink2); font-size: 11px; line-height: 1; cursor: pointer;
+}
+.cicon.csum.full:hover .csumx { display: grid; }

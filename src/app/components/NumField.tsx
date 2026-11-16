@@ -24,6 +24,8 @@ interface Props {
   title?: string;
   /** Значение по умолчанию для правой кнопки мыши (нет — 0, ограниченный min / max). */
   def?: number | string;
+  /** Единица сразу за числом («45°», «897,7 лм»), а не у правого края — компактнее (панель «Операций»). */
+  inlineUnit?: boolean;
 }
 
 const UP = (
@@ -50,7 +52,7 @@ const decimalsOf = (x: number) => {
   return i < 0 ? 0 : s.length - i - 1;
 };
 
-export function NumField({ value, onChange, unit, step = 1, min, max, placeholder, disabled, className, width, title, def, ...rest }: Props) {
+export function NumField({ value, onChange, unit, step = 1, min, max, placeholder, disabled, className, width, title, def, inlineUnit, ...rest }: Props) {
   const { i18n } = useTranslation();
   const comma = i18n.language !== 'en';
   const ref = useRef<HTMLInputElement>(null);
@@ -97,7 +99,7 @@ export function NumField({ value, onChange, unit, step = 1, min, max, placeholde
   }, []);
 
   return (
-    <span className={`numf${disabled ? ' off' : ''}${className ? ` ${className}` : ''}`} style={width != null ? { width } : undefined} title={title} onContextMenu={reset}>
+    <span className={`numf${inlineUnit ? ' inlu' : ''}${disabled ? ' off' : ''}${className ? ` ${className}` : ''}`} style={width != null ? { width } : undefined} title={title} onContextMenu={reset}>
       <span className="spin">
         <button type="button" tabIndex={-1} disabled={disabled} onClick={() => bump(1)} aria-label="+">
           {UP}
@@ -116,7 +118,7 @@ export function NumField({ value, onChange, unit, step = 1, min, max, placeholde
         placeholder={placeholder != null && comma ? placeholder.replace('.', ',') : placeholder}
         disabled={disabled}
         aria-label={rest['aria-label']}
-        style={unit ? { paddingRight: `${12 + unit.length * 6.5}px` } : undefined}
+        style={unit && !inlineUnit ? { paddingRight: `${12 + unit.length * 6.5}px` } : undefined}
         onChange={(e) => onChange(e.target.value.replace(comma ? '.' : ',', comma ? ',' : '.'))}
         onKeyDown={(e) => {
           if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -125,7 +127,16 @@ export function NumField({ value, onChange, unit, step = 1, min, max, placeholde
           }
         }}
       />
-      {unit && <span className="unit">{unit}</span>}
+      {unit && !inlineUnit && <span className="unit">{unit}</span>}
+      {unit && inlineUnit && (
+        <span className="unit inl" aria-hidden="true">
+          <span className="ghost">{shown}</span>
+          <span className="u">
+            {unit.length > 1 ? '\u2009' : ''}
+            {unit}
+          </span>
+        </span>
+      )}
     </span>
   );
 }
