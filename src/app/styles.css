@@ -805,3 +805,24 @@ table.lamps td:first-child { white-space: nowrap; }
 .csec-r { grid-template-columns: 30px 84px 84px 70px 84px repeat(3, 64px); }
 .csec-l { grid-template-columns: 30px repeat(3, 72px); }
 .csec-r { grid-template-columns: 30px 84px 84px 70px 84px repeat(3, 66px); }
+
+/* --- v0.19: панель «Операций» — одна сетка 2 строки × 15 колонок */
+.ops-editor.ctrlpanel { display: block; padding: 10px 8px; overflow-x: auto; }
+.cgrid {
+  display: grid; grid-template-rows: 30px 30px; row-gap: 8px; column-gap: 4px; align-items: center; width: max-content;
+  grid-template-columns: 30px 82px 84px 82px 30px repeat(3, 64px) 30px repeat(3, 64px) 30px 58px 30px;
+}
+.cgrid .cicon.sep { position: relative; }
+.cgrid .cicon.sep::before { content: ''; position: absolute; left: -3px; top: -4px; bottom: -4px; border-left: 1px solid var(--rule); }
+.cgrid .cicon.small { color: var(--ink3); }
+.cgrid .cdash { text-align: center; color: var(--ink3); font-size: 12px; }
+.cgrid .ccell .oplabel { min-width: 0; font-size: 11.5px; }
+.cgrid .numf input[type='text'] { padding-left: 18px; }
+.cgrid .numf .unit { right: 5px; }
+.cgrid .sumdrop { width: auto; height: 30px; margin: 0; min-width: 0; padding: 0 2px 0 6px; }
+.cgrid { grid-template-columns: 30px 78px 80px 78px 30px repeat(3, 64px) 30px repeat(3, 64px) 30px 58px 30px; }
+.cgrid .numf input[type='text'] { padding-right: 13px !important; padding-left: 17px; }
+.cgrid .numf .unit { right: 4px; }
+.cgrid .ccell { gap: 3px; }
+.ops-editor.ctrlpanel { padding: 10px 6px; }
+.cgrid { grid-template-columns: 30px 78px 80px 78px 30px repeat(3, 64px) 30px 70px 66px 58px 30px 58px 30px; }

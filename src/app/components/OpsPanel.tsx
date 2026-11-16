@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fontMeasure } from '../../charts/fonts';
 import { buildPolar } from '../../charts/polar';
@@ -375,70 +375,75 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
     return t('ops.hintXY', { c: fmtNum(lang, d.c), g: fmtNum(lang, d.g) });
   };
 
+  // ——— панель — одна сетка 2 × 15: колонки общие для обеих строк, поэтому пиктограммы, поля и кнопки стоят друг под другом
+  //  1 [пикт.] 2–4 [три колонки] │ 5 [пикт.] 6–8 [X Y Z] │ 9 [пикт.] 10–12 [три колонки] │ 13 [пикт.] 14–15
+  const at = (row: number, col: number, span = 1) => ({ gridRow: row, gridColumn: span > 1 ? `${col} / span ${span}` : col });
   /** Кнопки-переключатели (повторное нажатие отжимает); каждая — над своей колонкой полей. */
-  const seg = <T extends string>(list: readonly T[], isOn: (v: T) => boolean, toggle: (v: T) => void, label: (v: T) => string, title?: (v: T) => string) => (
-    <div className="seg small cseg" style={{ gridColumn: `span ${list.length}`, gridTemplateColumns: `repeat(${list.length}, 1fr)` }}>
+  const seg = <T extends string>(row: number, col: number, list: readonly T[], isOn: (v: T) => boolean, toggle: (v: T) => void, label: (v: T) => string, title?: (v: T) => string) => (
+    <div className="seg small cseg" style={{ ...at(row, col, list.length), gridTemplateColumns: `repeat(${list.length}, 1fr)` }}>
       {list.map((v) => (
         <button key={v} className={isOn(v) ? 'on' : ''} aria-pressed={isOn(v)} onClick={() => toggle(v)} title={title?.(v)}>{label(v)}</button>
       ))}
     </div>
   );
-  /** Пиктограмма операции — первая колонка строки панели (название — во всплывающей подсказке). */
-  const icon = (k: OpKind, title?: string) => (
-    <span className={`cicon ci-${k}`} title={title ? `${t(`ops.kind_${k}`)} — ${title}` : t(`ops.kind_${k}`)} aria-label={t(`ops.kind_${k}`)} role="img">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <path d={OP_ICONS[k]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  /** Пиктограмма операции (название — во всплывающей подсказке); sep — разделитель слева. */
+  const icon = (row: number, col: number, k: OpKind, opts: { title?: string; sep?: boolean; small?: boolean } = {}) => (
+    <span
+      className={`cicon${opts.sep ? ' sep' : ''}${opts.small ? ' small' : ''}`}
+      style={at(row, col)}
+      title={opts.small ? t('ops.rot') : opts.title ? `${t(`ops.kind_${k}`)} — ${opts.title}` : t(`ops.kind_${k}`)}
+      aria-label={opts.small ? t('ops.rot') : t(`ops.kind_${k}`)}
+      role="img"
+    >
+      <svg viewBox="0 0 24 24" width={opts.small ? 15 : 22} height={opts.small ? 15 : 22} aria-hidden="true">
+        <path d={OP_ICONS[k]} fill="none" stroke="currentColor" strokeWidth={opts.small ? 1.9 : 1.6} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
   );
-  /** Ячейка колонки: короткая подпись слева и поле на всю оставшуюся ширину. */
-  const cell = (key: string, label: React.ReactNode, field: React.ReactNode, span = 1, title?: string) => (
-    <span key={key} className="ccell" style={span > 1 ? { gridColumn: `span ${span}` } : undefined} title={title}>
+  /** Ячейка: короткая подпись слева и поле на всю оставшуюся ширину. */
+  const cell = (row: number, col: number, label: React.ReactNode, field: React.ReactNode, title?: string, cls = '') => (
+    <span className={`ccell ${cls}`} style={at(row, col)} title={title}>
       {label != null && <span className="oplabel">{label}</span>}
       {field}
     </span>
   );
-  const blank = (key: string, n = 1) => <span key={key} className="cblank" style={{ gridColumn: `span ${n}` }} />;
-  const axisField = (a: 'x' | 'y' | 'z', value: string, onChange: (v: string) => void, disabled = false, k = '') =>
-    cell(`${k}${a}`, a.toUpperCase(), <NumField value={value} onChange={onChange} step={1} unit="°" width="100%" disabled={disabled} aria-label={`${t('ops.rot')} ${a.toUpperCase()}`} />);
+  const axisField = (row: number, col: number, a: 'x' | 'y' | 'z', value: string, onChange: (v: string) => void, disabled = false) =>
+    cell(row, col, a.toUpperCase(), <NumField value={value} onChange={onChange} step={1} unit="°" width="100%" disabled={disabled} aria-label={`${t('ops.rot')} ${a.toUpperCase()}`} />);
   const v = s.asC.vAngles;
   const rowB = prm.rowB;
   const fluxTitle = (f: { summary: PhotometrySummary }, r: SumRow) => t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f, r) || 0, 3) });
+  const AX = ['x', 'y', 'z'] as const;
 
   return (
     <div className="ops-layout">
       <div className="ops-main">
         <section className="ops-editor ctrlpanel">
-          {/* левая часть: отражение, поворот, симметрия — по три колонки (XZ / YZ / XY над X / Y / Z над Z / XZ / YZ) */}
-          <div className="csec csec-l">
-            {icon('mirror')}
-            {seg(MIRRORS, (m) => prm.mirror.includes(m), (m) => set({ mirror: prm.mirror.includes(m) ? prm.mirror.filter((x) => x !== m) : [...prm.mirror, m] }), (m) => t(`ops.mirrorBtn_${m}`), (m) => t(`ops.mirror_${m}`))}
-
-            {icon('rotate', rotHint())}
-            {(['x', 'y', 'z'] as const).map((a) => axisField(a, prm.rot[a], (x) => set({ rot: { ...prm.rot, [a]: x } })))}
-
-            {icon('symmetrize')}
+          <div className="cgrid">
+            {/* строка 1: отражение · поворот · симметрия · сглаживание */}
+            {icon(1, 1, 'mirror')}
+            {seg(1, 2, MIRRORS, (m) => prm.mirror.includes(m), (m) => set({ mirror: prm.mirror.includes(m) ? prm.mirror.filter((x) => x !== m) : [...prm.mirror, m] }), (m) => t(`ops.mirrorBtn_${m}`), (m) => t(`ops.mirror_${m}`))}
+            {icon(1, 5, 'rotate', { sep: true, title: rotHint() })}
+            {AX.map((a, i) => <Fragment key={a}>{axisField(1, 6 + i, a, prm.rot[a], (x) => set({ rot: { ...prm.rot, [a]: x } }))}</Fragment>)}
+            {icon(1, 9, 'symmetrize', { sep: true })}
             {seg(
+              1,
+              10,
               ['axial', 'c0c180', 'c90c270'] as const,
               (m) => prm.sym.includes(m),
               (m) => set({ sym: prm.sym.includes(m) ? prm.sym.filter((x) => x !== m) : m === 'axial' ? ['axial'] : [...prm.sym.filter((x) => x !== 'axial'), m] }),
               (m) => t(`ops.symBtn_${m}`),
               (m) => t(`ops.sym_${m}`),
             )}
-          </div>
+            {icon(1, 13, 'smooth', { sep: true })}
+            {cell(1, 14, null, <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" width="100%" aria-label={t('ops.smoothWidth')} />, t('ops.smoothWidth'))}
+            {cell(1, 15, null, <label className="check small"><input type="checkbox" checked={prm.keepFlux} onChange={(e) => set({ keepFlux: e.target.checked })} />Φ</label>, t('ops.keepFlux'))}
 
-          {/* правая часть: сглаживание, сложение, сетка — общие колонки */}
-          <div className="csec csec-r">
-            {icon('smooth')}
-            {cell('sw', null, <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" width="100%" aria-label={t('ops.smoothWidth')} />, 1, t('ops.smoothWidth'))}
-            {cell('kf', null, <label className="check small"><input type="checkbox" checked={prm.keepFlux} onChange={(e) => set({ keepFlux: e.target.checked })} />Φ</label>, 1, t('ops.keepFlux'))}
-            {blank('s-rest', 5)}
-
-            {icon('sum')}
-            {cell('fa', null, <NumField value={prm.rowA.flux} onChange={(x) => set({ rowA: { ...prm.rowA, flux: x } })} def={Math.round(s.flux.total * 10) / 10} min={0} step={10} unit={t('unit.lm')} width="100%" disabled={!secondFile} aria-label={t('ops.sumFlux')} />, 1, fluxTitle(base, prm.rowA))}
+            {/* строка 2: сложение (поток текущего, второй файл, его поток и поворот — под полями поворота) · смена сетки */}
+            {icon(2, 1, 'sum')}
+            {cell(2, 2, null, <NumField value={prm.rowA.flux} onChange={(x) => set({ rowA: { ...prm.rowA, flux: x } })} def={Math.round(s.flux.total * 10) / 10} min={0} step={10} unit={t('unit.lm')} width="100%" disabled={!secondFile} aria-label={t('ops.sumFlux')} />, fluxTitle(base, prm.rowA))}
             <span
               className={`sumdrop${dropOver ? ' over' : ''}${secondFile ? ' full' : ''}`}
-              style={{ gridColumn: 'span 2' }}
+              style={at(2, 3)}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDropOver(true); }}
               onDragLeave={() => setDropOver(false)}
               onDrop={(e) => void onDrop(e)}
@@ -454,15 +459,15 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
               )}
               <input ref={fileInput} type="file" accept=".ies,.ldt,.IES,.LDT" hidden onChange={(e) => { if (e.target.files) void addFromDisk(e.target.files); e.target.value = ''; }} />
             </span>
-            {cell('fb', null, <NumField value={rowB?.flux ?? ''} onChange={(x) => rowB && set({ rowB: { ...rowB, flux: x } })} def={secondFile ? Math.round(secondFile.summary.flux.total * 10) / 10 : 0} min={0} step={10} unit={t('unit.lm')} width="100%" disabled={!rowB} aria-label={t('ops.sumFlux')} />, 1, secondFile && rowB ? fluxTitle(secondFile, rowB) : undefined)}
-            {(['x', 'y', 'z'] as const).map((a) => axisField(a, rowB?.[`r${a}`] ?? '0', (x) => rowB && set({ rowB: { ...rowB, [`r${a}`]: x } }), !rowB, 'b'))}
-
-            {icon('regrid')}
-            {cell('dc', 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
-            {cell('dg', 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" width="100%" aria-label={t('ops.gStep')} />)}
-            {cell('g0', 'γ', <NumField value={prm.g0} onChange={(x) => set({ g0: x })} def={v[0]} min={0} max={180} step={5} unit="°" width="100%" aria-label={t('ops.gFrom')} />, 1, t('ops.gFrom'))}
-            {cell('g1', '–', <NumField value={prm.g1} onChange={(x) => set({ g1: x })} def={v[v.length - 1]} min={0} max={180} step={5} unit="°" width="100%" aria-label={t('ops.gTo')} />, 1, t('ops.gTo'))}
-            {blank('g-rest', 3)}
+            {cell(2, 4, null, <NumField value={rowB?.flux ?? ''} onChange={(x) => rowB && set({ rowB: { ...rowB, flux: x } })} def={secondFile ? Math.round(secondFile.summary.flux.total * 10) / 10 : 0} min={0} step={10} unit={t('unit.lm')} width="100%" disabled={!rowB} aria-label={t('ops.sumFlux')} />, secondFile && rowB ? fluxTitle(secondFile, rowB) : undefined)}
+            {icon(2, 5, 'rotate', { small: true })}
+            {AX.map((a, i) => <Fragment key={a}>{axisField(2, 6 + i, a, rowB?.[`r${a}`] ?? '0', (x) => rowB && set({ rowB: { ...rowB, [`r${a}`]: x } }), !rowB)}</Fragment>)}
+            {icon(2, 9, 'regrid', { sep: true })}
+            {cell(2, 10, 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
+            {cell(2, 11, 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" width="100%" aria-label={t('ops.gStep')} />)}
+            {cell(2, 12, 'γ', <NumField value={prm.g0} onChange={(x) => set({ g0: x })} def={v[0]} min={0} max={180} step={5} unit="°" width="100%" aria-label={t('ops.gFrom')} />, t('ops.gFrom'))}
+            <span className="cdash" style={at(2, 13)}>–</span>
+            {cell(2, 14, null, <NumField value={prm.g1} onChange={(x) => set({ g1: x })} def={v[v.length - 1]} min={0} max={180} step={5} unit="°" width="100%" aria-label={t('ops.gTo')} />, t('ops.gTo'))}
           </div>
         </section>
         {(chain.error || dropErr) && <p className="error small opnote">{chain.error ?? dropErr}</p>}
