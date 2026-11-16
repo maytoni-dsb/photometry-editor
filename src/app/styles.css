@@ -826,3 +826,12 @@ table.lamps td:first-child { white-space: nowrap; }
 .cgrid .ccell { gap: 3px; }
 .ops-editor.ctrlpanel { padding: 10px 6px; }
 .cgrid { grid-template-columns: 30px 78px 80px 78px 30px repeat(3, 64px) 30px 70px 66px 58px 30px 58px 30px; }
+
+/* --- v0.20: панель «Операций» свободнее; замечаний под ней нет, ошибка — красной рамкой и подсказкой */
+.histbar { width: 230px; }
+.tab-body { padding: 16px 16px 20px; }
+.cgrid { column-gap: 8px; row-gap: 10px; }
+.cgrid .cicon.sep::before { left: -5px; top: -5px; bottom: -5px; }
+.ops-editor.ctrlpanel { padding: 12px 10px; }
+.ops-editor.ctrlpanel.bad { border-color: var(--err); }
+.cgrid { column-gap: 7px; } .ops-editor.ctrlpanel { padding: 12px 8px; }

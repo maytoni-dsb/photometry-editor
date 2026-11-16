@@ -8,7 +8,6 @@ import { defaultPlanes } from '../../charts/series';
 import type { ChartStyle } from '../../charts/style';
 import {
   applyWork,
-  formatIssue,
   naturalSteps,
   OpError,
   rotatedDirection,
@@ -417,7 +416,7 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   return (
     <div className="ops-layout">
       <div className="ops-main">
-        <section className="ops-editor ctrlpanel">
+        <section className={`ops-editor ctrlpanel${chain.error || dropErr ? ' bad' : ''}`} title={chain.error ?? dropErr ?? undefined}>
           <div className="cgrid">
             {/* строка 1: отражение · поворот · симметрия · сглаживание */}
             {icon(1, 1, 'mirror')}
@@ -470,8 +469,6 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
             {cell(2, 14, null, <NumField value={prm.g1} onChange={(x) => set({ g1: x })} def={v[v.length - 1]} min={0} max={180} step={5} unit="°" width="100%" aria-label={t('ops.gTo')} />, t('ops.gTo'))}
           </div>
         </section>
-        {(chain.error || dropErr) && <p className="error small opnote">{chain.error ?? dropErr}</p>}
-        {!chain.error && last && last.issues.length > 0 && <p className="muted small opnote">{last.issues.map((i) => formatIssue(i, lang)).join(' · ')}</p>}
 
         <div className="ops-stage">
           <div className="ops-pair">
