@@ -26,6 +26,8 @@ export interface DocState {
   spec?: OpSpec | OpSpec[];
   /** Рабочее тело операций (интерполянт); у исходного файла создаётся при первой операции. */
   work?: Work;
+  /** Шаг панели «Операции» (её сеанс): такие шаги пересобираются при изменении полей. */
+  live?: string;
 }
 
 export interface OpenFile extends DocState {
@@ -74,7 +76,7 @@ export function newDoc(name: string, p: Photometry, issues: Issue[], label: stri
 }
 
 export function stateOf(f: OpenFile): DocState {
-  return { parse: f.parse, summary: f.summary, issues: f.issues, label: f.label, spec: f.spec, work: f.work };
+  return { parse: f.parse, summary: f.summary, issues: f.issues, label: f.label, spec: f.spec, work: f.work, live: f.live };
 }
 
 const works = new WeakMap<object, Work>();
@@ -96,7 +98,7 @@ export function workOf(s: DocState): Work {
  */
 export function applyStep(f: OpenFile, p: Photometry, opIssues: Issue[], label: string, spec?: OpSpec | OpSpec[], work?: Work): OpenFile {
   const next = makeState({ photometry: p, issues: [] }, opIssues, label, spec, f.derived ? undefined : f.name, work);
-  return { ...f, ...next, past: [...f.past, stateOf(f)].slice(-HISTORY_LIMIT), future: [] };
+  return { ...f, ...next, live: undefined, past: [...f.past, stateOf(f)].slice(-HISTORY_LIMIT), future: [] };
 }
 
 export function undo(f: OpenFile): OpenFile {
@@ -141,18 +143,31 @@ export interface LiveResult {
   work: Work;
 }
 
+/** Сколько последних состояний (с текущим) — шаги сеанса sid панели «Операции». */
+export function liveCount(f: OpenFile, sid: string): number {
+  if (f.live !== sid) return 0;
+  let k = 1;
+  while (k <= f.past.length && f.past[f.past.length - k].live === sid) k++;
+  return k;
+}
+
 /**
- * Шаг «живой» операции от состояния base (его summary): если текущее состояние — уже результат этой
- * операции (предыдущее = base), он заменяется; если текущее = base — добавляется новый шаг.
- * r = null — параметры ничего не меняют: результат операции убирается, текущим снова становится base.
- * Если файл тем временем ушёл от base (отмена, другая правка), ничего не делается.
+ * Шаги панели «Операции» от состояния base (его summary): прежние шаги сеанса sid убираются
+ * и записываются заново — по одному на операцию с ненейтральными параметрами, в порядке панели.
+ * Если файл тем временем ушёл от сеанса (отмена, другая правка), ничего не делается.
  */
-export function liveStep(f: OpenFile, base: object, r: LiveResult | null): OpenFile {
-  let g: OpenFile;
-  if (f.summary === base) g = f;
-  else if (f.past.length && f.past[f.past.length - 1].summary === base) g = { ...deleteCurrent(f), future: [] };
-  else return f;
-  return r ? applyStep(g, r.p, r.issues, r.label, r.spec, r.work) : g;
+export function liveChain(f: OpenFile, sid: string, base: object, steps: LiveResult[]): OpenFile {
+  const k = liveCount(f, sid);
+  const at = k ? f.past[f.past.length - k] : stateOf(f);
+  if (at.summary !== base) return f;
+  let g: OpenFile = f;
+  if (k) {
+    const past = f.past.slice(0, f.past.length - k);
+    const savedLen = f.savedLen != null && f.savedLen > past.length ? -1 : f.savedLen;
+    g = { ...f, ...at, past, future: [], savedLen };
+  }
+  for (const r of steps) g = { ...applyStep(g, r.p, r.issues, r.label, r.spec, r.work), live: sid };
+  return g;
 }
 
 /** Имя без расширения. */

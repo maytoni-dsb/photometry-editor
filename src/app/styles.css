@@ -759,3 +759,29 @@ table.lamps td:first-child { white-space: nowrap; }
 .opmode { width: 40px; height: 34px; padding: 0; justify-content: center; }
 .tab-body.fill > .table-view { display: flex; flex-direction: column; gap: 10px; }
 .tab-body.fill .table-scroll.big { flex: 1; min-height: 0; max-height: none; }
+
+/* --- v0.17: «Операции» — панель управления (как в InDesign): все операции сразу, группы через разделитель */
+.ctrlpanel { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px 0; padding: 8px 4px; }
+.cgroup { display: flex; flex-direction: column; gap: 4px; padding: 0 14px; border-left: 1px solid var(--rule); }
+.cgroup:first-child { border-left: 0; }
+.cghead { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink3); white-space: nowrap; }
+.cgrow { display: flex; align-items: center; gap: 5px; min-height: 30px; }
+.cgrow .seg.small button { min-width: 34px; }
+.cgrow .oplabel { font-size: 12px; color: var(--ink3); }
+.cgrow .axisfield { gap: 3px; }
+.cgrow .check.small { font-size: 12px; gap: 4px; white-space: nowrap; }
+.sumdrop {
+  display: inline-flex; align-items: center; gap: 4px; width: 130px; height: 28px; padding: 0 4px 0 8px; margin: 0 4px;
+  border: 1px dashed var(--line); border-radius: 8px; font-size: 12px; color: var(--ink3);
+}
+.sumdrop.full { border-style: solid; color: var(--ink); background: var(--soft); }
+.sumdrop.over { border-color: var(--accent); background: var(--accent-soft); }
+.sumdrop .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sumdrop .linkbtn { border: 0; background: none; padding: 0; color: var(--ink3); font: inherit; cursor: pointer; text-decoration: underline dotted; }
+.ops-main > .opnote { margin: -4px 0 0; }
+.ops-editor.ctrlpanel { flex-direction: row; display: flex; }
+.cgroup { padding: 0 11px; }
+.sumdrop { width: 108px; margin: 0 2px; }
+.sumdrop { width: 100px; }
+.ops-editor.ctrlpanel { flex-wrap: wrap; align-items: stretch; gap: 8px 0; padding: 8px 4px; }
+.cgroup { padding: 0 9px; }

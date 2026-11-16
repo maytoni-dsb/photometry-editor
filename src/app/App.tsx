@@ -32,8 +32,8 @@ import {
   type FolderEntry,
   type FolderState,
 } from './folder';
-import { OpsPanel, opLabel, OP_KINDS, type OpKind } from './components/OpsPanel';
-import { applyStep, baseName, deleteCurrent, isModified, liveStep, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
+import { OpsPanel, opLabel } from './components/OpsPanel';
+import { applyStep, baseName, deleteCurrent, isModified, liveChain, jumpTo, newDoc, openBytes, redo, undo, workOf, type OpenFile } from './doc';
 import { applyWork, patchWork, workFrom, OpError, type Issue, type MirrorPlane, type OpSpec, type Photometry, type Work } from '../core/index';
 import { loadFonts, type LoadedFonts } from './fonts';
 import { LANGS } from './i18n';
@@ -85,7 +85,6 @@ export default function App() {
   const [showFiles, setShowFiles] = useState(() => load('show-files', true));
   const [showHistory, setShowHistory] = useState(() => load('show-history', true));
   const [theme, setTheme] = useState<Theme>(() => load<Theme | null>('theme', null) ?? 'system');
-  const [opKind, setOpKind] = useState<OpKind>('rotate');
   // пакетная обработка (этап 5): окно не размонтируется, чтобы список файлов и ход работы сохранялись
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchMounted, setBatchMounted] = useState(false);
@@ -387,10 +386,7 @@ export default function App() {
       return g;
     });
   };
-  const openOp = (k: OpKind) => {
-    setOpKind(k);
-    setTab('ops');
-  };
+
 
   // тема: system — как в системе, light / dark — выбрана явно
   const applyTheme = (th: Theme) => {
@@ -586,12 +582,12 @@ export default function App() {
       id: 'photometry',
       label: t('menu.editing'),
       items: [
-        ...OP_KINDS.map((k): MenuItem => ({ label: `${t(`ops.kind_${k}`)}…`, disabled: !active, onClick: () => openOp(k) })),
+        { label: `${t('ops.title')}…`, disabled: !active, onClick: () => setTab('ops') },
         'sep',
         {
           label: t('menu.mirrorNow'),
           disabled: !active,
-          submenu: (['c0c180', 'c90c270', 'updown'] as MirrorPlane[]).map((pl) => ({ label: t(`ops.mirrorBtn_${pl}`), onClick: () => quickOp({ op: 'mirror', plane: pl }) })),
+          submenu: (['c0c180', 'c90c270', 'updown'] as MirrorPlane[]).map((pl) => ({ label: t(`ops.mirror_${pl}`), onClick: () => quickOp({ op: 'mirror', plane: pl }) })),
         },
         {
           label: t('menu.rotateZNow'),
@@ -767,12 +763,10 @@ export default function App() {
                   <OpsPanel
                     file={active}
                     files={files}
-                    op={opKind}
-                    onOp={setOpKind}
                     settings={settings}
                     style={style}
                     fonts={fonts}
-                    onLive={(id, base, r) => updateFile(id, (f) => liveStep(f, base, r))}
+                    onLive={(id, sid, base, steps) => updateFile(id, (f) => liveChain(f, sid, base, steps))}
                     onAddFile={(name, bytes) => {
                       try {
                         const f = openBytes(name, bytes);
