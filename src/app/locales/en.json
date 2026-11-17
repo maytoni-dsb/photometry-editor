@@ -119,6 +119,9 @@
     "gridText": "{{hName}}: {{nh}} angles, Δ{{hName}} {{dh}} · {{vName}}: {{nv}} angles, Δ{{vName}} {{dv}}, {{v0}}–{{v1}}°",
     "stepVaries": "variable",
     "fluxDown": "Downward flux fraction",
+    "cutLower": "cut γ to 0…90°",
+    "cutLowerHint": "Upward flux is 0 %: the γ range can be cut to 0…90° without losing light",
+    "cutLowerLabel": "γ range 0…90°",
     "sources": "Light sources",
     "lampTypeHint": "LED / lamp article",
     "addSource": "Add source",
@@ -437,7 +440,8 @@
     "sumRemove": "Remove the second file",
     "sumFluxA": "Flux of the current file",
     "sumFluxB": "Flux of the second file",
-    "gRangeTitle": "γ range"
+    "gRangeTitle": "γ range",
+    "gRangeHint": "Upward flux 0 % — γ 0–90° recommended"
   },
   "b3d": {
     "title": "3D photometric body",

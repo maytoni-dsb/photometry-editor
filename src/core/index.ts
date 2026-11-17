@@ -21,7 +21,7 @@ export function parseFile(bytes: Uint8Array, fileName: string): ParseResult {
   const head = new TextDecoder().decode(bytes.slice(0, 200));
   return /IESNA|TILT=/i.test(head) ? parseIES(bytes, fileName) : parseLDT(bytes, fileName);
 }
-export { summarize, referenceFlux, type PhotometrySummary, type ReferenceFluxKind } from './summary';
+export { summarize, referenceFlux, canCutToLower, type PhotometrySummary, type ReferenceFluxKind } from './summary';
 export {
   applyOp,
   normalize,

@@ -9,7 +9,15 @@
  *    [_OPERATOR] <пользователь>.
  * Дата — ДД.ММ.ГГГГ.
  */
-import { writeIES, writeLDT, typeBToC, type Photometry, type WriteIesOptions } from '../core/index';
+import { compactSymmetry, writeIES, writeLDT, typeBToC, type Photometry, type WriteIesOptions } from '../core/index';
+
+/**
+ * Перед записью: тип B → C, полная сетка с фактической симметрией сворачивается (Isym 1–4 в LDT, последний
+ * угол C 0 / 90 / 180 в IES) — например, после симметрии XZ + YZ в файл попадает Isym 4 (четыре квадранта).
+ */
+export function forWrite(p: Photometry): Photometry {
+  return compactSymmetry(p.photometryType === 'B' ? typeBToC(p).photometry : p);
+}
 
 export const HOUSE_MANUFACTURER = 'MAYTONI GmbH';
 export const EDITOR_NAME = 'MAYTONI Photometry Editor';
@@ -63,12 +71,12 @@ export function houseIesKeywords(p: Photometry, ctx: HouseContext): Array<[strin
 
 /** Текст IES по правилам оформления. */
 export function houseIES(p: Photometry, ctx: HouseContext, opts: WriteIesOptions = {}): string {
-  const q = applyHouse(p, ctx);
+  const q = applyHouse(forWrite(p), ctx);
   return writeIES(q, { lineEnding: 'CRLF', ...opts, keywords: houseIesKeywords(q, ctx) });
 }
 
 /** Текст LDT по правилам оформления. */
 export function houseLDT(p: Photometry, ctx: HouseContext, fileName: string): string {
-  const q = applyHouse(p, ctx);
-  return writeLDT(q.photometryType === 'B' ? typeBToC(q).photometry : q, { lineEnding: 'CRLF', fileName }).text;
+  const q = applyHouse(forWrite(p), ctx);
+  return writeLDT(q, { lineEnding: 'CRLF', fileName }).text;
 }
