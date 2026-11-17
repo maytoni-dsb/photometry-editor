@@ -138,8 +138,9 @@ export function buildPolarCatalog(
     fontFamily: style.font.family,
     background: style.colors.background ?? undefined,
     children: [
-      { t: 'group', id: 'curves', children: [...fills, ...curves] },
-      { t: 'group', id: 'grid', children: grid },
+      ...(style.gridOnTop
+        ? [{ t: 'group', id: 'fills', children: fills } as Prim, { t: 'group', id: 'grid', children: grid } as Prim, { t: 'group', id: 'curves', children: curves } as Prim]
+        : [{ t: 'group', id: 'curves', children: [...fills, ...curves] } as Prim, { t: 'group', id: 'grid', children: grid } as Prim]),
       { t: 'group', id: 'labels', children: labels },
       ...(title.length ? [{ t: 'group', id: 'title', children: title } as Prim] : []),
       ...(leg.prims.length ? [{ t: 'group', id: 'legend', children: leg.prims } as Prim] : []),

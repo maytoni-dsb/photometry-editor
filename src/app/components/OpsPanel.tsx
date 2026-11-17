@@ -30,6 +30,7 @@ import { createCameraLink, housingBox, type View3D } from '../../charts/body3d';
 import { Body3D, Fallback, HousingToggle, useHousingPref, ViewButtons } from './Body3DTab';
 import { NumField } from './NumField';
 import { Select } from './Select';
+import { useDarkTheme } from '../theme';
 
 /** Группы панели — в порядке применения. */
 export type OpKind = 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'sum' | 'regrid';
@@ -354,14 +355,15 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   }, [rev]);
 
   const measure = useMemo(() => (fonts ? fontMeasure(fonts.set) : approxTextWidth), [fonts]);
+  const dark = useDarkTheme();
   const planes = useMemo(() => {
     const set = new Set<number>([...defaultPlanes(p), ...defaultPlanes(shown.p)]);
     return [...set].sort((a, b) => a - b).slice(0, 6);
   }, [p, shown]);
   const chart = (ph: Photometry, sm: PhotometrySummary) =>
-    renderSvg(buildPolar(ph, sm, { ...settings, planes, width: settings.width, title: '' }, screenStyle(style), measure), { screenFamily: screenFamily(fonts) });
-  const before = useMemo(() => chart(work.dense, s), [work, s, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
-  const after = useMemo(() => chart(shown.work.dense, shown.summary), [shown, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
+    renderSvg(buildPolar(ph, sm, { ...settings, planes, width: settings.width, title: '' }, screenStyle(style, dark), measure), { screenFamily: screenFamily(fonts) });
+  const before = useMemo(() => chart(work.dense, s), [work, s, planes, settings, style, measure, dark]); // eslint-disable-line react-hooks/exhaustive-deps
+  const after = useMemo(() => chart(shown.work.dense, shown.summary), [shown, planes, settings, style, measure, dark]); // eslint-disable-line react-hooks/exhaustive-deps
   const housingBefore = useMemo(() => housingBox(p), [p]);
   const housingAfter = useMemo(() => housingBox(shown.p), [shown]);
   const scale3d = Math.max(s.peak.value, shown.summary.peak.value) || 1;
@@ -426,7 +428,7 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
 
   const rotHint = () => {
     if (!rotSteps.length || rotSteps.some((r) => !Number.isFinite(r.angle))) return undefined;
-    if (rotSteps.length === 1 && rotSteps[0].axis === 'z') return t('ops.hintZ', { c: fmtNum(lang, ((-rotSteps[0].angle % 360) + 360) % 360) });
+    if (rotSteps.length === 1 && rotSteps[0].axis === 'z') return t('ops.hintZ', { c: fmtNum(lang, ((rotSteps[0].angle % 360) + 360) % 360) });
     const d = rotatedDirection(rotSteps);
     return t('ops.hintXY', { c: fmtNum(lang, d.c), g: fmtNum(lang, d.g) });
   };

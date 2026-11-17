@@ -344,9 +344,9 @@
     "mirror_updown": "Plane XY (up / down)",
     "axis": "Axis",
     "angle": "Angle",
-    "axisNote_z": "Z — downward axis (to the nadir): +angle is counterclockwise seen from below; C0 goes to C(360° − angle).",
+    "axisNote_z": "Z — vertical axis (up): C0 goes to C + angle (right-hand rule: counterclockwise seen from above).",
     "axisNote_x": "X — axis along C0: +angle tilts the nadir towards C90.",
-    "axisNote_y": "Y — axis along C270: +angle tilts the nadir towards C0.",
+    "axisNote_y": "Y — axis along C90: +angle tilts the nadir towards C180.",
     "hintZ": "Plane C0 moves to C{{c}}.",
     "hintXY": "Nadir moves to C{{c}}, γ {{g}}°.",
     "rotateSteps": "Each rotation is a separate step in the history; the order matters.",
@@ -457,9 +457,9 @@
     "view_xz": "XZ",
     "view_yz": "YZ",
     "view_xy": "XY",
-    "viewHint_xz": "Projection onto the XZ plane (C0–C180), C0 on the right — like the polar chart",
-    "viewHint_yz": "Projection onto the YZ plane (C90–C270)",
-    "viewHint_xy": "Projection onto the XY plane — from below, along the Z axis"
+    "viewHint_xz": "Projection onto the XZ plane (C0–C180): C0 on the right, Z up — like the polar chart",
+    "viewHint_yz": "Projection onto the YZ plane (C90–C270): C90 on the right, Z up",
+    "viewHint_xy": "Projection onto the XY plane — top view"
   },
   "batch": {
     "summaryFile": "Summary",

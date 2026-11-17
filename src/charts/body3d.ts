@@ -115,7 +115,7 @@ export interface CameraLink {
 }
 export const createCameraLink = (): CameraLink => ({ subs: new Set() });
 
-/** Виды 3D: изометрия и проекции на плоскости XZ (C0–C180), YZ (C90–C270), XY (вид снизу, вдоль оси Z — к надиру). */
+/** Виды 3D: изометрия и проекции на плоскости XZ (C0–C180), YZ (C90–C270), XY (вид сверху). Z — вверх. */
 export type View3D = 'iso' | 'xz' | 'yz' | 'xy';
 export const VIEWS: View3D[] = ['iso', 'xz', 'yz', 'xy'];
 

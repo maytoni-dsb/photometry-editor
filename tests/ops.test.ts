@@ -141,7 +141,7 @@ describe('отражение', () => {
 describe('поворот вокруг Z', () => {
   it('угол кратен шагу — точный сдвиг плоскостей', () => {
     const p = makeC(asym, { cStep: 15, gStep: 5 });
-    const r = rotate(p, 'z', -45).photometry; // ось Z — вниз: −45° = C + 45°
+    const r = rotate(p, 'z', 45).photometry;
     expect(intensityC(r, 75, 30)).toBeCloseTo(asym(30, 30), 9);
     expect(peak(r).h).toBeCloseTo(75, 9);
     expect(peak(r).value).toBeCloseTo(peak(p).value, 9);
@@ -150,7 +150,7 @@ describe('поворот вокруг Z', () => {
 
   it('произвольный угол — интерполяция на исходную сетку, поток сохраняется', () => {
     const p = makeC(asym, { cStep: 5, gStep: 2.5 });
-    const r = rotate(p, 'z', -7).photometry;
+    const r = rotate(p, 'z', 7).photometry;
     expect(r.hAngles).toEqual(p.hAngles);
     expect(flux(r) / flux(p)).toBeCloseTo(1, 3);
     expect(intensityC(r, 37, 30)).toBeCloseTo(asym(30, 30), 0);
@@ -191,9 +191,9 @@ describe('поворот вокруг X и Y', () => {
     expect(computeFlux(r).down / flux(r)).toBeCloseTo(0.5, 2);
   });
 
-  it('Y +90° (ось Y — C270): ось пучка уходит в C0, γ 90°', () => {
+  it('Y +90°: ось уходит в C180, γ 90°', () => {
     const pk = peak(rotate(down, 'y', 90).photometry);
-    expect(Math.min(pk.h, 360 - pk.h)).toBeCloseTo(0, 6);
+    expect(pk.h).toBeCloseTo(180, 6);
     expect(pk.v).toBeCloseTo(90, 6);
   });
 
@@ -220,9 +220,9 @@ describe('поворот вокруг X и Y', () => {
 
   it('порядок поворотов важен; подсказка о направлении надира', () => {
     expect(rotatedDirection([{ axis: 'x', angle: 90 }])).toEqual({ c: 90, g: 90 });
-    expect(rotatedDirection([{ axis: 'y', angle: 90 }]).c % 360).toBeCloseTo(0, 9);
-    const a = rotatedDirection([{ axis: 'x', angle: 30 }, { axis: 'z', angle: -90 }]);
-    const b = rotatedDirection([{ axis: 'z', angle: -90 }, { axis: 'x', angle: 30 }]);
+    expect(rotatedDirection([{ axis: 'y', angle: 90 }]).c).toBeCloseTo(180, 9);
+    const a = rotatedDirection([{ axis: 'x', angle: 30 }, { axis: 'z', angle: 90 }]);
+    const b = rotatedDirection([{ axis: 'z', angle: 90 }, { axis: 'x', angle: 30 }]);
     expect(a.c).toBeCloseTo(180, 6);
     expect(b.c).toBeCloseTo(90, 6);
   });

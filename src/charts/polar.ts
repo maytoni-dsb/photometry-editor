@@ -134,8 +134,9 @@ export function buildPolar(
     fontFamily: style.font.family,
     background: style.colors.background ?? undefined,
     children: [
-      { t: 'group', id: 'grid', children: grid },
-      { t: 'group', id: 'curves', children: [...fills, ...curves] },
+      ...(style.gridOnTop
+        ? [{ t: 'group', id: 'fills', children: fills } as Prim, { t: 'group', id: 'grid', children: grid } as Prim, { t: 'group', id: 'curves', children: curves } as Prim]
+        : [{ t: 'group', id: 'grid', children: grid } as Prim, { t: 'group', id: 'curves', children: [...fills, ...curves] } as Prim]),
       { t: 'group', id: 'labels', children: labels },
       ...(head.prims.length ? [{ t: 'group', id: 'title', children: head.prims } as Prim] : []),
       ...(leg.prims.length ? [{ t: 'group', id: 'legend', children: leg.prims } as Prim] : []),

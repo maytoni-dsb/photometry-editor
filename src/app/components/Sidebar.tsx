@@ -4,6 +4,7 @@ import { fontMeasure } from '../../charts/fonts';
 import { buildPolar } from '../../charts/polar';
 import { renderSvg } from '../../charts/render-svg';
 import { screenStyle } from '../../charts/style';
+import { useDarkTheme } from '../theme';
 import { approxTextWidth } from '../../charts/scene';
 import { defaultPlanes } from '../../charts/series';
 import type { ChartStyle } from '../../charts/style';
@@ -54,11 +55,12 @@ function MiniPolar({ file, settings, style, fonts }: { file: OpenFile; settings:
   const orig = file.past[0] ?? file;
   const p = orig.parse.photometry;
   const measure = useMemo(() => (fonts ? fontMeasure(fonts.set) : approxTextWidth), [fonts]);
+  const dark = useDarkTheme();
   const svg = useMemo(() => {
     const planes = settings.planes ?? defaultPlanes(p);
-    const scene = buildPolar(p, orig.summary, { ...settings, planes, width: settings.width, title: '' }, screenStyle(style), measure);
+    const scene = buildPolar(p, orig.summary, { ...settings, planes, width: settings.width, title: '' }, screenStyle(style, dark), measure);
     return renderSvg(scene, { screenFamily: screenFamily(fonts) });
-  }, [p, orig.summary, settings, style, measure, fonts]);
+  }, [p, orig.summary, settings, style, measure, fonts, dark]);
   return (
     <div className="minipolar">
       <div className="minihead">

@@ -10,17 +10,8 @@ import { load, save } from '../storage';
 /** three.js грузится только при первом открытии 3D. */
 export const Body3D = lazy(() => import('./Body3D'));
 
-/** Пиктограммы видов: куб и выделенная грань-проекция (XZ — передняя, YZ — боковая, XY — нижняя). */
-const VIEW_ICON: Record<View3D, { face?: string }> = {
-  iso: {},
-  xz: { face: 'M3 7h10v10H3z' },
-  yz: { face: 'M13 7l5-3v10l-5 3z' },
-  xy: { face: 'M3 17h10l5-3H8z' },
-};
-const CUBE = 'M3 7h10v10H3zM3 7l5-3h10l-5 3M18 4v10l-5 3';
-
 /**
- * Вид 3D — кнопки с пиктограммами поверх области построения: изометрия, XZ, YZ, XY.
+ * Вид 3D — кнопки поверх области построения: изометрия (тренога осей), XZ, YZ, XY.
  * После поворота мышью ни одна не нажата; нажатие возвращает камеру в вид.
  */
 export function ViewButtons({ view, custom = false, onView }: { view: View3D; custom?: boolean; onView: (v: View3D) => void }) {
@@ -31,10 +22,13 @@ export function ViewButtons({ view, custom = false, onView }: { view: View3D; cu
         const on = !custom && v === view;
         return (
           <button key={v} className={on ? 'on' : ''} aria-pressed={on} onClick={() => onView(v)} title={t(`b3d.viewHint_${v}`)} aria-label={t(`b3d.view_${v}`)}>
-            <svg viewBox="0 0 21 21" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round">
-              {VIEW_ICON[v].face && <path d={VIEW_ICON[v].face} fill="currentColor" fillOpacity="0.35" stroke="none" />}
-              <path d={CUBE} />
-            </svg>
+            {v === 'iso' ? (
+              <svg viewBox="0 0 22 22" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                <path d="M11 12V4M11 12l7 3.5M11 12l-7 3.5" />
+              </svg>
+            ) : (
+              v.toUpperCase()
+            )}
           </button>
         );
       })}
