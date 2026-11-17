@@ -1,6 +1,7 @@
 /** Команды, которые вызываются и из интерфейса вкладок, и из меню. */
 
-import { typeBToC, writeIES, writeLDT } from '../core/index';
+import { houseIES, houseLDT } from '../batch/house';
+import { houseCtx } from './user';
 import { baseName, type OpenFile } from './doc';
 import { safeFileName, saveFile } from './save-file';
 
@@ -8,9 +9,8 @@ import { safeFileName, saveFile } from './save-file';
 /** Текст файла в формате fmt. */
 export function fileText(file: OpenFile, fmt: 'ies' | 'ldt', name: string): string {
   const p = file.parse.photometry;
-  if (fmt === 'ies') return writeIES(p, { lineEnding: p.source.lineEnding });
-  const c = p.photometryType === 'B' ? typeBToC(p).photometry : p;
-  return writeLDT(c, { lineEnding: 'CRLF', fileName: name }).text;
+  if (fmt === 'ies') return houseIES(p, houseCtx(), { lineEnding: p.source.lineEnding });
+  return houseLDT(p, houseCtx(), name);
 }
 
 /** Формат файла по расширению имени (созданные операцией — по исходному формату, иначе LDT). */

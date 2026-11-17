@@ -250,7 +250,7 @@ const chartCfg = (over: Partial<BatchCharts> = {}): BatchCharts => ({
   ...over,
 });
 
-const job = (over: Partial<BatchJob> = {}): BatchJob => ({ steps: [], variants: [], files: [], charts: null, summary: [], naming: 'source', lang: 'ru', ...over });
+const job = (over: Partial<BatchJob> = {}): BatchJob => ({ steps: [], variants: [], files: [], charts: null, summary: [], naming: 'source', lang: 'ru', house: { user: 'Test', version: '0.0.0', date: '01.01.2026' }, ...over });
 
 describe('пакет: 100+ файлов одним действием', () => {
   it('120 файлов: рецепт + IES и LDT + графики polar/linear в SVG/PDF/EPS + сводная таблица', async () => {

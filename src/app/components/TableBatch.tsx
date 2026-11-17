@@ -6,7 +6,9 @@
 import JSZip from 'jszip';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { parseFile, typeBToC, writeIES, writeLDT } from '../../core/index';
+import { parseFile } from '../../core/index';
+import { houseIES, houseLDT } from '../../batch/house';
+import { houseCtx } from '../user';
 import {
   applyRow,
   colIdx,
@@ -74,6 +76,7 @@ const ICONS = {
   redo: 'm15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
   newTable: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6',
   save: 'M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 3v5h8V3M7 21v-7h10v7',
+  paste: 'M9 4h6v3H9zM9 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-3M8.5 12h7M8.5 16h5',
   folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
 };
 const Ico = ({ d, size = 16 }: { d: string; size?: number }) => (
@@ -96,8 +99,9 @@ export function TableBatch() {
   const [outDir, setOutDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [outLabel, setOutLabel] = useState('');
   const [fmt, setFmt] = useState(() => load('tbl-formats', { ies: true, ldt: true }));
-  const [sel, setSel] = useState<Set<number>>(new Set());
-  const [focus, setFocus] = useState<number | null>(null);
+  /** Выделенный прямоугольник: строки таблицы r0 / r1 (по видимому порядку между ними), колонки — позиции в order. */
+  const [range, setRange] = useState<{ r0: number; c0: number; r1: number; c1: number } | null>(null);
+  const dragRef = useRef(false);
   const [filter, setFilter] = useState<Filter>('all');
   const [edit, setEdit] = useState<{ r: number; c: number; text: string } | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -145,8 +149,7 @@ export function TableBatch() {
       setPast([]);
       setFuture([]);
       setDirty(false);
-      setSel(new Set());
-      setFocus(null);
+      setRange(null);
       setErr(null);
     } catch (e) {
       setTable(null);
@@ -236,16 +239,14 @@ export function TableBatch() {
     const rows = [...table.rows];
     rows.splice(at, 0, table.columns.map(() => ''));
     commit({ ...table, rows });
-    setFocus(at);
-    setSel(new Set([at]));
+    setRange({ r0: at, c0: 0, r1: at, c1: Math.max(0, order.length - 1) });
   };
   const delRows = () => {
     if (!table) return;
     const kill = sel.size ? sel : focus != null ? new Set([focus]) : new Set<number>();
     if (!kill.size) return;
     commit({ ...table, rows: table.rows.filter((_, i) => !kill.has(i)) });
-    setSel(new Set());
-    setFocus(null);
+    setRange(null);
   };
   const newTable = () => {
     const nt = emptyTable();
@@ -257,8 +258,7 @@ export function TableBatch() {
     setTableFile(null);
     setTableName('ImportData.xlsx');
     setDirty(true);
-    setSel(new Set());
-    setFocus(0);
+    setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
   };
   const saveTable = async () => {
     if (!table) return;
@@ -323,6 +323,121 @@ export function TableBatch() {
   const artCol = table ? colIdx(table, 'LuminaireNumber') : -1;
   const order = table ? [...(artCol >= 0 ? [artCol] : []), ...table.columns.map((_, i) => i).filter((i) => i !== artCol)] : [];
 
+  // ——— выделение диапазона ячеек
+  const visRows = visible.map((p) => p.row);
+  const selRows = useMemo(() => {
+    if (!range) return [] as number[];
+    const a = visRows.indexOf(range.r0);
+    const b = visRows.indexOf(range.r1);
+    if (a < 0 || b < 0) return visRows.includes(range.r1) ? [range.r1] : [];
+    return visRows.slice(Math.min(a, b), Math.max(a, b) + 1);
+  }, [range, visRows.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sel = useMemo(() => new Set(selRows), [selRows]);
+  const focus = range?.r1 ?? null;
+  const cMin = range ? Math.min(range.c0, range.c1) : 0;
+  const cMax = range ? Math.max(range.c0, range.c1) : -1;
+  const inRange = (r: number, ci: number) => sel.has(r) && ci >= cMin && ci <= cMax;
+
+  useEffect(() => {
+    const up = () => {
+      dragRef.current = false;
+    };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
+
+  /** Записать матрицу значений начиная с левого верхнего угла выделения; одно значение — во все ячейки выделения. */
+  const pasteText = (text: string) => {
+    if (!table || !range || running) return;
+    const lines = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n');
+    const m = lines.map((l) => l.split('\t').map((x) => x.trim()));
+    const rows = table.rows.map((r) => [...r]);
+    const vis = [...visRows];
+    if (m.length === 1 && m[0].length === 1) {
+      for (const r of selRows) for (let ci = cMin; ci <= cMax; ci++) rows[r][order[ci]] = m[0][0];
+    } else {
+      const start = vis.indexOf(selRows[0] ?? range.r1);
+      for (let i = 0; i < m.length; i++) {
+        let r = vis[start + i];
+        if (r == null) {
+          if (filter !== 'all') break;
+          rows.push(table.columns.map(() => ''));
+          r = rows.length - 1;
+          vis.push(r);
+        }
+        for (let j = 0; j < m[i].length; j++) {
+          const ci = cMin + j;
+          if (ci >= order.length) break;
+          rows[r][order[ci]] = m[i][j];
+        }
+      }
+      const last = vis[Math.min(vis.length - 1, start + m.length - 1)];
+      setRange({ r0: vis[start], c0: cMin, r1: last, c1: Math.min(order.length - 1, cMin + Math.max(...m.map((x) => x.length)) - 1) });
+    }
+    commit({ ...table, rows });
+  };
+  const copyText = () =>
+    table && range ? selRows.map((r) => order.slice(cMin, cMax + 1).map((c) => table.rows[r][c] ?? '').join('\t')).join('\n') : '';
+  const clearRange = () => {
+    if (!table || !range) return;
+    const rows = table.rows.map((r, i) => (sel.has(i) ? r.map((x, j) => (order.indexOf(j) >= cMin && order.indexOf(j) <= cMax ? '' : x)) : r));
+    commit({ ...table, rows });
+  };
+
+  // вставка / копирование / очистка / стрелки — когда фокус не в поле ввода
+  useEffect(() => {
+    const outside = (e: Event) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      return !edit && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT';
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (!outside(e) || !range) return;
+      const txt = e.clipboardData?.getData('text/plain');
+      if (txt == null) return;
+      e.preventDefault();
+      pasteText(txt);
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      if (!outside(e) || !range || window.getSelection()?.toString()) return;
+      e.preventDefault();
+      e.clipboardData?.setData('text/plain', copyText());
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (!outside(e) || !range || !table) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        clearRange();
+      } else if (e.key === 'Enter' || e.key === 'F2') {
+        e.preventDefault();
+        setEdit({ r: range.r1, c: order[range.c1], text: table.rows[range.r1]?.[order[range.c1]] ?? '' });
+      } else if (e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        const vi = visRows.indexOf(range.r1);
+        const dr = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+        const dc = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        const r1 = visRows[Math.max(0, Math.min(visRows.length - 1, vi + dr))] ?? range.r1;
+        const c1 = Math.max(0, Math.min(order.length - 1, range.c1 + dc));
+        setRange(e.shiftKey ? { ...range, r1, c1 } : { r0: r1, c0: c1, r1, c1 });
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    window.addEventListener('copy', onCopy);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('paste', onPaste);
+      window.removeEventListener('copy', onCopy);
+      window.removeEventListener('keydown', onKey);
+    };
+  });
+
+  const pasteButton = async () => {
+    try {
+      pasteText(await navigator.clipboard.readText());
+    } catch {
+      setErr(t('tbl.pasteDenied'));
+    }
+  };
+
   // ——— запуск
   const run = async (onlySel: boolean) => {
     if (!table || !sources) return;
@@ -339,6 +454,7 @@ export function TableBatch() {
     let written = 0;
     cancelRef.current = false;
     const byName = new Map(sources.files.map((f) => [f.name, f]));
+    const ctx = houseCtx();
     const total = targets.length;
     setProgress({ done: 0, total, current: '' });
     for (let i = 0; i < targets.length; i++) {
@@ -367,8 +483,8 @@ export function TableBatch() {
             else await writeInto(outDir!, sub, file, text);
             written++;
           };
-          if (fmt.ies) await put('IES', `${name}.ies`, writeIES(q, { lineEnding: 'CRLF' }));
-          if (fmt.ldt) await put('LDT', `${name}.ldt`, writeLDT(q.photometryType === 'B' ? typeBToC(q).photometry : q, { lineEnding: 'CRLF', fileName: `${name}.ldt` }).text);
+          if (fmt.ies) await put('IES', `${name}.ies`, houseIES(q, ctx));
+          if (fmt.ldt) await put('LDT', `${name}.ldt`, houseLDT(q, ctx, `${name}.ldt`));
         } catch (e) {
           errors.push({ file: o.base, msg: (e as Error).message });
         }
@@ -386,19 +502,6 @@ export function TableBatch() {
   const running = progress != null;
   const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
   const selReady = plans.filter((p) => sel.has(p.row) && (p.status === 'ok' || p.status === 'warning')).length;
-
-  const rowClick = (e: React.MouseEvent, r: number) => {
-    setFocus(r);
-    if (e.shiftKey && focus != null) {
-      const [a, b] = [Math.min(focus, r), Math.max(focus, r)];
-      setSel(new Set(Array.from({ length: b - a + 1 }, (_, i) => a + i)));
-    } else if (e.ctrlKey || e.metaKey) {
-      const s = new Set(sel);
-      if (s.has(r)) s.delete(r);
-      else s.add(r);
-      setSel(s);
-    } else setSel(new Set([r]));
-  };
 
   const chip = (ok: boolean | null, text: string) =>
     ok == null ? <span /> : <span className={`tchip ${ok ? 'ok' : 'bad'}`}>{text}</span>;
@@ -454,6 +557,8 @@ export function TableBatch() {
           <button className="ib" title={t('tbl.undo')} aria-label={t('tbl.undo')} disabled={!past.length || running} onClick={undo}><Ico d={ICONS.undo} /></button>
           <button className="ib" title={t('tbl.redo')} aria-label={t('tbl.redo')} disabled={!future.length || running} onClick={redo}><Ico d={ICONS.redo} /></button>
           <span className="tsep" />
+          <button className="ib" title={t('tbl.paste')} aria-label={t('tbl.paste')} disabled={!table || !range || running} onClick={() => void pasteButton()}><Ico d={ICONS.paste} /></button>
+          <span className="tsep" />
           <button className="ib" title={t('tbl.newTable')} aria-label={t('tbl.newTable')} disabled={running} onClick={newTable}><Ico d={ICONS.newTable} /></button>
           <button className="ib" title={t('tbl.saveTable')} aria-label={t('tbl.saveTable')} disabled={!table || running} onClick={() => void saveTable()}><Ico d={ICONS.save} /></button>
           <span className="grow" />
@@ -494,19 +599,37 @@ export function TableBatch() {
                     errCols.set(k, { text: (prev ? `${prev.text}\n` : '') + msgText(m), level: prev?.level === 'error' || m.level === 'error' ? 'error' : 'warning' });
                   }
                   return (
-                    <tr key={r} className={`${sel.has(r) ? 'rsel' : ''}${focus === r ? ' rfocus' : ''}`} onClick={(e) => rowClick(e, r)}>
-                      <td className={`tst st-${pl.status}`} title={pl.messages.map(msgText).join('\n')}>
+                    <tr key={r} className={`${sel.has(r) ? 'rsel' : ''}${focus === r ? ' rfocus' : ''}`}>
+                      <td
+                        className={`tst st-${pl.status}`}
+                        title={pl.messages.map(msgText).join('\n')}
+                        onMouseDown={(e) => {
+                          if (e.button !== 0) return;
+                          e.preventDefault();
+                          dragRef.current = true;
+                          setRange(e.shiftKey && range ? { ...range, r1: r, c0: 0, c1: order.length - 1 } : { r0: r, c0: 0, r1: r, c1: order.length - 1 });
+                        }}
+                        onMouseEnter={() => dragRef.current && range && setRange({ ...range, r1: r, c0: 0, c1: order.length - 1 })}
+                      >
                         <StatusIcon s={pl.status} />
                       </td>
                       {order.map((c) => {
                         const name = table.columns[c].toLowerCase();
                         const bad = errCols.get(name);
                         const isEdit = edit && edit.r === r && edit.c === c;
+                        const ci = order.indexOf(c);
                         return (
                           <td
                             key={c}
-                            className={`${c === artCol ? 'tart ' : ''}${bad ? (bad.level === 'error' ? 'terr' : 'twarn') : ''}`}
+                            className={`${c === artCol ? 'tart ' : ''}${bad ? (bad.level === 'error' ? 'terr ' : 'twarn ') : ''}${!isEdit && inRange(r, ci) ? 'tin' : ''}`}
                             title={bad?.text}
+                            onMouseDown={(e) => {
+                              if (e.button !== 0 || isEdit) return;
+                              e.preventDefault();
+                              dragRef.current = true;
+                              setRange(e.shiftKey && range ? { ...range, r1: r, c1: ci } : { r0: r, c0: ci, r1: r, c1: ci });
+                            }}
+                            onMouseEnter={() => dragRef.current && range && setRange({ ...range, r1: r, c1: ci })}
                             onDoubleClick={() => !running && setEdit({ r, c, text: table.rows[r][c] ?? '' })}
                           >
                             {isEdit ? (
@@ -525,8 +648,11 @@ export function TableBatch() {
                                     setCell(r, c, edit.text.trim());
                                     const i = order.indexOf(c);
                                     const nc = e.key === 'Tab' ? order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length] : c;
-                                    const nr = e.key === 'Enter' ? Math.min(r + 1, table.rows.length - 1) : r;
-                                    setEdit({ r: nr, c: nc, text: table.rows[nr]?.[nc] ?? '' });
+                                    const vi = visRows.indexOf(r);
+                                    const nr = e.key === 'Enter' ? (visRows[Math.min(vi + 1, visRows.length - 1)] ?? r) : r;
+                                    const nci = order.indexOf(nc);
+                                    setEdit(null);
+                                    setRange({ r0: nr, c0: nci, r1: nr, c1: nci });
                                   } else if (e.key === 'Escape') setEdit(null);
                                 }}
                                 onContextMenu={(e) => {

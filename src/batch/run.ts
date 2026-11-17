@@ -9,6 +9,7 @@
  */
 
 import JSZip from 'jszip';
+import { houseIES, houseLDT, type HouseContext } from './house';
 import { woffToSfnt, type FontSet } from '../charts/fonts';
 import {
   comparePair,
@@ -16,8 +17,6 @@ import {
   summarize,
   typeBToC,
   validatePhotometry,
-  writeIES,
-  writeLDT,
   OpError,
   type Issue,
   type Lang,
@@ -47,6 +46,8 @@ export interface BatchJob {
   naming: NamingMode;
   /** Язык таблицы, отчёта и журнала. */
   lang: Lang;
+  /** Правила оформления (пользователь, версия) — для записываемых файлов. */
+  house: HouseContext;
 }
 
 export interface BatchInput {
@@ -225,12 +226,8 @@ export async function runBatch(inputs: BatchInput[], job: BatchJob, env: BatchEn
       const base = fileNames.takeAll('', it.base, exts);
       for (const ext of exts) {
         try {
-          if (ext === 'ies') put(`${base}.ies`, writeIES(it.p, { lineEnding: it.p.source.lineEnding }));
-          else {
-            const c = it.p.photometryType === 'B' ? typeBToC(it.p).photometry : it.p;
-            const w = writeLDT(c, { lineEnding: 'CRLF', fileName: `${base}.ldt` });
-            put(`${base}.ldt`, w.text);
-          }
+          if (ext === 'ies') put(`${base}.ies`, houseIES(it.p, job.house, { lineEnding: it.p.source.lineEnding }));
+          else put(`${base}.ldt`, houseLDT(it.p, job.house, `${base}.ldt`));
         } catch (e) {
           errors.push({ file: it.source, message: tr(lang, 'batch.log.write', { file: `${base}.${ext}`, msg: (e as Error).message }) });
         }

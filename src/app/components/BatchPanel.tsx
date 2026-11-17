@@ -10,6 +10,7 @@ import { parseStep, type Recipe } from '../../batch/recipe';
 import type { BatchJob, BatchProgress, BatchResult, FileFormat } from '../../batch/run';
 import type { ChartSettings } from '../App';
 import { startBatch, type BatchRun } from '../batch-client';
+import { houseCtx } from '../user';
 import { baseName, isModified, type OpenFile } from '../doc';
 import type { LoadedFonts } from '../fonts';
 import { saveFile } from '../save-file';
@@ -211,6 +212,7 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
       summary: mode === 'scenario' ? [...(opts.xlsx ? (['xlsx'] as const) : []), ...(opts.csv ? (['csv'] as const) : [])] : [],
       naming: opts.naming,
       lang,
+      house: houseCtx(),
     };
     setProgress({ phase: 'read', done: 0, total: inputs.length });
     const r = startBatch(inputs.map((f) => ({ name: f.name, file: f.file })), job, fonts?.set ?? null, setProgress);

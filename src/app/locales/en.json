@@ -637,7 +637,7 @@
     "all": "All {{n}}",
     "warnings": "Warnings only",
     "errors": "Errors only",
-    "hint": "Double-click to edit a cell (Enter, Tab — next; Esc — cancel; right click — clear). Ctrl + wheel scrolls horizontally. Click a row to select (Ctrl, Shift — several).",
+    "hint": "Drag to select cells (Shift — extend, click the icon on the left — whole row). Ctrl+C / Ctrl+V — copy and paste (also from Excel; a single value fills the selection), Delete — clear. Double-click, Enter or F2 — edit a cell. Ctrl + wheel scrolls horizontally.",
     "emptyStart": "Choose a project folder or create a new table",
     "emptyNoTable": "No table found: choose an .xlsx file or create a new table",
     "detSource": "source {{file}}",
@@ -667,6 +667,16 @@
       "cctNeeded": "Several lamp sets need a CCT each (files are named by it)",
       "cctRepeat": "Lamp set CCTs repeat — file names would clash",
       "duplicate": "Duplicate article (row {{row}})"
-    }
+    },
+    "paste": "Paste into selected cells (Ctrl+V)",
+    "pasteDenied": "The browser did not allow reading the clipboard — press Ctrl+V"
+  },
+  "user": {
+    "title": "User",
+    "note": "The name is written to saved files: LDT line 12 and IES [_OPERATOR]. The user list is public/users.txt in the repository.",
+    "empty": "The user list is empty (public/users.txt) — enter a name:",
+    "placeholder": "Name",
+    "ok": "Select",
+    "menu": "User: {{name}}…"
   }
 }

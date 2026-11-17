@@ -940,3 +940,23 @@ table.lamps td:first-child { white-space: nowrap; }
 .tgrid { min-width: 0; width: 100%; box-sizing: border-box; }
 .tgrid td.twarn { box-shadow: inset 0 0 0 1px var(--warn, #b26a00); color: var(--warn, #b26a00); }
 .batch-body { flex: 1; }
+
+/* --- v0.25: выбор пользователя */
+.modal.userdlg { width: min(420px, 100%); }
+.userlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow: auto; }
+.userlist button { width: 100%; text-align: left; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font: inherit; cursor: pointer; }
+.userlist button.on { background: var(--sel); border-color: var(--sel); color: var(--on-sel); }
+.userdlg .textin { height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+
+/* --- v0.25: выделение ячеек, кнопки форматов-таблетки, режимы окна по центру */
+.tgrid td.tin { background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.tgrid td.tart.tin, .tgrid td.tst.tin { background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.tgrid tbody { user-select: none; }
+.ttoggles button { border-radius: 999px; }
+.tchip { border-radius: 999px; }
+.modal.batch > header { display: grid; grid-template-columns: 1fr auto 1fr; }
+.modal.batch > header .bmodes { grid-column: 2; }
+.modal.batch > header > .link { grid-column: 3; justify-self: end; }
+.tgrid tr.rsel td { background: var(--card); }
+.tgrid tr.rsel td.tst { background: var(--soft); }
+.tgrid tr td.tin, .tgrid tr.rsel td.tin { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }

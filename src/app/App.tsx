@@ -5,6 +5,8 @@ import { defaultChartOptions, type ChartOptions } from '../charts/series';
 import { catalogStyle, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../charts/style';
 import { formatOf, requestChartExport, saveAs, saveToHandle } from './actions';
 import { About } from './components/About';
+import { UserDialog } from './components/UserDialog';
+import { getUser, setUser } from './user';
 import { MenuBar, type Menu, type MenuItem } from './components/MenuBar';
 import { ChartPanel, layoutPatch } from './components/ChartPanel';
 import { IntensityTable } from './components/IntensityTable';
@@ -82,6 +84,8 @@ export default function App() {
   const [styleOpen, setStyleOpen] = useState(false);
   const [fonts, setFonts] = useState<LoadedFonts | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [user, setUserState] = useState(getUser);
+  const [userOpen, setUserOpen] = useState(() => !getUser());
   const [showFiles, setShowFiles] = useState(() => load('show-files', true));
   const [showHistory, setShowHistory] = useState(() => load('show-history', true));
   const [theme, setTheme] = useState<Theme>(() => load<Theme | null>('theme', null) ?? 'system');
@@ -539,6 +543,8 @@ export default function App() {
         'sep',
         { label: t('files.close'), disabled: !active, onClick: () => active && close(active.id) },
         { label: t('files.closeAll'), disabled: !files.length, onClick: closeAll },
+        'sep',
+        { label: t('user.menu', { name: user || '—' }), onClick: () => setUserOpen(true) },
       ],
     },
     {
@@ -656,7 +662,7 @@ export default function App() {
           </span>
           <span className="apptitle">
             {t('app.title')}
-            <span className="appver" title={`commit ${__APP_COMMIT__}`}>v{__APP_VERSION__} · {__APP_COMMIT__}</span>
+            <span className="appver" title={`commit ${__APP_COMMIT__}`}>v{__APP_VERSION__} · {__APP_COMMIT__}{user ? ` · ${user}` : ''}</span>
           </span>
         </div>
         <MenuBar menus={menus} />
@@ -813,6 +819,17 @@ export default function App() {
       </div>
 
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
+      {userOpen && (
+        <UserDialog
+          required={!user}
+          onClose={() => setUserOpen(false)}
+          onPick={(n) => {
+            setUser(n);
+            setUserState(n);
+            setUserOpen(false);
+          }}
+        />
+      )}
       {styleOpen && !batchOpen && (
         <StyleEditor
           style={style}

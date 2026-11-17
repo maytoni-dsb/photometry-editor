@@ -637,7 +637,7 @@
     "all": "Alle {{n}}",
     "warnings": "Nur Warnungen",
     "errors": "Nur Fehler",
-    "hint": "Doppelklick — Zelle bearbeiten (Enter, Tab — weiter; Esc — abbrechen; Rechtsklick — leeren). Strg + Mausrad — horizontal blättern. Klick auf Zeile — auswählen (Strg, Umschalt — mehrere).",
+    "hint": "Zellen durch Ziehen auswählen (Umschalt — erweitern, Klick auf das Symbol links — ganze Zeile). Strg+C / Strg+V — kopieren und einfügen (auch aus Excel; ein Wert füllt die Auswahl), Entf — leeren. Doppelklick, Enter oder F2 — Zelle bearbeiten. Strg + Mausrad — horizontal blättern.",
     "emptyStart": "Projektordner wählen oder neue Tabelle anlegen",
     "emptyNoTable": "Keine Tabelle gefunden: .xlsx-Datei wählen oder neue Tabelle anlegen",
     "detSource": "Quelle {{file}}",
@@ -667,6 +667,16 @@
       "cctNeeded": "Mehrere Lampensätze brauchen je eine CCT (danach werden Dateien benannt)",
       "cctRepeat": "CCTs der Lampensätze wiederholen sich — Dateinamen kollidieren",
       "duplicate": "Artikel doppelt (Zeile {{row}})"
-    }
+    },
+    "paste": "In ausgewählte Zellen einfügen (Strg+V)",
+    "pasteDenied": "Der Browser hat den Zugriff auf die Zwischenablage verweigert — Strg+V drücken"
+  },
+  "user": {
+    "title": "Benutzer",
+    "note": "Der Name wird in gespeicherte Dateien geschrieben: LDT Zeile 12 und IES [_OPERATOR]. Die Benutzerliste ist public/users.txt im Repository.",
+    "empty": "Die Benutzerliste ist leer (public/users.txt) — Namen eingeben:",
+    "placeholder": "Name",
+    "ok": "Auswählen",
+    "menu": "Benutzer: {{name}}…"
   }
 }

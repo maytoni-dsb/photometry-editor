@@ -74,3 +74,37 @@ describe('import table', () => {
     expect(tableFromCells(pickSheet(again.sheets)!.rows).rows[0][H.indexOf('LuminaireName')]).toBe('Changed');
   });
 });
+
+describe('house style', async () => {
+  const { houseIES, houseLDT } = await import('../src/batch/house');
+  const ctx = { user: 'Иванов', version: '9.9.9', date: '17.11.2026' };
+  const p = applyRow(makeC(asym, { cStep: 15, gStep: 5 }), tableFromCells(cells), 0, 0).photometry;
+  p.meta.manufacturer = 'Other';
+  p.meta.testReport = 'R-1';
+  p.meta.keywords = [['MORE', 'x'], ['_CUSTOM', 'y']];
+
+  it('IES: only the listed keywords, in order', () => {
+    const kw = houseIES(p, ctx).split('\r\n').filter((l) => l.startsWith('['));
+    expect(kw).toEqual([
+      '[TEST]',
+      '[MANUFAC] MAYTONI GmbH',
+      '[LUMINAIRE] Alpha',
+      '[LUMCAT] TEST-A',
+      '[LAMP] LED',
+      '[_SEARCH_CRI] 90',
+      '[_SEARCH_COLORTEMP] 3000',
+      '[ISSUEDATE] 17.11.2026',
+      '[TESTLAB] MAYTONI Photometry Editor version 9.9.9',
+      '[_OPERATOR] Иванов',
+    ]);
+  });
+
+  it('LDT: company, empty report, date/user line, zero luminous heights', () => {
+    const L = houseLDT(p, ctx, 'TEST-A.ldt').split('\r\n');
+    expect(L[0]).toBe('MAYTONI GmbH');
+    expect(L[7]).toBe('');
+    expect(L[10]).toBe('TEST-A.ldt');
+    expect(L[11]).toBe('17.11.2026/Иванов via MAYTONI Photometry Editor version 9.9.9');
+    expect(L.slice(17, 21).map(Number)).toEqual([0, 0, 0, 0]);
+  });
+});

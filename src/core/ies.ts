@@ -225,6 +225,8 @@ export interface WriteIesOptions {
   lineEnding?: 'LF' | 'CRLF';
   /** Сохранить нестандартные ключевые слова исходного файла (по умолчанию да). */
   keepCustomKeywords?: boolean;
+  /** Точный список ключевых слов в нужном порядке (вместо собранных из модели) — правила оформления. */
+  keywords?: Array<[string, string]>;
 }
 
 /** Ширина строки значений: LM-63-2002 допускает до 256 символов. */
@@ -279,7 +281,7 @@ export function writeIES(p: Photometry, opts: WriteIesOptions = {}): string {
   const criKey = p.meta.keywords.find(([k]) => CRI_KEYS.includes(k))?.[0] ?? '_SEARCH_CRI';
   if (lamp?.cri) kwOut.push([criKey, lamp.cri]);
   if (lamp?.cct) kwOut.push([cctKey, lamp.cct]);
-  for (const [k, v] of kwOut) out.push(v ? `[${k}] ${v}` : `[${k}]`);
+  for (const [k, v] of opts.keywords ?? kwOut) out.push(v ? `[${k}] ${v}` : `[${k}]`);
 
   // TILT
   const tilt = p.ies?.tiltData;
