@@ -28,10 +28,9 @@ function fitDistance(aspect: number): number {
 /** Положение камеры для вида, в фотометрических осях (потом → three). */
 const VIEW_POS: Record<View3D, [number, number, number]> = {
   iso: [1.75, -2.6, 1.15], // с C≈−56°, чуть сверху: C0 справа, C90 — вглубь
-  front: [0, -DIST, 0], // на плоскость C0–C180, C0 справа (как полярная КСС)
-  side: [DIST, 0, 0], // на плоскость C90–C270, C90 справа
-  below: [0, -0.001, -DIST],
-  above: [0, -0.001, DIST],
+  xz: [0, -DIST, 0], // на плоскость XZ (C0–C180), C0 справа (как полярная КСС)
+  yz: [DIST, 0, 0], // на плоскость YZ (C90–C270)
+  xy: [0, -0.001, -DIST], // на плоскость XY — снизу, вдоль оси Z (к надиру)
 };
 
 const toThree = (x: number, y: number, z: number) => new THREE.Vector3(x, z, -y);
@@ -59,7 +58,6 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
   moveRef.current = onUserMove;
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
-  const nadirEl = useRef<HTMLDivElement | null>(null);
   const ctx = useRef<{
     renderer: THREE.WebGLRenderer;
     labels: CSS2DRenderer;
@@ -107,9 +105,10 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
     };
     for (const c of [0, 90, 180, 270]) {
       const r = (c * Math.PI) / 180;
-      add2(toThree(0, 0, 0), toThree(R * Math.cos(r), R * Math.sin(r), 0), c === 0 || c === 90 ? lineMat : dashMat);
+      add2(toThree(0, 0, 0), toThree(R * Math.cos(r), R * Math.sin(r), 0), c === 0 || c === 270 ? lineMat : dashMat);
     }
-    add2(toThree(0, 0, -R), toThree(0, 0, R), dashMat);
+    add2(toThree(0, 0, 0), toThree(0, 0, -R), lineMat);
+    add2(toThree(0, 0, 0), toThree(0, 0, R), dashMat);
     const label = (text: string, p: THREE.Vector3, cls = '') => {
       const d = document.createElement('div');
       d.className = `b3d-label ${cls}`;
@@ -122,12 +121,13 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
     };
     const axisLabels: Array<{ el: HTMLDivElement; dir: THREE.Vector3 }> = [];
     const L = 1.26;
+    // правая тройка: X — C0, Y — C270, Z — γ 0° (вниз)
     label('C0 · X', toThree(L, 0, 0), 'strong');
-    label('C90 · Y', toThree(0, L, 0), 'strong');
+    label('C90', toThree(0, L, 0));
     label('C180', toThree(-L, 0, 0));
-    label('C270', toThree(0, -L, 0));
-    nadirEl.current = label(`γ 0° · ${t('b3d.nadir')}`, toThree(0, 0, -L));
-    label(`γ 180° · Z`, toThree(0, 0, L));
+    label('C270 · Y', toThree(0, -L, 0), 'strong');
+    label('γ 0° · Z', toThree(0, 0, -L), 'strong');
+    label('γ 180°', toThree(0, 0, L));
     scene.add(axes);
 
     const body = new THREE.Group();
@@ -233,10 +233,6 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [link]);
 
-  // язык подписей
-  useEffect(() => {
-    if (nadirEl.current) nadirEl.current.textContent = `γ 0° · ${t('b3d.nadir')}`;
-  }, [t]);
 
   // вид камеры
   useEffect(() => {

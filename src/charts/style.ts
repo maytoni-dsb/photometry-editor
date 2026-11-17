@@ -188,3 +188,9 @@ export function sanitizeStyle(input: unknown): ChartStyle {
     },
   };
 }
+
+/**
+ * Стиль для графиков в интерфейсе (кроме вкладок «Полярная КСС» и «Декартова КСС»): прозрачный фон —
+ * в тёмной теме график подстраивается под фон (CSS: инверсия яркости с сохранением оттенков).
+ */
+export const screenStyle = (s: ChartStyle): ChartStyle => ({ ...s, colors: { ...s.colors, background: null } });

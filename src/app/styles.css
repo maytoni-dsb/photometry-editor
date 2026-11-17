@@ -960,3 +960,62 @@ table.lamps td:first-child { white-space: nowrap; }
 .tgrid tr.rsel td { background: var(--card); }
 .tgrid tr.rsel td.tst { background: var(--soft); }
 .tgrid tr td.tin, .tgrid tr.rsel td.tin { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
+
+/* --- v0.26: шапка — название в одну строку, пользователь справа у переключателя темы */
+.apptitle { max-width: none; display: block; white-space: nowrap; font-size: 13px; line-height: 1; }
+.userbtn {
+  height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--rule);
+  background: var(--card); color: var(--ink2); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.userbtn:hover { border-color: var(--ink); color: var(--ink); }
+
+/* --- v0.26: виды 3D — кнопки с пиктограммами */
+.viewbtns { position: absolute; left: 10px; top: 10px; z-index: 2; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--card); border: 1px solid var(--rule); }
+.viewbtns button { width: 30px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 999px; background: none; color: var(--ink3); cursor: pointer; }
+.viewbtns button:hover { color: var(--ink); background: var(--soft); }
+.viewbtns button.on { background: var(--sel); color: var(--on-sel); }
+
+/* --- v0.26: графики в интерфейсе (мини-КСС, «Операции») — прозрачный фон, в тёмной теме инверсия яркости */
+.paper.screen-chart { background: transparent; box-shadow: none; }
+:root[data-theme='dark'] .screen-chart svg { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .screen-chart svg { filter: invert(1) hue-rotate(180deg); } }
+
+/* --- v0.26: «Операции» — без лишних рамок; 3D квадратная, одна скруглённая рамка */
+.ops-main .ops-editor, .ops-editor.ctrlpanel { border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; padding: 2px 0 12px; background: none; }
+.ops-main .ops-stage { background: none; padding: 0; border-radius: 0; }
+.ops-3d.paper { background: none; box-shadow: none; height: auto; }
+.ops-3d .b3d { border-radius: 12px; }
+.ops-polar.paper { border: 1px solid var(--rule); border-radius: 12px; }
+.ops-pair figcaption { font-weight: 500; }
+.normbar { display: inline-flex; align-items: center; gap: 8px; margin-right: 12px; padding-right: 14px; border-right: 1px solid var(--rule); font-size: 13px; }
+
+/* --- v0.26: «Сохранить как» */
+.modal.savedlg { width: min(560px, 100%); }
+.savegrid { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px 12px; align-items: center; }
+.savegrid .ttoggles { width: 180px; }
+.radios { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.radio { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.radio.off { opacity: 0.45; cursor: default; }
+.savelist { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: var(--soft); }
+.savelist ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* --- v0.26: паспорт — «Фотометрические характеристики» на две колонки, источники света */
+.pp-grid > .span2 { grid-column: span 2; }
+@media (max-width: 1400px) { .pp-grid > .span2 { grid-column: span 2; } }
+@media (max-width: 900px) { .pp-grid > .span2 { grid-column: auto; } }
+.pp-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+@media (max-width: 900px) { .pp-two { grid-template-columns: 1fr; } }
+.pe-num.bad .numf input[type='text'] { border-color: var(--err); color: var(--err); }
+table.lamps td:last-child { width: 28px; text-align: center; }
+.pp-two .kv.grid2 > div { grid-template-columns: 130px minmax(0, 1fr); }
+.pp-two .kv.grid2 dd .seg { flex-wrap: nowrap; }
+.pp-two .kv.grid2 dd .seg button { padding: 0 10px; }
+table.lamps { width: auto; }
+table.lamps td, table.lamps th { padding-right: 14px; }
+.pp-two { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.pp-two .kv.grid2 > div { grid-template-columns: 124px minmax(0, 1fr); }
+table.grid.lamps { width: auto !important; }
+table.grid.lamps input.pe { width: 180px; }
+table.grid.lamps input.pe { width: 70px; }
+table.grid.lamps td:nth-child(3) input.pe { width: 190px; }
+.gridtext { display: flex; flex-direction: column; }

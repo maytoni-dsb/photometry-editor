@@ -168,11 +168,13 @@ describe('поворот вокруг Z', () => {
     expect(rotate(c0, 'z', 90).photometry.symmetry).toBe('c90c270');
   });
 
-  it('размеры поворачиваются', () => {
+  it('размеры корпуса и светящей части не меняются (v0.26)', () => {
     const p = makeC(asym, { cStep: 15 });
-    const r = rotate(p, 'z', 90).photometry;
-    expect(r.luminous.length).toBeCloseTo(80, 9);
-    expect(r.luminous.width).toBeCloseTo(580, 9);
+    for (const [ax, a] of [['z', 90], ['x', 30], ['y', 45]] as const) {
+      const r = rotate(p, ax, a).photometry;
+      expect(r.luminous).toEqual(p.luminous);
+      expect(r.luminaire).toEqual(p.luminaire);
+    }
   });
 });
 
@@ -332,14 +334,14 @@ describe('сложение', () => {
     expect(f.down / f.up).toBeCloseTo(1, 2);
   });
 
-  it('смещения расширяют светящие размеры', () => {
+  it('размеры — как у первого слагаемого (v0.26)', () => {
     const p = makeC(lambert, { cStep: 15, gStep: 5 });
     const res = sumBodies([
       { photometry: p, weight: 1, offset: { x: -500, y: 0, z: 0 } },
       { photometry: p, weight: 1, offset: { x: 500, y: 0, z: 0 } },
     ]);
-    expect(res.photometry.luminous.length).toBeCloseTo(1580, 9);
-    expect(res.photometry.luminous.width).toBeCloseTo(80, 9);
+    expect(res.photometry.luminous).toEqual(p.luminous);
+    expect(res.photometry.luminaire).toEqual(p.luminaire);
     expect(res.issues.some((i) => i.code === 'op-sum-offsets')).toBe(true);
   });
 });

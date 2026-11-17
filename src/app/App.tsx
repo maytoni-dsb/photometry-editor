@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { CATALOG_WIDTH } from '../charts/polar-catalog';
 import { defaultChartOptions, type ChartOptions } from '../charts/series';
 import { catalogStyle, sanitizeStyle, STYLE_PRESETS, type ChartStyle } from '../charts/style';
-import { formatOf, requestChartExport, saveAs, saveToHandle } from './actions';
+import { formatOf, requestChartExport, saveToHandle } from './actions';
 import { About } from './components/About';
 import { UserDialog } from './components/UserDialog';
+import { SaveDialog, type SavedAs } from './components/SaveDialog';
 import { getUser, setUser } from './user';
 import { MenuBar, type Menu, type MenuItem } from './components/MenuBar';
 import { ChartPanel, layoutPatch } from './components/ChartPanel';
@@ -84,6 +85,7 @@ export default function App() {
   const [styleOpen, setStyleOpen] = useState(false);
   const [fonts, setFonts] = useState<LoadedFonts | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [user, setUserState] = useState(getUser);
   const [userOpen, setUserOpen] = useState(() => !getUser());
   const [showFiles, setShowFiles] = useState(() => load('show-files', true));
@@ -433,15 +435,12 @@ export default function App() {
     } catch (e) {
       setErrors([t('error.save', { name: f.name, msg: (e as Error).message })]);
     }
-    await saveActiveAs(formatOf(f));
+    setSaveOpen(true);
   };
-  const saveActiveAs = async (fmt: 'ies' | 'ldt') => {
-    if (!active) return;
-    const f = active;
-    const r = await saveAs(f, fmt);
-    if (!r) return;
-    // сохранённый «как» файл — новый файл на диске (папка к нему уже не относится)
-    updateFile(f.id, (x) => ({ ...x, name: r.handle ? r.name : x.name, handle: r.handle ?? x.handle, folderPath: r.handle ? undefined : x.folderPath, savedLen: x.past.length, derived: r.handle ? false : x.derived }));
+  /** Файл сохранён «как» целиком — дальше «Сохранить» пишет в него. */
+  const savedAs = (r: SavedAs) => {
+    if (!active || !r.whole) return;
+    updateFile(active.id, (x) => ({ ...x, name: r.handle ? r.name : x.name, handle: r.handle ?? x.handle, folderPath: r.handle ? undefined : x.folderPath, savedLen: x.past.length, derived: r.handle ? false : x.derived }));
   };
   const closeAll = () => {
     setFiles([]);
@@ -481,6 +480,9 @@ export default function App() {
     } else if (mod && !e.shiftKey && e.key.toLowerCase() === 's') {
       e.preventDefault();
       void saveActive();
+    } else if (mod && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      if (active) setSaveOpen(true);
     } else if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault();
       if (e.shiftKey) doRedo();
@@ -521,14 +523,7 @@ export default function App() {
         { label: t('files.disconnect'), disabled: !folder, onClick: disconnectFolder },
         'sep',
         { label: t('menu.save'), shortcut: `${mod}S`, disabled: !active, onClick: () => void saveActive() },
-        {
-          label: t('menu.saveAs'),
-          disabled: !active,
-          submenu: [
-            { label: 'IES…', onClick: () => void saveActiveAs('ies') },
-            { label: 'LDT…', onClick: () => void saveActiveAs('ldt') },
-          ],
-        },
+        { label: `${t('menu.saveAs')}…`, shortcut: `${mod}⇧S`, disabled: !active, onClick: () => setSaveOpen(true) },
         'sep',
         {
           label: t('menu.exportChart'),
@@ -652,6 +647,17 @@ export default function App() {
     },
   ];
 
+  /** Операция над текущим файлом из паспорта или таблицы — шаг истории. */
+  const opActive = (spec: OpSpec, label: string) => {
+    if (!active) return;
+    try {
+      const r = applyWork(workOf(active), spec);
+      applyToActive(r.photometry, r.issues, label, spec, r.work);
+    } catch (e) {
+      setErrors([e instanceof OpError ? t(`ops.err.${e.code}`, e.params) : String(e)]);
+    }
+  };
+
   return (
     <div className="app">
       <header className="sbar">
@@ -660,10 +666,7 @@ export default function App() {
           <span className="brand">
             <MaytoniLogo />
           </span>
-          <span className="apptitle">
-            {t('app.title')}
-            <span className="appver" title={`commit ${__APP_COMMIT__}`}>v{__APP_VERSION__} · {__APP_COMMIT__}{user ? ` · ${user}` : ''}</span>
-          </span>
+          <span className="apptitle" title={`v${__APP_VERSION__} · ${__APP_COMMIT__}`}>{t('app.title')}</span>
         </div>
         <MenuBar menus={menus} />
         <div className="sbtools">
@@ -693,6 +696,15 @@ export default function App() {
               setFolder({ name: list[0].path?.split('/')[0] || 'folder', entries: entriesFromFiles(list), live: false });
             }}
           />
+          {user && (
+            <button className="userbtn" onClick={() => setUserOpen(true)} title={t('user.title')}>
+              <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="10" cy="7" r="3.2" />
+                <path d="M3.8 17c.8-3.2 3.3-4.8 6.2-4.8s5.4 1.6 6.2 4.8" strokeLinecap="round" />
+              </svg>
+              {user}
+            </button>
+          )}
           <button className="themebtn" onClick={toggleTheme} aria-label={t('app.theme')} title={t('app.theme')}>
             <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
               <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -761,9 +773,9 @@ export default function App() {
               </div>
               <div className={tab === 'table' ? 'tab-body fill' : 'tab-body'}>
                 {tab === 'passport' && (
-                    <Passport file={active} onPatch={patchActive} onOp={(spec, label) => { try { const r = applyWork(workOf(active), spec); applyToActive(r.photometry, r.issues, label, spec, r.work); } catch (e) { setErrors([e instanceof OpError ? t(`ops.err.${e.code}`, e.params) : String(e)]); } }} />
+                    <Passport file={active} onPatch={patchActive} onOp={opActive} />
                 )}
-                {tab === 'table' && <IntensityTable file={active} onEdit={editCell} />}
+                {tab === 'table' && <IntensityTable file={active} onEdit={editCell} onOp={opActive} />}
                 {tab === 'body' && <Body3DTab file={active} settings={settings} />}
                 {tab === 'ops' && (
                   <OpsPanel
@@ -819,6 +831,7 @@ export default function App() {
       </div>
 
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
+      {saveOpen && active && <SaveDialog file={active} onClose={() => setSaveOpen(false)} onSaved={savedAs} />}
       {userOpen && (
         <UserDialog
           required={!user}

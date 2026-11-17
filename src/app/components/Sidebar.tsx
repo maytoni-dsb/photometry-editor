@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { fontMeasure } from '../../charts/fonts';
 import { buildPolar } from '../../charts/polar';
 import { renderSvg } from '../../charts/render-svg';
+import { screenStyle } from '../../charts/style';
 import { approxTextWidth } from '../../charts/scene';
 import { defaultPlanes } from '../../charts/series';
 import type { ChartStyle } from '../../charts/style';
@@ -55,7 +56,7 @@ function MiniPolar({ file, settings, style, fonts }: { file: OpenFile; settings:
   const measure = useMemo(() => (fonts ? fontMeasure(fonts.set) : approxTextWidth), [fonts]);
   const svg = useMemo(() => {
     const planes = settings.planes ?? defaultPlanes(p);
-    const scene = buildPolar(p, orig.summary, { ...settings, planes, width: settings.width, title: '' }, style, measure);
+    const scene = buildPolar(p, orig.summary, { ...settings, planes, width: settings.width, title: '' }, screenStyle(style), measure);
     return renderSvg(scene, { screenFamily: screenFamily(fonts) });
   }, [p, orig.summary, settings, style, measure, fonts]);
   return (
@@ -64,7 +65,7 @@ function MiniPolar({ file, settings, style, fonts }: { file: OpenFile; settings:
         <span>{t('files.miniTitle')}</span>
         {isModified(file) && !file.derived && <span className="muted small">{t('files.miniOriginal')}</span>}
       </div>
-      <div className="paper" dangerouslySetInnerHTML={{ __html: svg }} />
+      <div className="paper screen-chart" dangerouslySetInnerHTML={{ __html: svg }} />
     </div>
   );
 }
