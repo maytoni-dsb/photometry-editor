@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Select } from './Select';
-import { fullPlanes } from '../../core/index';
+import { fullPlanes, type OpSpec } from '../../core/index';
+import { NumField, parseNum } from './NumField';
 import type { OpenFile } from '../doc';
 import { load, save } from '../storage';
 
@@ -15,7 +16,54 @@ interface Editing {
   text: string;
 }
 
-export function IntensityTable({ file, onEdit }: { file: OpenFile; onEdit?: (i: number, j: number, cd: number) => void }) {
+type NMode = 'flux' | 'peak' | 'factor';
+
+/**
+ * Нормировка на вкладке «Таблица сил света»: по потоку (лм), по максимуму (кд) или множителем.
+ * Изменение поля — через паузу (или по Enter) — шаг истории.
+ */
+function NormalizeBar({ file, onOp }: { file: OpenFile; onOp: (spec: OpSpec, label: string) => void }) {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<NMode>(() => load<NMode>('table-norm', 'flux'));
+  const s = file.summary;
+  const cur = mode === 'flux' ? Math.round(s.flux.total * 10) / 10 : mode === 'peak' ? Math.round(s.peak.value * 10) / 10 : 1;
+  const [v, setV] = useState(String(cur));
+  const timer = useRef(0);
+  useEffect(() => setV(String(cur)), [cur, mode]);
+  const commit = (text: string) => {
+    window.clearTimeout(timer.current);
+    const x = parseNum(text);
+    if (!(Number.isFinite(x) && x > 0) || Math.abs(x - cur) < 1e-9) return;
+    onOp({ op: 'normalize', mode, value: x }, t('table.normLabel', { what: t(`table.norm_${mode}`), v: text }));
+    if (mode === 'factor') setV('1');
+  };
+  return (
+    <span className="normbar" onKeyDown={(e) => e.key === 'Enter' && commit(v)}>
+      <span>{t('table.normalize')}</span>
+      <span className="seg small">
+        {(['flux', 'peak', 'factor'] as const).map((m) => (
+          <button key={m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); save('table-norm', m); }}>{t(`table.norm_${m}`)}</button>
+        ))}
+      </span>
+      <NumField
+        value={v}
+        onChange={(x) => {
+          setV(x);
+          window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => commit(x), 900);
+        }}
+        def={mode === 'factor' ? 1 : cur}
+        min={0}
+        step={mode === 'factor' ? 0.1 : 10}
+        unit={mode === 'flux' ? t('unit.lm') : mode === 'peak' ? t('unit.cd') : '×'}
+        width={130}
+        aria-label={t('table.normalize')}
+      />
+    </span>
+  );
+}
+
+export function IntensityTable({ file, onEdit, onOp }: { file: OpenFile; onEdit?: (i: number, j: number, cd: number) => void; onOp?: (spec: OpSpec, label: string) => void }) {
   const { t, i18n } = useTranslation();
   const [unit, setUnit] = useState<Unit>(() => load<Unit>('table-unit', 'cdklm'));
   const [full, setFull] = useState(false);
@@ -63,6 +111,7 @@ export function IntensityTable({ file, onEdit }: { file: OpenFile; onEdit?: (i: 
   return (
     <div className="table-view">
       <div className="toolbar">
+        {onOp && <NormalizeBar file={file} onOp={onOp} />}
         <label>
           {t('table.unit')}{' '}
           <Select value={unit} onChange={(e) => { setUnit(e.target.value as Unit); save('table-unit', e.target.value); }}>

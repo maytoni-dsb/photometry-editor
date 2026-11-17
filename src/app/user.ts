@@ -1,6 +1,7 @@
 /**
  * Пользователь (оператор) — пишется в файлы (LDT строка 12, IES [_OPERATOR]).
- * Список имён — public/users.txt в репозитории (одно имя на строку, # — комментарий); выбор запоминается в браузере.
+ * Список имён — public/users.txt в репозитории (одно имя на строку, # — комментарий); в интерфейсе — по алфавиту
+ * фамилий; выбор запоминается в браузере.
  */
 import type { HouseContext } from '../batch/house';
 import { load, save } from './storage';
@@ -26,11 +27,16 @@ export async function fetchUsers(): Promise<string[]> {
   }
 }
 
+/** Фамилия — последнее слово («A. Grimailo» → «Grimailo»). */
+const surname = (name: string) => name.trim().split(/\s+/).pop() ?? name;
+const collator = new Intl.Collator(undefined, { sensitivity: 'base' });
+
+/** Имена из текста списка — по алфавиту фамилий (порядок в файле не важен). */
 export function parseUsers(text: string): string[] {
   const out: string[] = [];
   for (const line of text.split(/\r?\n/)) {
     const s = line.replace(/#.*$/, '').trim();
     if (s && !out.includes(s)) out.push(s);
   }
-  return out;
+  return out.sort((a, b) => collator.compare(surname(a), surname(b)) || collator.compare(a, b));
 }

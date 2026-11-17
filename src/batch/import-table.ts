@@ -286,6 +286,8 @@ export function applyRow(p0: Photometry, t: ImportTable, row: number, set: numbe
   q.ldt = {
     ...(q.ldt ?? { luminousHeights: [h, h, h, h], dff: 0, lorl: 100, conversionFactor: 1, measurementTilt: 0, directRatios: [], fileNameField: '', dateUser: '' }),
     ityp: Number.isInteger(ityp) ? ityp : (q.ldt?.ityp ?? (plan.symmetry === 'axial' ? 1 : 3)),
+    // правило пакета «По таблице»: высоты светящей части во всех четырёх плоскостях — 0
+    luminousHeights: [0, 0, 0, 0],
   };
   return { photometry: q, issues };
 }

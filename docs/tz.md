@@ -116,8 +116,8 @@ P1 — первая рабочая версия, P2 — следующая, P3 �
    сменить. Браузеры без записи в папки (Firefox, Safari) — ZIP с теми же папками.
 
 Правила оформления (с v0.25, для любой записи файлов в приложении): производитель «MAYTONI GmbH»; LDT —
-строка 8 пустая, строка 12 «ДД.ММ.ГГГГ/<пользователь> via MAYTONI Photometry Editor version <версия>», высоты
-светящей части 0; IES — только [TEST] (пустой), [MANUFAC], [LUMINAIRE], [LUMCAT], [LAMP], [_SEARCH_CRI],
+строка 8 пустая, строка 12 «ДД.ММ.ГГГГ/<пользователь> via MAYTONI Photometry Editor version <версия>» (высоты
+светящей части = 0 — только в пакете «По таблице»); IES — только [TEST] (пустой), [MANUFAC], [LUMINAIRE], [LUMCAT], [LAMP], [_SEARCH_CRI],
 [_SEARCH_COLORTEMP], [ISSUEDATE], [TESTLAB] (редактор и версия), [_OPERATOR]. Пользователь выбирается из списка
 public/users.txt в репозитории (один раз, сменить — в меню «Файл»).
 

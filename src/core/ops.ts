@@ -291,11 +291,7 @@ export function mirror(p: Photometry, plane: MirrorPlane): OpResult {
       q.candela = src.hAngles.map((c) => src.vAngles.map((g) => intensityC(src, foldC(src.symmetry, map(c)), g)));
     }
   }
-  // высоты светящей части C0, C90, C180, C270
-  if (q.ldt) {
-    const [h0, h90, h180, h270] = q.ldt.luminousHeights;
-    q.ldt.luminousHeights = plane === 'c0c180' ? [h0, h270, h180, h90] : [h180, h90, h0, h270];
-  }
+  // размеры корпуса и светящей части операции не меняют (решение заказчика, v0.26)
   return { photometry: q, issues };
 }
 
@@ -325,15 +321,7 @@ function rotateZ(src: Photometry, angle: number, issues: Issue[]): Photometry {
     q.candela = grid.map((c) => src.vAngles.map((g) => intensityC(src, c - a, g)));
   }
   if (src.symmetry !== 'none') q = compactSymmetry(q);
-  const m = rotationMatrix('z', angle);
-  q.luminous = rotateDims(src.luminous, m);
-  q.luminaire = rotateDims(src.luminaire, m);
-  if (q.ldt) {
-    const k = Math.round(a / 90);
-    const h = src.ldt!.luminousHeights;
-    q.ldt.luminousHeights =
-      Math.abs(a - k * 90) < EPS ? ([0, 1, 2, 3].map((i) => h[(i - k + 4) % 4]) as [number, number, number, number]) : [q.luminous.height, q.luminous.height, q.luminous.height, q.luminous.height];
-  }
+  // размеры корпуса и светящей части поворот не меняет (решение заказчика, v0.26)
   return q;
 }
 
@@ -358,13 +346,9 @@ function rotateXY(src: Photometry, axis: 'x' | 'y', angle: number, issues: Issue
   );
   let out = q;
   if (src.symmetry !== 'none') out = compactSymmetry(q);
-  const m = rotationMatrix(axis, angle);
-  out.luminous = rotateDims(src.luminous, m);
-  out.luminaire = rotateDims(src.luminaire, m);
-  if (out.ldt) {
-    const h = out.luminous.height;
-    out.ldt.luminousHeights = [h, h, h, h];
-  }
+  // размеры корпуса и светящей части поворот не меняет (решение заказчика, v0.26)
+  out.luminous = { ...src.luminous };
+  out.luminaire = { ...src.luminaire };
   resetRatios(out, issues);
   return out;
 }
@@ -649,35 +633,9 @@ export function sumBodies(components: SumComponent[]): OpResult {
   q.lamps = [lamp0];
   q.inputWatts = sumWatts;
 
-  // размеры: охватывающий бокс компонентов с учётом смещений
-  const box = (key: 'luminous' | 'luminaire') => {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    let any = false;
-    let circles = true;
-    for (const x of bodies) {
-      const d = x.b[key];
-      const o = x.comp.offset ?? { x: 0, y: 0, z: 0 };
-      const L = d.shape === 'point' ? 0 : d.length;
-      const W = d.shape === 'circle' ? d.length : d.shape === 'point' ? 0 : d.width;
-      const H = d.shape === 'point' ? 0 : d.height;
-      if (d.shape !== 'circle' || Math.abs(o.x) > EPS || Math.abs(o.y) > EPS) circles = false;
-      if (L || W || H || o.x || o.y || o.z) any = true;
-      minX = Math.min(minX, o.x - L / 2); maxX = Math.max(maxX, o.x + L / 2);
-      minY = Math.min(minY, o.y - W / 2); maxY = Math.max(maxY, o.y + W / 2);
-      minZ = Math.min(minZ, o.z - H / 2); maxZ = Math.max(maxZ, o.z + H / 2);
-    }
-    if (!any) return { ...first[key] };
-    const L = r6(maxX - minX);
-    const W = r6(maxY - minY);
-    const H = r6(maxZ - minZ);
-    return circles ? { shape: 'circle' as const, length: L, width: 0, height: H } : { shape: 'rect' as const, length: L, width: W, height: H };
-  };
-  q.luminous = box('luminous');
-  q.luminaire = box('luminaire');
-  if (q.ldt) {
-    const h = q.luminous.height;
-    q.ldt.luminousHeights = [h, h, h, h];
-  }
+  // размеры — как у первого слагаемого (текущего файла): сложение корпус не меняет (решение заказчика, v0.26)
+  q.luminous = { ...first.luminous };
+  q.luminaire = { ...first.luminaire };
   if (components.some((c) => c.offset && (c.offset.x || c.offset.y || c.offset.z))) issues.push(issue('op-sum-offsets', 'info'));
   if (components.length > 1) resetRatios(q, issues);
   return { photometry: refreshStated(q), issues: dedupe(issues) };

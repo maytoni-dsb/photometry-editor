@@ -3,7 +3,7 @@
  * (сохранение, «Сохранить как», пакетная обработка):
  *  - производитель всегда «MAYTONI GmbH»;
  *  - LDT: строка 8 (номер протокола) пустая, строка 12 — «<дата>/<пользователь> via MAYTONI Photometry Editor
- *    version <версия>», высоты светящей части во всех четырёх плоскостях — 0;
+ *    version <версия>» (высоты светящей части обнуляются только в пакете «По таблице» — import-table.ts);
  *  - IES: только [TEST] (пустой — обязателен в LM-63-2002), [MANUFAC], [LUMINAIRE], [LUMCAT], [LAMP],
  *    [_SEARCH_CRI], [_SEARCH_COLORTEMP], [ISSUEDATE] <дата>, [TESTLAB] MAYTONI Photometry Editor version <версия>,
  *    [_OPERATOR] <пользователь>.
@@ -39,7 +39,6 @@ export function applyHouse(p: Photometry, ctx: HouseContext): Photometry {
   const h = q.luminous.height;
   q.ldt = {
     ...(q.ldt ?? { ityp: q.symmetry === 'axial' ? 1 : 3, luminousHeights: [h, h, h, h], dff: 0, lorl: 100, conversionFactor: 1, measurementTilt: 0, directRatios: [], fileNameField: '', dateUser: '' }),
-    luminousHeights: [0, 0, 0, 0],
     dateUser: `${date}/${ctx.user} via ${editorLine(ctx)}`,
   };
   return q;

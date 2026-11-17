@@ -105,6 +105,12 @@ describe('house style', async () => {
     expect(L[7]).toBe('');
     expect(L[10]).toBe('TEST-A.ldt');
     expect(L[11]).toBe('17.11.2026/Иванов via MAYTONI Photometry Editor version 9.9.9');
-    expect(L.slice(17, 21).map(Number)).toEqual([0, 0, 0, 0]);
+    expect(L.slice(17, 21).map(Number)).toEqual([0, 0, 0, 0]); // из applyRow (пакет «По таблице»)
+  });
+
+  it('LDT: outside the table batch luminous heights are kept', () => {
+    const q = structuredClone(p);
+    q.ldt!.luminousHeights = [5, 6, 7, 8];
+    expect(houseLDT(q, ctx, 'x.ldt').split('\r\n').slice(17, 21).map(Number)).toEqual([5, 6, 7, 8]);
   });
 });

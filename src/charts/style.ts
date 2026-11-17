@@ -9,6 +9,8 @@ export interface ChartStyle {
   /** Версия формата стиля. */
   version: 1;
   name: string;
+  /** Сетка поверх заливки (графики в интерфейсе в тёмной теме); не сохраняется в стиле. */
+  gridOnTop?: boolean;
   font: {
     /** Имя семейства (для SVG) — встроенный Roboto или загруженный пользователем шрифт. */
     family: string;
@@ -185,6 +187,28 @@ export function sanitizeStyle(input: unknown): ChartStyle {
     grid: {
       angleStep: [5, 10, 15, 30].includes(s.grid?.angleStep as number) ? (s.grid!.angleStep as number) : d.grid.angleStep,
       angleLabelEvery: num(s.grid?.angleLabelEvery, d.grid.angleLabelEvery, 1, 6),
+    },
+  };
+}
+
+/**
+ * Стиль для графиков в интерфейсе (кроме вкладок «Полярная КСС» и «Декартова КСС»): прозрачный фон.
+ * В тёмной теме (dark): заливка — как на белом фоне, сетка серая поверх заливки, кривые средне-серые
+ * (той же толщины), подписи светлые.
+ */
+export function screenStyle(s: ChartStyle, dark = false): ChartStyle {
+  if (!dark) return { ...s, colors: { ...s.colors, background: null } };
+  const gray = (v: number): Color => ({ rgb: [v, v, v], cmyk: [0, 0, 0, Math.round(100 - (v / 255) * 100)] });
+  return {
+    ...s,
+    gridOnTop: true,
+    colors: {
+      ...s.colors,
+      background: null,
+      text: gray(214),
+      grid: gray(138),
+      gridMajor: gray(138),
+      series: s.colors.series.map(() => gray(144)),
     },
   };
 }

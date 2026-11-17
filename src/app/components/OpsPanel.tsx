@@ -5,7 +5,7 @@ import { buildPolar } from '../../charts/polar';
 import { renderSvg } from '../../charts/render-svg';
 import { approxTextWidth } from '../../charts/scene';
 import { defaultPlanes } from '../../charts/series';
-import type { ChartStyle } from '../../charts/style';
+import { screenStyle, type ChartStyle } from '../../charts/style';
 import {
   applyWork,
   naturalSteps,
@@ -27,9 +27,10 @@ import type { ChartSettings } from '../App';
 import { liveCount, stateOf, workOf, type DocState, type LiveResult, type OpenFile } from '../doc';
 import { screenFamily, type LoadedFonts } from '../fonts';
 import { createCameraLink, housingBox, type View3D } from '../../charts/body3d';
-import { Body3D, Fallback, HousingToggle, useHousingPref, ViewPill } from './Body3DTab';
+import { Body3D, Fallback, HousingToggle, useHousingPref, ViewButtons } from './Body3DTab';
 import { NumField } from './NumField';
 import { Select } from './Select';
+import { useDarkTheme } from '../theme';
 
 /** Группы панели — в порядке применения. */
 export type OpKind = 'mirror' | 'rotate' | 'symmetrize' | 'smooth' | 'sum' | 'regrid';
@@ -243,6 +244,16 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   const [custom, setCustom] = useState(false);
   const [nonce, setNonce] = useState(0);
   const link = useMemo(createCameraLink, []);
+  // 3D — квадрат: высота = ширина колонки
+  const sq = useRef<HTMLDivElement>(null);
+  const [h3d, setH3d] = useState(400);
+  useEffect(() => {
+    const el = sq.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setH3d(Math.max(200, Math.round(el.clientWidth))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [showHousing, setShowHousing] = useHousingPref();
 
   const secondFile = prm.second ? files.find((f) => f.id === prm.second) ?? null : null;
@@ -344,14 +355,15 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   }, [rev]);
 
   const measure = useMemo(() => (fonts ? fontMeasure(fonts.set) : approxTextWidth), [fonts]);
+  const dark = useDarkTheme();
   const planes = useMemo(() => {
     const set = new Set<number>([...defaultPlanes(p), ...defaultPlanes(shown.p)]);
     return [...set].sort((a, b) => a - b).slice(0, 6);
   }, [p, shown]);
   const chart = (ph: Photometry, sm: PhotometrySummary) =>
-    renderSvg(buildPolar(ph, sm, { ...settings, planes, width: settings.width, title: '' }, style, measure), { screenFamily: screenFamily(fonts) });
-  const before = useMemo(() => chart(work.dense, s), [work, s, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
-  const after = useMemo(() => chart(shown.work.dense, shown.summary), [shown, planes, settings, style, measure]); // eslint-disable-line react-hooks/exhaustive-deps
+    renderSvg(buildPolar(ph, sm, { ...settings, planes, width: settings.width, title: '' }, screenStyle(style, dark), measure), { screenFamily: screenFamily(fonts) });
+  const before = useMemo(() => chart(work.dense, s), [work, s, planes, settings, style, measure, dark]); // eslint-disable-line react-hooks/exhaustive-deps
+  const after = useMemo(() => chart(shown.work.dense, shown.summary), [shown, planes, settings, style, measure, dark]); // eslint-disable-line react-hooks/exhaustive-deps
   const housingBefore = useMemo(() => housingBox(p), [p]);
   const housingAfter = useMemo(() => housingBox(shown.p), [shown]);
   const scale3d = Math.max(s.peak.value, shown.summary.peak.value) || 1;
@@ -547,14 +559,14 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
             {([['before', before, work.dense, housingBefore, s, p], ['after', after, shown.work.dense, housingAfter, shown.summary, shown.p]] as const).map(([k, svg, dense, housing, sm, ph]) => (
               <figure key={k}>
                 <figcaption>{t(`ops.${k}`)}</figcaption>
-                <div className="paper b3d-wrap ops-3d">
-                  <ViewPill view={view} custom={custom} onView={(v) => { setView(v); setCustom(false); setNonce(nonce + 1); }} />
+                <div className="paper b3d-wrap ops-3d" ref={k === 'before' ? sq : undefined}>
+                  <ViewButtons view={view} custom={custom} onView={(v) => { setView(v); setCustom(false); setNonce(nonce + 1); }} />
                   <HousingToggle on={showHousing} available={!!housing} onToggle={setShowHousing} />
-                  <Suspense fallback={<Fallback height={400} />}>
-                    <Body3D photometry={dense} scale={scale3d} planes={planes} housing={showHousing ? housing : null} view={view} viewNonce={nonce} link={link} height={400} onUserMove={() => setCustom(true)} />
+                  <Suspense fallback={<Fallback height={h3d} />}>
+                    <Body3D photometry={dense} scale={scale3d} planes={planes} housing={showHousing ? housing : null} view={view} viewNonce={nonce} link={link} height={h3d} onUserMove={() => setCustom(true)} />
                   </Suspense>
                 </div>
-                <div className="paper ops-polar" dangerouslySetInnerHTML={{ __html: svg }} />
+                <div className="paper ops-polar screen-chart" dangerouslySetInnerHTML={{ __html: svg }} />
                 {stats(sm, ph)}
               </figure>
             ))}

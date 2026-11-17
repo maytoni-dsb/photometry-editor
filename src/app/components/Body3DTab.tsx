@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Select } from './Select';
 import { housingBox, VIEWS, type View3D } from '../../charts/body3d';
 import { defaultPlanes } from '../../charts/series';
 import type { Lang } from '../../core/index';
@@ -12,23 +11,27 @@ import { load, save } from '../storage';
 export const Body3D = lazy(() => import('./Body3D'));
 
 /**
- * Вид 3D — «таблетка» с выпадающим списком поверх области построения. После поворота мышью
- * показывает «Произвольно»; выбор вида возвращает камеру в него.
+ * Вид 3D — кнопки поверх области построения: изометрия (тренога осей), XZ, YZ, XY.
+ * После поворота мышью ни одна не нажата; нажатие возвращает камеру в вид.
  */
-export function ViewPill({ view, custom = false, onView }: { view: View3D; custom?: boolean; onView: (v: View3D) => void }) {
+export function ViewButtons({ view, custom = false, onView }: { view: View3D; custom?: boolean; onView: (v: View3D) => void }) {
   const { t } = useTranslation();
   return (
-    <div className="viewpill">
-      <Select value={custom ? 'custom' : view} onChange={(e) => e.target.value !== 'custom' && onView(e.target.value as View3D)} aria-label={t('b3d.view')}>
-        {VIEWS.map((v) => (
-          <option key={v} value={v}>{t(`b3d.view_${v}`)}</option>
-        ))}
-        {custom && (
-          <option value="custom" disabled>
-            {t('b3d.view_custom')}
-          </option>
-        )}
-      </Select>
+    <div className="viewbtns" role="group" aria-label={t('b3d.view')}>
+      {VIEWS.map((v) => {
+        const on = !custom && v === view;
+        return (
+          <button key={v} className={on ? 'on' : ''} aria-pressed={on} onClick={() => onView(v)} title={t(`b3d.viewHint_${v}`)} aria-label={t(`b3d.view_${v}`)}>
+            {v === 'iso' ? (
+              <svg viewBox="0 0 22 22" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                <path d="M11 12V4M11 12l7 3.5M11 12l-7 3.5" />
+              </svg>
+            ) : (
+              v.toUpperCase()
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -107,7 +110,7 @@ export function Body3DTab({ file, settings }: { file: OpenFile; settings: ChartS
         </fieldset>
       </aside>
       <div className="chart-stage b3d-stage b3d-wrap">
-        <ViewPill view={view} custom={custom} onView={(v) => { setView(v); setCustom(false); setNonce(nonce + 1); }} />
+        <ViewButtons view={view} custom={custom} onView={(v) => { setView(v); setCustom(false); setNonce(nonce + 1); }} />
         <HousingToggle on={showHousing} available={!!housing} onToggle={setShowHousing} />
         <Suspense fallback={<Fallback height={620} />}>
           <Body3D photometry={s.asC} planes={planes} housing={showHousing ? housing : null} view={view} viewNonce={nonce} height={620} onUserMove={() => setCustom(true)} />
