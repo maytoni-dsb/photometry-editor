@@ -41,7 +41,7 @@ const OP_ICONS: Record<OpKind, string> = {
   rotate: 'M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4',
   symmetrize: 'M12 3v18M12 5c-4 0-7 3-7 7s3 7 7 7M12 5c4 0 7 3 7 7s-3 7-7 7',
   smooth: 'M3 15c3 0 3-6 6-6s3 6 6 6 3-6 6-6',
-  regrid: 'M4 4h16v16H4zM4 9.3h16M4 14.6h16M9.3 4v16M14.6 4v16',
+  regrid: 'M3 6h18M4 6a8 8 0 0 0 16 0M8 6a4 4 0 0 0 8 0M12 6v8M12 6l-5.7 5.7M12 6l5.7 5.7',
   sum: 'M12 5v14M5 12h14',
 };
 
@@ -125,6 +125,8 @@ function rotateLabel(t: (k: string, o?: Record<string, unknown>) => string, lang
 
 /** Параметры панели; по умолчанию — значения, которые ничего не меняют (от состояния base). */
 interface Params {
+  /** Порядок применения — в каком порядке операции были заданы (сброшенная к умолчанию выпадает). */
+  order: OpKind[];
   mirror: MirrorPlane[];
   rot: { x: string; y: string; z: string };
   sym: SymKey[];
@@ -143,6 +145,7 @@ function neutral(base: DocState): Params {
   const st = naturalSteps(base.summary.asC);
   const v = base.summary.asC.vAngles;
   return {
+    order: [],
     mirror: [],
     rot: { x: '0', y: '0', z: '0' },
     sym: [],
@@ -169,7 +172,7 @@ let sessionSeq = 0;
 /**
  * Панель «Операции» в духе панели управления InDesign: все операции сразу, компактно.
  * Изменение поля — через паузу результат пишется в историю: по шагу на каждую операцию с ненейтральными
- * параметрами, в порядке панели (отражение → поворот → симметрия → сглаживание → сложение → сетка).
+ * параметрами, в том порядке, в каком операции были заданы (Params.order).
  * Пока поля меняются, эти шаги пересобираются от одного исходного состояния; отмена, другая правка
  * или другой файл начинают новый сеанс с полями по умолчанию.
  */
@@ -198,8 +201,39 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   const [rev, setRev] = useState(0);
   /** Изменение поля пользователем — после паузы результат пишется в историю. */
   const set = (patch: Partial<Params>) => {
-    setPrm((x) => ({ ...x, ...patch }));
+    setPrm((x) => {
+      const n = { ...x, ...patch };
+      const order = n.order.filter((k) => isActive(k, n));
+      for (const k of OP_KINDS) if (!order.includes(k) && isActive(k, n)) order.push(k);
+      return { ...n, order };
+    });
     setRev((r) => r + 1);
+  };
+  /** Операция задана (параметры не по умолчанию; неверное число — тоже задана, чтобы показать ошибку). */
+  const isActive = (k: OpKind, n: Params): boolean => {
+    const eq = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
+    const zero = (x: string) => {
+      const v = num(x);
+      return Number.isFinite(v) && Math.abs(v % 360) < 1e-9;
+    };
+    switch (k) {
+      case 'mirror':
+        return n.mirror.length > 0;
+      case 'rotate':
+        return !(zero(n.rot.x) && zero(n.rot.y) && zero(n.rot.z));
+      case 'symmetrize':
+        return symOf(n.sym) != null;
+      case 'smooth': {
+        const w = num(n.sWidth);
+        return !(Number.isFinite(w) && w <= 0);
+      }
+      case 'regrid': {
+        const v = s.asC.vAngles;
+        return !(eq(num(n.cStep), steps.cStep) && eq(num(n.gStep), steps.gStep) && n.gr === `${v[0]}-${v[v.length - 1]}`);
+      }
+      case 'sum':
+        return !!(n.second && n.rowB);
+    }
   };
   const [dropOver, setDropOver] = useState(false);
   const [dropErr, setDropErr] = useState<string | null>(null);
@@ -235,40 +269,54 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
     };
     const eq = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
     try {
-      for (const m of MIRRORS) if (prm.mirror.includes(m)) run([{ op: 'mirror', plane: m }], opLabel(t, lang, { op: 'mirror', plane: m }));
-      if (rotSteps.length) {
-        const list = rotSteps.map((r) => ({ op: 'rotate' as const, axis: r.axis, angle: r.angle }));
-        run(list, list.length === 1 ? opLabel(t, lang, list[0]) : rotateLabel(t, lang, rotSteps));
-      }
-      const sym = symOf(prm.sym);
-      if (sym) run([{ op: 'symmetrize', symmetry: sym }], opLabel(t, lang, { op: 'symmetrize', symmetry: sym }));
-      const sw = num(prm.sWidth);
-      if (!(Number.isFinite(sw) && sw <= 0)) {
-        const sp: OpSpec = { op: 'smooth', width: sw, keepFlux: prm.keepFlux };
-        run([sp], opLabel(t, lang, sp));
-      }
-      if (secondFile && prm.rowB) {
-        const r = sumWorks([
-          { work: w, weight: sumWeight(base, prm.rowA), rotations: [], offset: { x: 0, y: 0, z: 0 } },
-          {
-            work: workOf(secondFile),
-            weight: sumWeight(secondFile, prm.rowB),
-            rotations: (['x', 'y', 'z'] as const).map((a) => ({ axis: a, angle: num(prm.rowB![`r${a}`]) || 0 })).filter((x) => x.angle !== 0),
-            offset: { x: 0, y: 0, z: 0 },
-          },
-        ]);
-        w = r.work;
-        ph = r.photometry;
-        out.push({ p: ph, issues: r.issues, label: t('ops.label.sumWith', { name: secondFile.name }), work: w });
-      }
-      const c = num(prm.cStep);
-      const g = num(prm.gStep);
-      const [a, b] = prm.gr.split('-').map(Number);
-      const v = s.asC.vAngles;
-      const keep = eq(a, v[0]) && eq(b, v[v.length - 1]);
-      if (!(eq(c, steps.cStep) && eq(g, steps.gStep) && keep)) {
-        const sp: OpSpec = keep ? { op: 'regrid', cStep: c, gStep: g } : { op: 'regrid', cStep: c, gStep: g, gRange: [a, b] };
-        run([sp], opLabel(t, lang, sp) + (keep ? '' : `, γ ${fmtNum(lang, a)}…${fmtNum(lang, b)}°`));
+      for (const k of prm.order) {
+        switch (k) {
+          case 'mirror':
+            for (const m of MIRRORS) if (prm.mirror.includes(m)) run([{ op: 'mirror', plane: m }], opLabel(t, lang, { op: 'mirror', plane: m }));
+            break;
+          case 'rotate': {
+            if (!rotSteps.length) break;
+            const list = rotSteps.map((r) => ({ op: 'rotate' as const, axis: r.axis, angle: r.angle }));
+            run(list, list.length === 1 ? opLabel(t, lang, list[0]) : rotateLabel(t, lang, rotSteps));
+            break;
+          }
+          case 'symmetrize': {
+            const sym = symOf(prm.sym);
+            if (sym) run([{ op: 'symmetrize', symmetry: sym }], opLabel(t, lang, { op: 'symmetrize', symmetry: sym }));
+            break;
+          }
+          case 'smooth': {
+            const sp: OpSpec = { op: 'smooth', width: num(prm.sWidth), keepFlux: prm.keepFlux };
+            run([sp], opLabel(t, lang, sp));
+            break;
+          }
+          case 'sum': {
+            if (!secondFile || !prm.rowB) break;
+            const r = sumWorks([
+              { work: w, weight: sumWeight(base, prm.rowA), rotations: [], offset: { x: 0, y: 0, z: 0 } },
+              {
+                work: workOf(secondFile),
+                weight: sumWeight(secondFile, prm.rowB),
+                rotations: (['x', 'y', 'z'] as const).map((a) => ({ axis: a, angle: num(prm.rowB![`r${a}`]) || 0 })).filter((x) => x.angle !== 0),
+                offset: { x: 0, y: 0, z: 0 },
+              },
+            ]);
+            w = r.work;
+            ph = r.photometry;
+            out.push({ p: ph, issues: r.issues, label: t('ops.label.sumWith', { name: secondFile.name }), work: w });
+            break;
+          }
+          case 'regrid': {
+            const c = num(prm.cStep);
+            const g = num(prm.gStep);
+            const [a, b] = prm.gr.split('-').map(Number);
+            const v = s.asC.vAngles;
+            const keep = eq(a, v[0]) && eq(b, v[v.length - 1]);
+            const sp: OpSpec = keep ? { op: 'regrid', cStep: c, gStep: g } : { op: 'regrid', cStep: c, gStep: g, gRange: [a, b] };
+            run([sp], opLabel(t, lang, sp) + (keep ? '' : `, γ ${fmtNum(lang, a)}…${fmtNum(lang, b)}°`));
+            break;
+          }
+        }
       }
       return { steps: out };
     } catch (e) {
@@ -373,7 +421,7 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
     return t('ops.hintXY', { c: fmtNum(lang, d.c), g: fmtNum(lang, d.g) });
   };
 
-  // ——— панель — одна сетка 2 × 14: колонки общие для обеих строк, поэтому пиктограммы, поля и кнопки стоят друг под другом
+  // ——— панель — четыре блока по две строки (сетки), между ними разделители; внутри блока поля и кнопки стоят друг под другом
   //  1 [пикт.] 2–3 [поток / отражение] │ 4 [пикт.] 5–7 [X Y Z] │ 8 [пикт.] 9–11 [три колонки] │ 12 [пикт.] 13 [поле] 14 [кнопка]
   const at = (row: number, col: number, span = 1) => ({ gridRow: row, gridColumn: span > 1 ? `${col} / span ${span}` : col });
   /** Кнопки-переключатели (повторное нажатие отжимает); каждая — над своей колонкой полей. */
@@ -399,14 +447,14 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
     </span>
   );
   /** Ячейка: короткая подпись слева и поле на всю оставшуюся ширину. */
-  const cell = (row: number, col: number, label: React.ReactNode, field: React.ReactNode, title?: string, cls = '') => (
-    <span className={`ccell ${cls}`} style={at(row, col)} title={title}>
+  const cell = (row: number, col: number, label: React.ReactNode, field: React.ReactNode, title?: string, span = 1) => (
+    <span className="ccell" style={at(row, col, span)} title={title}>
       {label != null && <span className="oplabel">{label}</span>}
       {field}
     </span>
   );
-  const axisField = (row: number, col: number, a: 'x' | 'y' | 'z', value: string, onChange: (v: string) => void, disabled = false) =>
-    cell(row, col, a.toUpperCase(), <NumField value={value} onChange={onChange} step={1} unit="°" inlineUnit width="100%" disabled={disabled} aria-label={`${t('ops.rot')} ${a.toUpperCase()}`} />);
+  const axisField = (row: number, col: number, a: 'x' | 'y' | 'z', value: string, onChange: (v: string) => void, disabled = false, span = 1) =>
+    cell(row, col, a.toUpperCase(), <NumField value={value} onChange={onChange} step={1} unit="°" inlineUnit width="100%" disabled={disabled} aria-label={`${t('ops.rot')} ${a.toUpperCase()}`} />, undefined, span);
   const v = s.asC.vAngles;
   const rowB = prm.rowB;
   const fluxTitle = (f: { summary: PhotometrySummary }, r: SumRow) => t('ops.weightKHint', { own: fmtNum(lang, f.summary.flux.total, 0), k: fmtNum(lang, sumWeight(f, r) || 0, 3) });
@@ -416,27 +464,30 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
     <div className="ops-layout">
       <div className="ops-main">
         <section className={`ops-editor ctrlpanel${chain.error || dropErr ? ' bad' : ''}`} title={chain.error ?? dropErr ?? undefined}>
-          <div className="cgrid">
-            {/* строка 1: отражение · поворот · симметрия · сглаживание */}
+          {/* блок 1: отражение / поворот */}
+          <div className="cgrid g-mr">
             {icon(1, 1, 'mirror')}
-            {seg(1, 2, MIRRORS, (m) => prm.mirror.includes(m), (m) => set({ mirror: prm.mirror.includes(m) ? prm.mirror.filter((x) => x !== m) : [...prm.mirror, m] }), (m) => t(`ops.mirrorBtn_${m}`), (m) => t(`ops.mirror_${m}`), 2)}
-            {icon(1, 4, 'rotate', { sep: true, title: rotHint() })}
-            {AX.map((a, i) => <Fragment key={a}>{axisField(1, 5 + i, a, prm.rot[a], (x) => set({ rot: { ...prm.rot, [a]: x } }))}</Fragment>)}
-            {icon(1, 8, 'symmetrize', { sep: true })}
+            {seg(1, 2, MIRRORS, (m) => prm.mirror.includes(m), (m) => set({ mirror: prm.mirror.includes(m) ? prm.mirror.filter((x) => x !== m) : [...prm.mirror, m] }), (m) => t(`ops.mirrorBtn_${m}`), (m) => t(`ops.mirror_${m}`))}
+            {icon(2, 1, 'rotate', { title: rotHint() })}
+            {AX.map((a, i) => <Fragment key={a}>{axisField(2, 2 + i, a, prm.rot[a], (x) => set({ rot: { ...prm.rot, [a]: x } }))}</Fragment>)}
+          </div>
+          {/* блок 2: симметрия / сглаживание */}
+          <div className="cgrid g-ss">
+            {icon(1, 1, 'symmetrize')}
             {seg(
               1,
-              9,
+              2,
               ['axial', 'c0c180', 'c90c270'] as const,
               (m) => prm.sym.includes(m),
               (m) => set({ sym: prm.sym.includes(m) ? prm.sym.filter((x) => x !== m) : m === 'axial' ? ['axial'] : [...prm.sym.filter((x) => x !== 'axial'), m] }),
               (m) => t(`ops.symBtn_${m}`),
               (m) => t(`ops.sym_${m}`),
             )}
-            {icon(1, 12, 'smooth', { sep: true })}
-            {cell(1, 13, null, <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" inlineUnit width="100%" aria-label={t('ops.smoothWidth')} />, t('ops.smoothWidth'))}
+            {icon(2, 1, 'smooth')}
+            {cell(2, 2, null, <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" inlineUnit width="100%" aria-label={t('ops.smoothWidth')} />, t('ops.smoothWidth'), 2)}
             <button
               className={`ctoggle${prm.keepFlux ? ' on' : ''}`}
-              style={at(1, 14)}
+              style={at(2, 4)}
               aria-pressed={prm.keepFlux}
               onClick={() => set({ keepFlux: !prm.keepFlux })}
               title={t('ops.keepFlux')}
@@ -447,11 +498,25 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
                 <path d={prm.keepFlux ? 'M8 11V8a4 4 0 0 1 8 0v3' : 'M8 11V8a4 4 0 0 1 7.5-2'} />
               </svg>
             </button>
-
-            {/* строка 2: сложение (пиктограмма — место для второго файла; его поток и поворот — под полями поворота) · смена сетки */}
+          </div>
+          {/* блок 3: смена сетки — шаги сверху, пределы γ снизу */}
+          <div className="cgrid g-rg">
+            {icon(1, 1, 'regrid')}
+            {cell(1, 2, 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" inlineUnit disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
+            {cell(1, 3, 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" inlineUnit width="100%" aria-label={t('ops.gStep')} />)}
+            <span className="ccell" style={at(2, 2, 2)}>
+              <Select value={prm.gr} onChange={(e) => set({ gr: e.target.value })} className="cpill" aria-label={t('ops.gRangeTitle')} title={t('ops.gRangeTitle')}>
+                {[...new Set([`${v[0]}-${v[v.length - 1]}`, '0-90', '0-180'])].sort((x, y) => Number(x.split('-')[1]) - Number(y.split('-')[1]) || Number(x.split('-')[0]) - Number(y.split('-')[0])).map((k) => (
+                  <option key={k} value={k}>γ {k.replace('-', '–')}°</option>
+                ))}
+              </Select>
+            </span>
+          </div>
+          {/* блок 4: сложение — «＋» (место второго файла) и потоки, под ними поворот второго файла */}
+          <div className="cgrid g-sum">
             <span
               className={`cicon csum${dropOver ? ' over' : ''}${secondFile ? ' full' : ''}`}
-              style={at(2, 1)}
+              style={at(1, 1)}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDropOver(true); }}
               onDragLeave={() => setDropOver(false)}
               onDrop={(e) => void onDrop(e)}
@@ -471,24 +536,9 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
               )}
               <input ref={fileInput} type="file" accept=".ies,.ldt,.IES,.LDT" hidden onChange={(e) => { if (e.target.files) void addFromDisk(e.target.files); e.target.value = ''; }} />
             </span>
-            {cell(2, 2, null, <NumField value={prm.rowA.flux} onChange={(x) => set({ rowA: { ...prm.rowA, flux: x } })} def={Math.round(s.flux.total * 10) / 10} min={0} step={10} unit={t('unit.lm')} inlineUnit width="100%" disabled={!secondFile} aria-label={t('ops.sumFluxA')} />, secondFile ? `${t('ops.sumFluxA')} · ${fluxTitle(base, prm.rowA)}` : t('ops.sumFluxA'))}
-            {cell(2, 3, null, <NumField value={rowB?.flux ?? ''} onChange={(x) => rowB && set({ rowB: { ...rowB, flux: x } })} def={secondFile ? Math.round(secondFile.summary.flux.total * 10) / 10 : 0} min={0} step={10} unit={t('unit.lm')} inlineUnit width="100%" disabled={!rowB} aria-label={t('ops.sumFluxB')} />, secondFile && rowB ? `${t('ops.sumFluxB')} · ${fluxTitle(secondFile, rowB)}` : t('ops.sumFluxB'))}
-            {secondFile && rowB && (
-              <>
-                {icon(2, 4, 'rotate', { small: true })}
-                {AX.map((a, i) => <Fragment key={a}>{axisField(2, 5 + i, a, rowB[`r${a}`], (x) => set({ rowB: { ...rowB, [`r${a}`]: x } }))}</Fragment>)}
-              </>
-            )}
-            {icon(2, 8, 'regrid', { sep: true })}
-            {cell(2, 9, 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" inlineUnit disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
-            {cell(2, 10, 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" inlineUnit width="100%" aria-label={t('ops.gStep')} />)}
-            <span className="ccell" style={at(2, 11, 3)}>
-            <Select value={prm.gr} onChange={(e) => set({ gr: e.target.value })} className="cpill" aria-label={t('ops.gRangeTitle')} title={t('ops.gRangeTitle')}>
-              {[...new Set([`${v[0]}-${v[v.length - 1]}`, '0-90', '0-180'])].sort((x, y) => Number(x.split('-')[1]) - Number(y.split('-')[1]) || Number(x.split('-')[0]) - Number(y.split('-')[0])).map((k) => (
-                <option key={k} value={k}>γ {k.replace('-', '–')}°</option>
-              ))}
-            </Select>
-            </span>
+            {cell(1, 2, null, <NumField value={prm.rowA.flux} onChange={(x) => set({ rowA: { ...prm.rowA, flux: x } })} def={Math.round(s.flux.total * 10) / 10} min={0} step={10} unit={t('unit.lm')} inlineUnit width="100%" disabled={!secondFile} aria-label={t('ops.sumFluxA')} />, secondFile ? `${t('ops.sumFluxA')} · ${fluxTitle(base, prm.rowA)}` : t('ops.sumFluxA'), 3)}
+            {cell(1, 5, null, <NumField value={rowB?.flux ?? ''} onChange={(x) => rowB && set({ rowB: { ...rowB, flux: x } })} def={secondFile ? Math.round(secondFile.summary.flux.total * 10) / 10 : 0} min={0} step={10} unit={t('unit.lm')} inlineUnit width="100%" disabled={!rowB} aria-label={t('ops.sumFluxB')} />, secondFile && rowB ? `${t('ops.sumFluxB')} · ${fluxTitle(secondFile, rowB)}` : t('ops.sumFluxB'), 3)}
+            {AX.map((a, i) => <Fragment key={a}>{axisField(2, 2 + i * 2, a, rowB?.[`r${a}`] ?? '0', (x) => rowB && set({ rowB: { ...rowB, [`r${a}`]: x } }), !rowB, 2)}</Fragment>)}
           </div>
         </section>
 
