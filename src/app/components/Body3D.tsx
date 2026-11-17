@@ -301,7 +301,7 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
       const boxGeo =
         h.shape === 'circle'
           ? new THREE.CylinderGeometry(h.length / 2, h.length / 2, h.height, 48)
-          : new THREE.BoxGeometry(h.length, h.height, h.width);
+          : new THREE.BoxGeometry(h.width, h.height, h.length); // ширина — вдоль C0 (X), длина — вдоль C90 (Y)
       const box = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({ color: dark ? 0x5a5a5a : 0xb8b8b8 }));
       box.position.set(0, h.height / 2, 0);
       c.body.add(box);
@@ -312,7 +312,7 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
         const lgeo =
           h.luminous.shape === 'circle'
             ? new THREE.CircleGeometry(h.luminous.length / 2, 48)
-            : new THREE.PlaneGeometry(h.luminous.length, h.luminous.width);
+            : new THREE.PlaneGeometry(h.luminous.width, h.luminous.length);
         const lum = new THREE.Mesh(lgeo, new THREE.MeshBasicMaterial({ color: 0xfff6c8, side: THREE.DoubleSide }));
         lum.rotation.x = Math.PI / 2;
         lum.position.y = -0.0015;

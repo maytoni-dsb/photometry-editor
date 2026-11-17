@@ -119,6 +119,9 @@
     "gridText": "{{hName}}: {{nh}} Winkel, Δ{{hName}} {{dh}} · {{vName}}: {{nv}} Winkel, Δ{{vName}} {{dv}}, {{v0}}–{{v1}}°",
     "stepVaries": "variabel",
     "fluxDown": "Lichtstromanteil nach unten",
+    "cutLower": "γ auf 0…90° kürzen",
+    "cutLowerHint": "Lichtstrom nach oben ist 0 %: der γ-Bereich kann ohne Lichtverlust auf 0…90° gekürzt werden",
+    "cutLowerLabel": "γ-Bereich 0…90°",
     "sources": "Lichtquellen",
     "lampTypeHint": "LED / Lampenartikel",
     "addSource": "Quelle hinzufügen",
@@ -437,7 +440,8 @@
     "sumRemove": "Zweite Datei entfernen",
     "sumFluxA": "Lichtstrom der aktuellen Datei",
     "sumFluxB": "Lichtstrom der zweiten Datei",
-    "gRangeTitle": "γ-Bereich"
+    "gRangeTitle": "γ-Bereich",
+    "gRangeHint": "Lichtstrom nach oben 0 % — γ 0–90° empfohlen"
   },
   "b3d": {
     "title": "3D-Lichtstärkekörper",

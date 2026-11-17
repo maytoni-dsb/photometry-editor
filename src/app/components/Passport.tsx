@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { canCutToLower, naturalSteps } from '../../core/index';
 import type { Dimensions, Lang, LampSet, Metadata, OpSpec, Photometry } from '../../core/index';
 import type { OpenFile } from '../doc';
 import { LuminaireDrawing } from './LuminaireDrawing';
@@ -323,7 +324,26 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
                       def={r1(orig.summary.lor ?? 100)}
                     />,
                   )}
-              {kv(t('passport.fluxDown'), `${n(s.dlor)} %`)}
+              {kv(
+                t('passport.fluxDown'),
+                canCutToLower(s) && !isB ? (
+                  <span className="cutlower">
+                    {`${n(s.dlor)} %`}
+                    <button
+                      className="linkbtn"
+                      title={t('passport.cutLowerHint')}
+                      onClick={() => {
+                        const st = naturalSteps(s.asC);
+                        onOp({ op: 'regrid', cStep: st.cStep, gStep: 90 / Math.max(1, Math.round(90 / st.gStep)), gRange: [0, 90] }, t('passport.cutLowerLabel'));
+                      }}
+                    >
+                      {t('passport.cutLower')}
+                    </button>
+                  </span>
+                ) : (
+                  `${n(s.dlor)} %`
+                ),
+              )}
               {kv(t('passport.efficacy'), s.efficacy != null ? `${n(s.efficacy)} ${t('unit.lmw')}` : '')}
               {p.ies && kv(t('passport.multiplier'), n(p.ies.multiplier, 6))}
               {p.ies && p.ies.tilt !== 'NONE' && kv(t('passport.tilt'), p.ies.tilt)}

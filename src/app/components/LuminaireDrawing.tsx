@@ -19,7 +19,8 @@ interface Box {
   H: number;
 }
 
-const boxOf = (d: Dimensions): Box => ({ circle: d.shape === 'circle', L: d.length, W: d.shape === 'circle' ? d.length : d.width, H: d.height });
+/** L — размер вдоль X (C0–C180) = ширина модели, W — вдоль Y (C90–C270) = длина модели. */
+const boxOf = (d: Dimensions): Box => ({ circle: d.shape === 'circle', L: d.shape === 'circle' ? d.length : d.width, W: d.length, H: d.height });
 
 export function drawingData(p: Photometry): { body: Box; lum: Box | null; heights: [number, number, number, number] | null } | null {
   const hasLuminaire = p.luminaire.shape !== 'point' && p.luminaire.length > 0;
@@ -175,8 +176,8 @@ export function LuminaireDrawing({ photometry }: { photometry: Photometry }) {
   if (!body.circle) {
     const x = L / 2;
     const y = W / 2;
-    dim([-x, -y, 0], [x, -y, 0], [0, -1, 0], body.L); // длина — по ребру на силуэте
-    dim([-x, -y, 0], [-x, y, 0], [-1, 0, 0], body.W); // ширина
+    dim([-x, -y, 0], [x, -y, 0], [0, -1, 0], body.L); // вдоль C0 — ширина модели
+    dim([-x, -y, 0], [-x, y, 0], [-1, 0, 0], body.W); // вдоль C90 — длина модели
     if (body.H > 0) dim([x, -y, 0], [x, -y, H], [0, -1, 0], body.H); // высота
   } else {
     const R = L / 2;

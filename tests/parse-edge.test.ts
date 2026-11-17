@@ -63,9 +63,11 @@ describe('IES: терпимое чтение', () => {
     expect(p.meta.luminaireName).toBe('A');
     expect(p.candela[0]).toEqual([100, 20]);
     expect(p.ies?.tiltData?.factors).toEqual([1, 0.9, 0.8]);
-    // единицы — футы → мм
-    expect(p.luminous.length).toBeCloseTo(609.6, 6);
+    // единицы — футы → мм; IES width (1 фут, вдоль C90) — длина модели, IES length (2 фута, вдоль C0) — ширина
+    expect(p.luminous.length).toBeCloseTo(304.8, 6);
+    expect(p.luminous.width).toBeCloseTo(609.6, 6);
     const back = parseIES(writeIES(p)).photometry;
+    expect(back.luminous).toMatchObject({ length: 304.8, width: 609.6 });
     expect(back.ies?.tiltData?.angles).toEqual([0, 45, 90]);
     expect(back.candela[0]).toEqual([100, 20]);
   });

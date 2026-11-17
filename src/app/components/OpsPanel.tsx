@@ -9,6 +9,7 @@ import { screenStyle, type ChartStyle } from '../../charts/style';
 import {
   applyWork,
   naturalSteps,
+  canCutToLower,
   OpError,
   rotatedDirection,
   sumWorks,
@@ -133,6 +134,8 @@ interface Params {
   sym: SymKey[];
   cStep: string;
   gStep: string;
+  /** Поля смены сетки трогали — до этого шаги по умолчанию (ΔC 5°, Δγ 1°) только показаны, сетка не меняется. */
+  rgOn: boolean;
   /** Диапазон γ «от-до» — таблетка: 0-90, 0-180 или как в файле. */
   gr: string;
   sWidth: string;
@@ -142,8 +145,13 @@ interface Params {
   rowB: SumRow | null;
 }
 
+/** Шаги смены сетки по умолчанию: ΔC = 5° (0° — осевая симметрия, одна плоскость C), Δγ = 1°. */
+export function defaultSteps(asC: Photometry): { cStep: number; gStep: number } {
+  return { cStep: asC.symmetry === 'axial' || asC.hAngles.length === 1 ? 0 : 5, gStep: 1 };
+}
+
 function neutral(base: DocState): Params {
-  const st = naturalSteps(base.summary.asC);
+  const st = defaultSteps(base.summary.asC);
   const v = base.summary.asC.vAngles;
   return {
     order: [],
@@ -152,6 +160,7 @@ function neutral(base: DocState): Params {
     sym: [],
     cStep: String(st.cStep),
     gStep: String(st.gStep),
+    rgOn: false,
     gr: `${v[0]}-${v[v.length - 1]}`,
     sWidth: '0',
     keepFlux: true,
@@ -199,6 +208,9 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   const s = base.summary;
   const work = useMemo(() => workOf(base), [base]);
   const steps = useMemo(() => naturalSteps(s.asC), [s.asC]);
+  const defSteps = useMemo(() => defaultSteps(s.asC), [s.asC]);
+  /** Поток в ВП 0 %, а диапазон γ шире 0…90° — подсказать сократить. */
+  const cutHint = canCutToLower(s) && prm.gr !== '0-90';
   const [rev, setRev] = useState(0);
   /** Изменение поля пользователем — после паузы результат пишется в историю. */
   const set = (patch: Partial<Params>) => {
@@ -229,8 +241,11 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
         return !(Number.isFinite(w) && w <= 0);
       }
       case 'regrid': {
+        // задана, только если поля трогали и сетка отличается от сетки файла
+        if (!n.rgOn) return false;
         const v = s.asC.vAngles;
-        return !(eq(num(n.cStep), steps.cStep) && eq(num(n.gStep), steps.gStep) && n.gr === `${v[0]}-${v[v.length - 1]}`);
+        const axial = defSteps.cStep === 0;
+        return !((axial || eq(num(n.cStep), steps.cStep)) && eq(num(n.gStep), steps.gStep) && n.gr === `${v[0]}-${v[v.length - 1]}`);
       }
       case 'sum':
         return !!(n.second && n.rowB);
@@ -244,15 +259,55 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   const [custom, setCustom] = useState(false);
   const [nonce, setNonce] = useState(0);
   const link = useMemo(createCameraLink, []);
-  // 3D — квадрат: высота = ширина колонки
+  // 3D — квадрат (высота = ширина колонки), но не выше, чем позволяет окно: страница без полосы прокрутки
   const sq = useRef<HTMLDivElement>(null);
   const [h3d, setH3d] = useState(400);
+  const h3dRef = useRef(400);
   useEffect(() => {
     const el = sq.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setH3d(Math.max(200, Math.round(el.clientWidth))));
+    const scroller = (() => {
+      const tab = el.closest<HTMLElement>('.tab-body');
+      if (tab) return tab;
+      for (let n = el.parentElement; n; n = n.parentElement) {
+        const o = getComputedStyle(n).overflowY;
+        if (o === 'auto' || o === 'scroll') return n;
+      }
+      return document.scrollingElement as HTMLElement;
+    })();
+    let raf = 0;
+    const fit = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const fig = el.closest('figure');
+        if (!fig) return;
+        const w = Math.round(el.clientWidth);
+        const cur = h3dRef.current;
+        const figR = fig.getBoundingClientRect();
+        const other = figR.height - cur; // подпись, полярная КСС, показатели
+        const doc = scroller === document.scrollingElement;
+        const top0 = doc ? 0 : scroller.getBoundingClientRect().top;
+        const figTop = figR.top - top0 + scroller.scrollTop; // верх рисунка от начала содержимого
+        const padB = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
+        const viewH = doc ? window.innerHeight : scroller.clientHeight;
+        const avail = viewH - padB - 8 - figTop - other;
+        const h = Math.max(160, Math.min(w, Math.floor(avail)));
+        if (Math.abs(h - cur) >= 1) {
+          h3dRef.current = h;
+          setH3d(h);
+        }
+      });
+    };
+    const ro = new ResizeObserver(fit);
     ro.observe(el);
-    return () => ro.disconnect();
+    ro.observe(scroller);
+    window.addEventListener('resize', fit);
+    fit();
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+    };
   }, []);
   const [showHousing, setShowHousing] = useHousingPref();
 
@@ -318,7 +373,7 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
             break;
           }
           case 'regrid': {
-            const c = num(prm.cStep);
+            const c = defSteps.cStep === 0 ? steps.cStep : num(prm.cStep);
             const g = num(prm.gStep);
             const [a, b] = prm.gr.split('-').map(Number);
             const v = s.asC.vAngles;
@@ -514,12 +569,12 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
           {/* блок 3: смена сетки — шаги сверху, пределы γ снизу */}
           <div className="cgrid g-rg">
             {icon(1, 1, 'regrid')}
-            {cell(1, 2, 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x })} def={steps.cStep} min={0} step={2.5} unit="°" inlineUnit disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
-            {cell(1, 3, 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x })} def={steps.gStep} min={0} step={0.5} unit="°" inlineUnit width="100%" aria-label={t('ops.gStep')} />)}
+            {cell(1, 2, 'ΔC', <NumField value={prm.cStep} onChange={(x) => set({ cStep: x, rgOn: true })} def={defSteps.cStep} min={0} step={2.5} unit="°" inlineUnit disabled={s.asC.symmetry === 'axial'} width="100%" aria-label={t('ops.cStep')} />)}
+            {cell(1, 3, 'Δγ', <NumField value={prm.gStep} onChange={(x) => set({ gStep: x, rgOn: true })} def={defSteps.gStep} min={0} step={0.5} unit="°" inlineUnit width="100%" aria-label={t('ops.gStep')} />)}
             <span className="ccell" style={at(2, 2, 2)}>
-              <Select value={prm.gr} onChange={(e) => set({ gr: e.target.value })} className="cpill" aria-label={t('ops.gRangeTitle')} title={t('ops.gRangeTitle')}>
+              <Select value={prm.gr} onChange={(e) => set({ gr: e.target.value, rgOn: true })} className={`cpill${cutHint ? ' hint' : ''}`} aria-label={t('ops.gRangeTitle')} title={cutHint ? t('ops.gRangeHint') : t('ops.gRangeTitle')}>
                 {[...new Set([`${v[0]}-${v[v.length - 1]}`, '0-90', '0-180'])].sort((x, y) => Number(x.split('-')[1]) - Number(y.split('-')[1]) || Number(x.split('-')[0]) - Number(y.split('-')[0])).map((k) => (
-                  <option key={k} value={k}>γ {k.replace('-', '–')}°</option>
+                  <option key={k} value={k}>γ {k.replace('-', '–')}°{cutHint && k === '0-90' ? ' ★' : ''}</option>
                 ))}
               </Select>
             </span>

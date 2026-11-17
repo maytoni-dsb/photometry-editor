@@ -62,3 +62,12 @@ export function summarize(p: Photometry): PhotometrySummary {
     gMax: asC.vAngles[asC.vAngles.length - 1] ?? 0,
   };
 }
+
+/**
+ * Поток в верхнюю полусферу — 0 % (с точностью показа 0,05 %), а данные идут дальше γ 90°:
+ * диапазон γ можно сократить до 0…90° без потери света.
+ */
+export function canCutToLower(s: PhotometrySummary): boolean {
+  const v = s.asC.vAngles;
+  return s.flux.total > 0 && 100 - s.dlor < 0.05 && v.length > 1 && v[0] < 90 && s.gMax > 90;
+}

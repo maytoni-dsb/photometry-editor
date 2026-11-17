@@ -47,7 +47,10 @@ export interface LampSet {
   watts: number | null;
 }
 
-/** Размеры в миллиметрах. Для круглой формы width = 0, length = диаметр. */
+/**
+ * Размеры в миллиметрах, как в LDT (EULUMDAT): длина — вдоль C90–C270, ширина — вдоль C0–C180 (плоскость C0
+ * поперёк длинной оси). Для круглой формы width = 0, length = диаметр. IES — наоборот, см. ies.ts.
+ */
 export interface Dimensions {
   shape: 'rect' | 'circle' | 'point' | 'other';
   length: number;

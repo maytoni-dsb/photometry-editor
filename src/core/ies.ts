@@ -30,6 +30,10 @@ const KNOWN: Record<string, keyof Photometry['meta']> = {
 const CCT_KEYS = ['_SEARCH_COLORTEMP', 'COLORTEMP', '_COLORTEMP', 'CCT'];
 const CRI_KEYS = ['_SEARCH_CRI', 'CRI', '_CRI'];
 
+/**
+ * Размеры из IES. В LM-63 длина (length) — вдоль C0–C180, ширина (width) — вдоль C90–C270; в модели — как в LDT:
+ * длина вдоль C90–C270, ширина вдоль C0–C180. Поэтому длина и ширина при чтении и записи IES меняются местами.
+ */
 function dimsFromIes(width: number, length: number, height: number, toMm: number): Dimensions {
   const w = width * toMm;
   const l = length * toMm;
@@ -39,7 +43,7 @@ function dimsFromIes(width: number, length: number, height: number, toMm: number
     const d = Math.max(Math.abs(w), Math.abs(l));
     return { shape: 'circle', length: d, width: 0, height: h };
   }
-  return { shape: 'rect', length: l, width: w, height: h };
+  return { shape: 'rect', length: w, width: l, height: h };
 }
 
 export function parseIES(input: string | Uint8Array, fileName = ''): ParseResult {
@@ -295,8 +299,9 @@ export function writeIES(p: Photometry, opts: WriteIesOptions = {}): string {
 
   // геометрия: всегда метры
   const lum = p.luminous;
-  let w = lum.width / 1000;
-  let l = lum.length / 1000;
+  // IES: width — вдоль C90–C270 (= длина модели), length — вдоль C0–C180 (= ширина модели)
+  let w = lum.length / 1000;
+  let l = lum.width / 1000;
   const h = lum.height / 1000;
   if (lum.shape === 'circle') {
     w = -lum.length / 1000;
