@@ -8,7 +8,6 @@ import type { ChartFormat, ChartKind } from '../../batch/charts';
 import type { NamingMode } from '../../batch/naming';
 import { parseStep, type Recipe } from '../../batch/recipe';
 import type { BatchJob, BatchProgress, BatchResult, FileFormat } from '../../batch/run';
-import { rowError, templateFromJson, type VariantRow, type VariantTemplate } from '../../batch/variants';
 import type { ChartSettings } from '../App';
 import { startBatch, type BatchRun } from '../batch-client';
 import { baseName, isModified, type OpenFile } from '../doc';
@@ -16,10 +15,14 @@ import type { LoadedFonts } from '../fonts';
 import { saveFile } from '../save-file';
 import { load, save } from '../storage';
 import { RecipeEditor } from './RecipeEditor';
-import { VariantEditor } from './VariantEditor';
+import { TableBatch } from './TableBatch';
 
-/** С чего открыть окно (пункты меню «Пакет»). */
+/** С чего открыть окно (пункты меню). */
 export type BatchPreset = 'all' | 'convert' | 'variants' | 'charts' | 'summary';
+
+/** Режимы окна: по таблице ImportData, сценарий (цепочка операций), экспорт графики. */
+export type BatchMode = 'table' | 'scenario' | 'charts';
+const MODES: BatchMode[] = ['table', 'scenario', 'charts'];
 
 export interface BatchInputFile {
   name: string;
@@ -76,19 +79,6 @@ function loadRecipes(): Recipe[] {
   return out;
 }
 
-function loadTemplates(): VariantTemplate[] {
-  const raw = load<unknown[]>('batch-variant-templates', []);
-  const out: VariantTemplate[] = [];
-  for (const x of raw) {
-    try {
-      out.push(templateFromJson(JSON.stringify(x)));
-    } catch {
-      /* пропускаем */
-    }
-  }
-  return out;
-}
-
 /** Открытый в редакторе файл → байты в исходном формате (с учётом сделанных операций). */
 function openFileToInput(f: OpenFile): BatchInputFile {
   const p = f.parse.photometry;
@@ -138,15 +128,7 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
   });
   const [recipeName, setRecipeName] = useState(() => load('batch-recipe-name', ''));
   const [recipes, setRecipes] = useState<Recipe[]>(loadRecipes);
-  const [rows, setRows] = useState<VariantRow[]>(() => {
-    try {
-      return templateFromJson(JSON.stringify({ rows: load<unknown[]>('batch-variants', []) })).rows;
-    } catch {
-      return [];
-    }
-  });
-  const [templateName, setTemplateName] = useState(() => load('batch-variant-name', ''));
-  const [templates, setTemplates] = useState<VariantTemplate[]>(loadTemplates);
+  const [mode, setMode] = useState<BatchMode>(() => load<BatchMode>('batch-mode', 'table'));
   const [progress, setProgress] = useState<BatchProgress | null>(null);
   const [result, setResult] = useState<BatchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,9 +141,7 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
   useEffect(() => save('batch-steps', steps), [steps]);
   useEffect(() => save('batch-recipe-name', recipeName), [recipeName]);
   useEffect(() => save('batch-recipes', recipes), [recipes]);
-  useEffect(() => save('batch-variants', rows), [rows]);
-  useEffect(() => save('batch-variant-name', templateName), [templateName]);
-  useEffect(() => save('batch-variant-templates', templates), [templates]);
+  useEffect(() => save('batch-mode', mode), [mode]);
 
   const set = (patch: Partial<Options>) => setOpts((o) => ({ ...o, ...patch }));
 
@@ -183,23 +163,21 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
   useEffect(() => {
     if (!preset.nonce) return;
     const k = preset.kind;
-    if (k === 'convert') set({ recipeOn: false, variantsOn: false, files: 'other', chartsOn: false });
-    if (k === 'variants') set({ variantsOn: true, files: opts.files === 'none' ? 'both' : opts.files });
-    if (k === 'charts') set({ chartsOn: true });
+    if (k !== 'all') setMode(k === 'variants' ? 'table' : k === 'charts' ? 'charts' : 'scenario');
+    if (k === 'convert') set({ files: 'other' });
     if (k === 'summary') set({ xlsx: true });
-    const target = { convert: 'output', variants: 'variants', charts: 'charts', summary: 'summary', all: 'files' }[k];
+    const target = { convert: 'output', variants: 'files', charts: 'charts', summary: 'summary', all: 'files' }[k];
     setTimeout(() => sections.current[target]?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
   }, [preset.nonce]);
 
   const history = active && historySteps(active).length ? { file: active.name, steps: historySteps(active) } : null;
 
-  const validRows = rows.filter((r) => !rowError(r));
   const kinds = (['polar', 'linear'] as const).filter((k) => opts.kinds[k]);
   const formats = (['svg', 'pdf', 'eps'] as const).filter((f) => opts.formats[f]);
-  const chartsWanted = opts.chartsOn && kinds.length > 0 && formats.length > 0;
+  const chartsWanted = mode === 'charts' && kinds.length > 0 && formats.length > 0;
   const needsFonts = chartsWanted && formats.some((f) => f !== 'svg');
-  const summaryWanted = opts.xlsx || opts.csv;
-  const anyOutput = opts.files !== 'none' || chartsWanted || summaryWanted;
+  const summaryWanted = mode === 'scenario' && (opts.xlsx || opts.csv);
+  const anyOutput = mode === 'charts' ? chartsWanted : opts.files !== 'none' || summaryWanted;
   const running = progress != null;
 
   const counts = useMemo(() => {
@@ -213,26 +191,24 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
     }
     return { ies, ldt, size };
   }, [inputs]);
-  const outputsPerFile = opts.variantsOn && validRows.length ? validRows.length : 1;
+  const outputsPerFile = 1;
 
   const problems: string[] = [];
   if (!inputs.length) problems.push(t('batch.needFiles'));
   if (!anyOutput) problems.push(t('batch.needOutput'));
-  if (opts.recipeOn && !steps.length) problems.push(t('batch.needSteps'));
-  if (opts.variantsOn && !validRows.length) problems.push(t('batch.needVariants'));
   if (needsFonts && !fonts) problems.push(t('export.fontLoading'));
 
   const run = async () => {
     setError(null);
     setResult(null);
     const job: BatchJob = {
-      steps: opts.recipeOn ? steps : [],
-      variants: opts.variantsOn ? rows : [],
-      files: FILE_MODES[opts.files],
+      steps: mode === 'scenario' ? steps : [],
+      variants: [],
+      files: mode === 'scenario' ? FILE_MODES[opts.files] : [],
       charts: chartsWanted
         ? { kinds, formats, color: opts.color, textAsPaths: opts.textAsPaths, commonScale: opts.commonScale, settings: { ...settings, title: '' }, style }
         : null,
-      summary: [...(opts.xlsx ? (['xlsx'] as const) : []), ...(opts.csv ? (['csv'] as const) : [])],
+      summary: mode === 'scenario' ? [...(opts.xlsx ? (['xlsx'] as const) : []), ...(opts.csv ? (['csv'] as const) : [])] : [],
       naming: opts.naming,
       lang,
     };
@@ -255,7 +231,7 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
     const d = new Date();
     const p2 = (x: number) => String(x).padStart(2, '0');
     const stamp = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}-${p2(d.getMinutes())}`;
-    const label = opts.recipeOn && recipeName.trim() ? recipeName.trim() : t('batch.zipName');
+    const label = mode === 'scenario' && recipeName.trim() ? recipeName.trim() : t('batch.zipName');
     return `${label} ${stamp}.zip`.replace(/[\\/:*?"<>|]+/g, '_');
   };
 
@@ -265,10 +241,15 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
     <div className="modal-backdrop batch-backdrop" hidden={!open} onClick={onClose}>
       <div className="modal batch" role="dialog" aria-label={t('batch.title')} onClick={(e) => e.stopPropagation()}>
         <header>
-          <h2>{t('batch.title')}</h2>
+          <div className="seg bmodes" role="tablist" aria-label={t('batch.title')}>
+            {MODES.map((m) => (
+              <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? 'on' : ''} disabled={running} onClick={() => setMode(m)}>{t(`batch.mode_${m}`)}</button>
+            ))}
+          </div>
           <button className="link" onClick={onClose} aria-label={t('style.close')}>×</button>
         </header>
 
+        {mode === 'table' ? <TableBatch /> : (<>
         <div className="modal-body batch-body">
           {/* 1. Файлы */}
           <section className="bsec" ref={(el) => { sections.current.files = el; }}>
@@ -322,40 +303,22 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
             )}
           </section>
 
-          {/* 2. Рецепт */}
-          <section className="bsec" ref={(el) => { sections.current.recipe = el; }}>
-            <h3>
-              <span className="bnum">2</span>
-              <label className="check"><input type="checkbox" checked={opts.recipeOn} onChange={(e) => set({ recipeOn: e.target.checked })} />{t('batch.recipe')}</label>
-              {opts.recipeOn && steps.length > 0 && <span className="muted small">{t('batch.stepsCount', { n: steps.length })}</span>}
-            </h3>
-            {opts.recipeOn ? (
+          {/* 2. Сценарий */}
+          {mode === 'scenario' && (
+            <section className="bsec" ref={(el) => { sections.current.recipe = el; }}>
+              <h3>
+                <span className="bnum">2</span>
+                {t('batch.recipe')}
+                {steps.length > 0 && <span className="muted small">{t('batch.stepsCount', { n: steps.length })}</span>}
+              </h3>
               <RecipeEditor steps={steps} onSteps={setSteps} name={recipeName} onName={setRecipeName} saved={recipes} onSaved={setRecipes} history={history} />
-            ) : (
-              <p className="muted small">{t('batch.recipeOff')}</p>
-            )}
-          </section>
+            </section>
+          )}
 
-          {/* 3. Варианты */}
-          <section className="bsec" ref={(el) => { sections.current.variants = el; }}>
-            <h3>
-              <span className="bnum">3</span>
-              <label className="check"><input type="checkbox" checked={opts.variantsOn} onChange={(e) => set({ variantsOn: e.target.checked })} />{t('batch.variants')}</label>
-              {opts.variantsOn && validRows.length > 0 && <span className="muted small">{t('batch.variantsCount', { n: validRows.length })}</span>}
-            </h3>
-            {opts.variantsOn ? (
-              <>
-                <p className="muted small">{t('batch.variantsNote')}</p>
-                <VariantEditor rows={rows} onRows={setRows} name={templateName} onName={setTemplateName} saved={templates} onSaved={setTemplates} />
-              </>
-            ) : (
-              <p className="muted small">{t('batch.variantsOff')}</p>
-            )}
-          </section>
-
-          {/* 4. Что выгрузить */}
+          {/* 3. Что выгрузить */}
           <section className="bsec" ref={(el) => { sections.current.output = el; }}>
-            <h3><span className="bnum">4</span>{t('batch.output')}</h3>
+            <h3><span className="bnum">{mode === 'scenario' ? 3 : 2}</span>{t(mode === 'charts' ? 'batch.charts' : 'batch.output')}</h3>
+            {mode === 'scenario' && (<>
             <div className="form-grid wide">
               <label>{t('batch.photometryFiles')}</label>
               <Select value={opts.files} onChange={(e) => set({ files: e.target.value as FilesMode })}>
@@ -367,11 +330,12 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
                 <option value="article">{t('batch.naming_article')}</option>
               </Select>
             </div>
-            <p className="muted small">{opts.variantsOn ? t('batch.namingVariants') : t('batch.namingNote')}</p>
+            <p className="muted small">{t('batch.namingNote')}</p>
+            </>)}
 
+            {mode === 'charts' && (
             <div className="bsub" ref={(el) => { sections.current.charts = el; }}>
-              <label className="check strong"><input type="checkbox" checked={opts.chartsOn} onChange={(e) => set({ chartsOn: e.target.checked })} />{t('batch.charts')}</label>
-              {opts.chartsOn && (
+              {(
                 <>
                   <div className="row">
                     {(['polar', 'linear'] as const).map((k) => (
@@ -406,7 +370,9 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
                 </>
               )}
             </div>
+            )}
 
+            {mode === 'scenario' && (
             <div className="bsub" ref={(el) => { sections.current.summary = el; }}>
               <label className="check strong">{t('batch.summary')}</label>
               <div className="row">
@@ -415,6 +381,7 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
               </div>
               <p className="muted small">{t('batch.summaryNote')}</p>
             </div>
+            )}
           </section>
         </div>
 
@@ -460,6 +427,7 @@ export function BatchPanel({ open, preset, onClose, incoming, openFiles, folder,
             </div>
           )}
         </footer>
+        </>)}
       </div>
     </div>
   );
