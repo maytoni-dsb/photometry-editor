@@ -1019,3 +1019,5 @@ table.grid.lamps input.pe { width: 180px; }
 table.grid.lamps input.pe { width: 70px; }
 table.grid.lamps td:nth-child(3) input.pe { width: 190px; }
 .gridtext { display: flex; flex-direction: column; }
+table.lamps tr.dup td { background: color-mix(in srgb, var(--warn, #b26a00) 10%, transparent); }
+p.warn { color: var(--warn, #b26a00); }

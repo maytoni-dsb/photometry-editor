@@ -60,3 +60,15 @@ describe('sources from Excel cells', async () => {
     expect(lampsFromCells([['foo'], ['1']])).toEqual([]);
   });
 });
+
+describe('duplicate sources', async () => {
+  const { duplicateSources } = await import('../src/batch/sources');
+  it('flags sources with the same file suffix', () => {
+    const p = makeC(lambert, { cStep: 30, gStep: 10 });
+    p.absolute = true;
+    p.lamps = [lamp({ cct: '3000' }), lamp({ cct: '4000' }), lamp({ cct: '3000K' })];
+    expect([...duplicateSources(p)].sort()).toEqual([0, 2]);
+    p.lamps[2].cct = '2700';
+    expect(duplicateSources(p).size).toBe(0);
+  });
+});

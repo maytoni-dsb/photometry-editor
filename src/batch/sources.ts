@@ -68,3 +68,19 @@ export function savePlan(p: Photometry, base: string, opts: { ies: boolean; ldt:
   }
   return out;
 }
+
+/** Источники, имена файлов которых совпадут (одинаковый суффикс «@ …»). */
+export function duplicateSources(p: Photometry): Set<number> {
+  const out = new Set<number>();
+  if (p.lamps.length < 2) return out;
+  const seen = new Map<string, number>();
+  p.lamps.forEach((_, k) => {
+    const key = sourceSuffix(p, k).toLowerCase();
+    const j = seen.get(key);
+    if (j != null) {
+      out.add(j);
+      out.add(k);
+    } else seen.set(key, k);
+  });
+  return out;
+}

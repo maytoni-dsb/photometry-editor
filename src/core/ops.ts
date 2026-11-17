@@ -353,8 +353,16 @@ function rotateXY(src: Photometry, axis: 'x' | 'y', angle: number, issues: Issue
   return out;
 }
 
-export function rotate(p: Photometry, axis: RotationAxis, angle: number): OpResult {
-  if (!Number.isFinite(angle)) throw new OpError('bad-value');
+/**
+ * Углы поворота — в осях интерфейса (правая тройка, v0.26): X — C0, Y — C270, Z — γ 0° (вниз);
+ * положительный угол — против часовой стрелки, если смотреть с конца оси. Внутри модели оси
+ * (C0, C90, вверх), поэтому для Y и Z знак меняется.
+ */
+export const modelAngle = (axis: RotationAxis, angle: number) => (axis === 'x' ? angle : -angle);
+
+export function rotate(p: Photometry, axis: RotationAxis, angle0: number): OpResult {
+  if (!Number.isFinite(angle0)) throw new OpError('bad-value');
+  const angle = modelAngle(axis, angle0);
   const issues: Issue[] = [];
   const src = asTypeC(p, issues);
   const out = axis === 'z' ? rotateZ(src, angle, issues) : rotateXY(src, axis, angle, issues);
@@ -364,7 +372,7 @@ export function rotate(p: Photometry, axis: RotationAxis, angle: number): OpResu
 /** Куда после поворотов попадает направление (C, γ) — для подсказки в интерфейсе. */
 export function rotatedDirection(steps: RotationStep[], c = 0, g = 0): { c: number; g: number } {
   let d = dirFromCG(c, g);
-  for (const s of steps) d = applyMat(rotationMatrix(s.axis, s.angle), d);
+  for (const s of steps) d = applyMat(rotationMatrix(s.axis, modelAngle(s.axis, s.angle)), d);
   return cgFromDir(d);
 }
 

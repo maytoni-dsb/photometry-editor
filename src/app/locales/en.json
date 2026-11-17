@@ -127,7 +127,8 @@
     "importSources": "Sources from Excel ({{n}})",
     "importNone": "the table has no rows with Type, Luminous flux or CCT columns",
     "importError": "Could not load sources: {{msg}}",
-    "luminousTooBig": "The luminous area cannot be larger than the housing"
+    "luminousTooBig": "The luminous area cannot be larger than the housing",
+    "dupSources": "Sources {{list}} would get the same file names — set different CCTs or lamp articles (“LED / <article>”)."
   },
   "sym": {
     "none": "none",
@@ -343,9 +344,9 @@
     "mirror_updown": "Plane XY (up / down)",
     "axis": "Axis",
     "angle": "Angle",
-    "axisNote_z": "Z is the vertical axis: C0 moves to C+angle (right-hand rule, counter-clockwise seen from above).",
-    "axisNote_x": "X runs along C0: a positive angle tilts the nadir towards C90.",
-    "axisNote_y": "Y runs along C90: a positive angle tilts the nadir towards C180.",
+    "axisNote_z": "Z — downward axis (to the nadir): +angle is counterclockwise seen from below; C0 goes to C(360° − angle).",
+    "axisNote_x": "X — axis along C0: +angle tilts the nadir towards C90.",
+    "axisNote_y": "Y — axis along C270: +angle tilts the nadir towards C0.",
     "hintZ": "Plane C0 moves to C{{c}}.",
     "hintXY": "Nadir moves to C{{c}}, γ {{g}}°.",
     "rotateSteps": "Each rotation is a separate step in the history; the order matters.",
@@ -700,6 +701,7 @@
     "cancel": "Cancel",
     "save": "Save…",
     "toFolder": "Save to folder…",
-    "toZip": "Save ZIP…"
+    "toZip": "Save ZIP…",
+    "clash": "File names clash — sources have the same CCT or lamp article. Fix the light sources table in the passport."
   }
 }

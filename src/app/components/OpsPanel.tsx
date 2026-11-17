@@ -426,7 +426,7 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
 
   const rotHint = () => {
     if (!rotSteps.length || rotSteps.some((r) => !Number.isFinite(r.angle))) return undefined;
-    if (rotSteps.length === 1 && rotSteps[0].axis === 'z') return t('ops.hintZ', { c: fmtNum(lang, ((rotSteps[0].angle % 360) + 360) % 360) });
+    if (rotSteps.length === 1 && rotSteps[0].axis === 'z') return t('ops.hintZ', { c: fmtNum(lang, ((-rotSteps[0].angle % 360) + 360) % 360) });
     const d = rotatedDirection(rotSteps);
     return t('ops.hintXY', { c: fmtNum(lang, d.c), g: fmtNum(lang, d.g) });
   };

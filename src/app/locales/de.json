@@ -127,7 +127,8 @@
     "importSources": "Quellen aus Excel ({{n}})",
     "importNone": "die Tabelle hat keine Zeilen mit den Spalten Typ, Lichtstrom oder Farbtemperatur",
     "importError": "Quellen konnten nicht geladen werden: {{msg}}",
-    "luminousTooBig": "Die leuchtende Fläche darf nicht größer als das Gehäuse sein"
+    "luminousTooBig": "Die leuchtende Fläche darf nicht größer als das Gehäuse sein",
+    "dupSources": "Quellen {{list}} würden gleiche Dateinamen erhalten — unterschiedliche Farbtemperaturen oder Lampenartikel („LED / <Artikel>“) angeben."
   },
   "sym": {
     "none": "keine",
@@ -343,9 +344,9 @@
     "mirror_updown": "Ebene XY (oben / unten)",
     "axis": "Achse",
     "angle": "Winkel",
-    "axisNote_z": "Z ist die vertikale Achse: C0 geht nach C+Winkel (Rechte-Hand-Regel, von oben gegen den Uhrzeigersinn).",
-    "axisNote_x": "X liegt entlang C0: ein positiver Winkel neigt den Nadir zu C90.",
-    "axisNote_y": "Y liegt entlang C90: ein positiver Winkel neigt den Nadir zu C180.",
+    "axisNote_z": "Z — Achse nach unten (zum Nadir): +Winkel gegen den Uhrzeigersinn von unten gesehen; C0 geht nach C(360° − Winkel).",
+    "axisNote_x": "X — Achse entlang C0: +Winkel neigt den Nadir zu C90.",
+    "axisNote_y": "Y — Achse entlang C270: +Winkel neigt den Nadir zu C0.",
     "hintZ": "Ebene C0 geht nach C{{c}}.",
     "hintXY": "Nadir geht nach C{{c}}, γ {{g}}°.",
     "rotateSteps": "Jede Drehung ist ein eigener Schritt im Verlauf; die Reihenfolge zählt.",
@@ -700,6 +701,7 @@
     "cancel": "Abbrechen",
     "save": "Speichern…",
     "toFolder": "In Ordner speichern…",
-    "toZip": "ZIP speichern…"
+    "toZip": "ZIP speichern…",
+    "clash": "Dateinamen kollidieren — Quellen haben gleiche CCT oder Lampenartikel. Tabelle der Lichtquellen im Pass korrigieren."
   }
 }

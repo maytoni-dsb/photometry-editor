@@ -5,6 +5,7 @@ import type { OpenFile } from '../doc';
 import { LuminaireDrawing } from './LuminaireDrawing';
 import { NumField, parseNum } from './NumField';
 import { lampsFromXlsx } from '../../batch/lamps-xlsx';
+import { duplicateSources } from '../../batch/sources';
 
 /** Правка паспорта: название шага истории и изменение модели (применяется и к рабочему телу). */
 export type PassportPatch = (label: string, fn: (p: Photometry) => void) => void;
@@ -144,6 +145,8 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
     onPatch(label(t('passport.removeSource', { n: i + 1 })), (q) => {
       if (q.lamps.length > 1) q.lamps.splice(i, 1);
     });
+  // источники с одинаковыми именами файлов (одинаковая CCT или артикул лампы) — предупреждение сразу при вводе
+  const dups = duplicateSources(p);
   const xlsxInput = useRef<HTMLInputElement>(null);
   const [importErr, setImportErr] = useState<string | null>(null);
   const importLamps = async (f: File) => {
@@ -364,7 +367,7 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
             </thead>
             <tbody>
               {p.lamps.map((l, i) => (
-                <tr key={i}>
+                <tr key={i} className={dups.has(i) ? 'dup' : ''}>
                   <td>{i + 1}</td>
                   <td>
                     {p.absolute ? (
@@ -384,6 +387,7 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
             </tbody>
           </table>
         </div>
+        {dups.size > 0 && <p className="warn small">{t('passport.dupSources', { list: [...dups].map((k) => k + 1).join(', ') })}</p>}
         {importErr && <p className="error small">{importErr}</p>}
       </section>
 

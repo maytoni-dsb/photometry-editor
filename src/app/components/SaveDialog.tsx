@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { houseIES, houseLDT } from '../../batch/house';
-import { savePlan, sourceSuffix, type IesMode, type LdtMode } from '../../batch/sources';
+import { duplicateSources, savePlan, sourceSuffix, type IesMode, type LdtMode } from '../../batch/sources';
 import { baseName, type OpenFile } from '../doc';
 import { canWriteFolders, writeInto } from '../project-folder';
 import { safeFileName, saveFile } from '../save-file';
@@ -44,6 +44,7 @@ export function SaveDialog({ file, onClose, onSaved }: { file: OpenFile; onClose
   const base = safeFileName(baseName(file.name));
   const plan = useMemo(() => savePlan(p, base, { ...fmt, iesMode, ldtMode, source }), [p, base, fmt, iesMode, ldtMode, source]);
   const names = plan.map((x) => `${safeFileName(x.base)}.${x.fmt}`);
+  const clash = new Set(names).size < names.length;
   const needSource = many && ((fmt.ies && iesMode === 'one') || (fmt.ldt && ldtMode === 'one'));
 
   const run = async () => {
@@ -135,12 +136,14 @@ export function SaveDialog({ file, onClose, onSaved }: { file: OpenFile; onClose
             <div className="muted">{plan.length > 1 ? t('save.filesMany', { n: plan.length }) : plan.length ? t('save.filesOne') : t('save.noFormat')}</div>
             <ul>{names.map((x) => <li key={x}>{x}</li>)}</ul>
           </div>
+          {clash && <p className="error small">{t('save.clash')}</p>}
+          {!clash && duplicateSources(p).size > 0 && <p className="warn small">{t('passport.dupSources', { list: [...duplicateSources(p)].map((k) => k + 1).join(', ') })}</p>}
           {err && <p className="error small">{err}</p>}
         </div>
         <footer>
           <span className="grow" />
           <button className="btn" onClick={onClose} disabled={busy}>{t('save.cancel')}</button>
-          <button className="gsbtn" onClick={() => void run()} disabled={busy || !plan.length}>{plan.length > 1 ? (canWriteFolders() ? t('save.toFolder') : t('save.toZip')) : t('save.save')}</button>
+          <button className="gsbtn" onClick={() => void run()} disabled={busy || !plan.length || clash}>{plan.length > 1 ? (canWriteFolders() ? t('save.toFolder') : t('save.toZip')) : t('save.save')}</button>
         </footer>
       </div>
     </div>
