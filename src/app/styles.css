@@ -1039,3 +1039,6 @@ p.warn { color: var(--warn, #b26a00); }
 .linkh { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink3); cursor: pointer; box-shadow: var(--sh-1); }
 .linkh:hover { color: var(--ink); background: var(--soft); }
 .linkh.on { color: var(--accent); border-color: var(--accent); }
+.beamcell { display: inline-flex; align-items: center; gap: 5px; }
+.beamcell .bl { display: inline-block; width: 16px; border-top: 1.5px solid currentColor; }
+.beamcell .bl.d { border-top-style: dashed; margin-left: 8px; }

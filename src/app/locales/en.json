@@ -122,6 +122,7 @@
     "gridText": "{{hName}}: {{nh}} angles, Δ{{hName}} {{dh}} · {{vName}}: {{nv}} angles, Δ{{vName}} {{dv}}, {{v0}}–{{v1}}°",
     "stepVaries": "variable",
     "fluxDown": "Downward flux fraction",
+    "beamAngle": "Beam angle",
     "cutLower": "cut γ to 0…90°",
     "cutLowerHint": "Upward flux is 0 %: the γ range can be cut to 0…90° without losing light",
     "cutLowerLabel": "γ range 0…90°",
@@ -380,6 +381,7 @@
     "before": "Original",
     "after": "Result",
     "down": "Downward",
+    "gridCG": "Grid C × γ",
     "label": {
       "normalize_flux": "Normalise to {{v}} lm",
       "normalize_cdklm": "Normalise to 1000 lm (cd/klm)",

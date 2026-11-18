@@ -122,6 +122,7 @@
     "gridText": "{{hName}}: {{nh}} Winkel, Δ{{hName}} {{dh}} · {{vName}}: {{nv}} Winkel, Δ{{vName}} {{dv}}, {{v0}}–{{v1}}°",
     "stepVaries": "variabel",
     "fluxDown": "Lichtstromanteil nach unten",
+    "beamAngle": "Ausstrahlungswinkel",
     "cutLower": "γ auf 0…90° kürzen",
     "cutLowerHint": "Lichtstrom nach oben ist 0 %: der γ-Bereich kann ohne Lichtverlust auf 0…90° gekürzt werden",
     "cutLowerLabel": "γ-Bereich 0…90°",
@@ -380,6 +381,7 @@
     "before": "Ausgangszustand",
     "after": "Ergebnis",
     "down": "Anteil nach unten",
+    "gridCG": "Raster C × γ",
     "label": {
       "normalize_flux": "Normiert auf {{v}} lm",
       "normalize_cdklm": "Normiert auf 1000 lm (cd/klm)",

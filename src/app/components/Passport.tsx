@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { canCutToLower, naturalSteps } from '../../core/index';
+import { beamAngles, canCutToLower, compactSymmetry, naturalSteps } from '../../core/index';
 import type { Dimensions, Lang, LampSet, Metadata, OpSpec, Photometry } from '../../core/index';
 import type { OpenFile } from '../doc';
 import { LuminaireDrawing } from './LuminaireDrawing';
@@ -103,6 +103,8 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
   };
   const dh = step(p.hAngles);
   const dv = step(p.vAngles);
+  // угол рассеивания (50 % от максимума) по плоскостям; осевая симметрия — одно значение
+  const beams = beamAngles(compactSymmetry(s.asC));
   const gridText = t('passport.gridText', {
     hName,
     vName,
@@ -343,6 +345,7 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
               {kv(t('passport.photometryType'), p.photometryType)}
               {kv(t('passport.symmetry'), t(`sym.${p.symmetry}`))}
               {kv(t('passport.grid'), <span className="gridtext">{gridText.split(' · ').map((x, i) => <span key={i}>{x}</span>)}</span>)}
+              {kv(t('passport.beamAngle'), <span className="gridtext">{beams.map((b) => <span key={b.plane}>{beams.length > 1 ? `${b.plane === 0 ? 'C0–C180' : 'C90–C270'}: ` : ''}{b.beam == null ? '—' : `${n(b.beam)}°`}</span>)}</span>)}
               {isB && kv('', <span className="muted">{t('passport.typeBNote')}</span>, 'b')}
             </dl>
             <dl className="kv grid2">

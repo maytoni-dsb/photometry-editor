@@ -11,6 +11,7 @@ import {
   naturalSteps,
   canCutToLower,
   compactSymmetry,
+  beamAngles,
   OpError,
   rotatedDirection,
   sumWorks,
@@ -179,6 +180,24 @@ interface Session {
   steps: number;
 }
 let sessionSeq = 0;
+
+/**
+ * Угол рассеивания (50 % от максимума в плоскости) в C0–C180 и C90–C270; плоскости — линиями, как в легенде КСС
+ * (сплошная — C0–C180, штриховая — C90–C270). Осевая симметрия — одно значение.
+ */
+function BeamCell({ p, lang }: { p: Photometry; lang: Lang }) {
+  const a = useMemo(() => beamAngles(compactSymmetry(p)), [p]);
+  const v = (x: number | null) => (x == null ? '—' : `${fmtNum(lang, x, 0)}°`);
+  if (a.length === 1) return <span>{v(a[0].beam)}</span>;
+  return (
+    <span className="beamcell">
+      <span className="bl" aria-label="C0–C180" title="C0–C180" />
+      {v(a[0].beam)}
+      <span className="bl d" aria-label="C90–C270" title="C90–C270" />
+      {v(a[1].beam)}
+    </span>
+  );
+}
 /** Последний сеанс и поля панели по каждому файлу: при возврате к файлу поля восстанавливаются, если сеанс ещё жив. */
 const remembered = new Map<string, { ss: Session; prm: Params }>();
 
@@ -473,9 +492,9 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
         <tr>
           <th>Φ</th>
           <th>Iₘₐₓ</th>
-          <th>{t('ops.down')}</th>
           <th>{t('passport.symmetry')}</th>
-          <th>{t('passport.grid')}</th>
+          <th>{t('ops.gridCG')}</th>
+          <th>{t('passport.beamAngle')}</th>
         </tr>
       </thead>
       <tbody>
@@ -484,10 +503,10 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
             <>
               <td>{fmtNum(lang, sm.flux.total, 0)} {t('unit.lm')}</td>
               <td>{fmtNum(lang, sm.peak.value, 0)} {t('unit.cd')} <span className="muted">C{fmtNum(lang, sm.peak.c)} γ{fmtNum(lang, sm.peak.g)}°</span></td>
-              <td>{fmtNum(lang, sm.dlor, 1)} %</td>
               {/* фактическая симметрия данных (после операций сетка полная, а флаг файла — «нет») */}
               <td>{t(`sym.${sm.asC.symmetry === 'none' ? compactSymmetry(sm.asC).symmetry : sm.asC.symmetry}`)}</td>
               <td>{sm.asC.hAngles.length} × {sm.asC.vAngles.length}{ph.photometryType === 'B' ? ' (B→C)' : ''}</td>
+              <td><BeamCell p={sm.asC} lang={lang} /></td>
             </>
           ) : (
             <td colSpan={5} className="muted">—</td>
