@@ -31,9 +31,10 @@ export function download(blob: Blob, name: string): void {
 /**
  * Спрашивает место и имя (если браузер умеет), затем строит файл и записывает.
  * Диалог открывается до построения файла — иначе браузер может отказать без жеста пользователя.
+ * produce получает окончательное имя файла (пользователь мог изменить его в диалоге).
  * Возвращает false, если пользователь отменил сохранение.
  */
-export async function saveFile(name: string, mime: string, ext: string, produce: () => Promise<Data> | Data): Promise<boolean | { name: string; handle: FileSystemFileHandle }> {
+export async function saveFile(name: string, mime: string, ext: string, produce: (finalName: string) => Promise<Data> | Data): Promise<boolean | { name: string; handle: FileSystemFileHandle }> {
   const w = window as unknown as PickerWindow;
   if (w.showSaveFilePicker && window.self === window.top) {
     let handle;
@@ -44,14 +45,14 @@ export async function saveFile(name: string, mime: string, ext: string, produce:
       handle = null; // диалог недоступен — обычная загрузка
     }
     if (handle) {
-      const blob = toBlob(await produce(), mime);
+      const blob = toBlob(await produce(handle.name), mime); // имя — как выбрал пользователь (строка 11 LDT)
       const wr = await handle.createWritable();
       await wr.write(blob);
       await wr.close();
       return { name: handle.name, handle };
     }
   }
-  download(toBlob(await produce(), mime), name);
+  download(toBlob(await produce(name), mime), name);
   return true;
 }
 

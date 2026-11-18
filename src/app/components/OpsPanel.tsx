@@ -10,6 +10,7 @@ import {
   applyWork,
   naturalSteps,
   canCutToLower,
+  compactSymmetry,
   OpError,
   rotatedDirection,
   sumWorks,
@@ -27,7 +28,7 @@ import {
 import type { ChartSettings } from '../App';
 import { liveCount, stateOf, workOf, type DocState, type LiveResult, type OpenFile } from '../doc';
 import { screenFamily, type LoadedFonts } from '../fonts';
-import { createCameraLink, housingBox, type View3D } from '../../charts/body3d';
+import { createCameraLink, gridLines, housingBox, type View3D } from '../../charts/body3d';
 import { Body3D, Fallback, HousingToggle, useHousingPref, ViewButtons } from './Body3DTab';
 import { NumField } from './NumField';
 import { Select } from './Select';
@@ -178,6 +179,8 @@ interface Session {
   steps: number;
 }
 let sessionSeq = 0;
+/** Последний сеанс и поля панели по каждому файлу: при возврате к файлу поля восстанавливаются, если сеанс ещё жив. */
+const remembered = new Map<string, { ss: Session; prm: Params }>();
 
 /**
  * Панель «Операции» в духе панели управления InDesign: все операции сразу, компактно.
@@ -193,7 +196,10 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   const sessionOk = (ss: Session | null) =>
     !!ss && ss.fileId === file.id && (ss.steps ? liveCount(file, ss.sid) === ss.steps : file.summary === ss.base.summary);
   const sessionRef = useRef<Session | null>(null);
-  if (!sessionOk(sessionRef.current)) sessionRef.current = { sid: `s${++sessionSeq}`, fileId: file.id, base: stateOf(file), steps: 0 };
+  if (!sessionOk(sessionRef.current)) {
+    const kept = remembered.get(file.id);
+    sessionRef.current = kept && sessionOk(kept.ss) ? kept.ss : { sid: `s${++sessionSeq}`, fileId: file.id, base: stateOf(file), steps: 0 };
+  }
   const session = sessionRef.current!;
   const base = session.base;
   const [prm, setPrm] = useState<Params>(() => neutral(base));
@@ -201,14 +207,21 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   const [prmFor, setPrmFor] = useState<Session>(session);
   if (prmFor !== session) {
     setPrmFor(session);
-    setPrm(neutral(base));
+    const kept = remembered.get(file.id);
+    setPrm(kept && kept.ss === session ? kept.prm : neutral(base));
   }
+  // запомнить поля этого файла (сеанс тот же — поля те же)
+  useEffect(() => {
+    if (prmFor === session) remembered.set(session.fileId, { ss: session, prm });
+  }, [prm, prmFor, session]);
 
   const p = base.parse.photometry;
   const s = base.summary;
   const work = useMemo(() => workOf(base), [base]);
   const steps = useMemo(() => naturalSteps(s.asC), [s.asC]);
   const defSteps = useMemo(() => defaultSteps(s.asC), [s.asC]);
+  // линии сетки 3D — по углам файла: смена сетки видна на теле
+  const gridBefore = useMemo(() => gridLines(s.asC), [s.asC]);
   /** Поток в ВП 0 %, а диапазон γ шире 0…90° — подсказать сократить. */
   const cutHint = canCutToLower(s) && prm.gr !== '0-90';
   const [rev, setRev] = useState(0);
@@ -391,17 +404,19 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
   }, [prm, rotSteps, secondFile, work, p, s, steps, file.name, t, lang]);
   const last = chain.steps[chain.steps.length - 1];
   const shown = useMemo(() => (last ? { p: last.p, summary: summarize(last.p), work: last.work } : { p, summary: s, work }), [last, p, s, work]);
+  const gridAfter = useMemo(() => gridLines(shown.summary.asC), [shown.summary.asC]);
 
   // запись в историю: через паузу после последнего изменения поля
   const chainRef = useRef(chain);
   chainRef.current = chain;
   useEffect(() => {
     if (!rev) return;
+    const ss0 = sessionRef.current;
     const id = window.setTimeout(() => {
       const ch = chainRef.current;
       if (ch.error) return; // ошибка в полях — история не меняется
       const ss = sessionRef.current;
-      if (!ss) return;
+      if (!ss || ss !== ss0) return; // за паузу переключились на другой файл
       ss.steps = ch.steps.length;
       onLive(ss.fileId, ss.sid, ss.base.summary, ch.steps);
     }, 350);
@@ -470,7 +485,8 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
               <td>{fmtNum(lang, sm.flux.total, 0)} {t('unit.lm')}</td>
               <td>{fmtNum(lang, sm.peak.value, 0)} {t('unit.cd')} <span className="muted">C{fmtNum(lang, sm.peak.c)} γ{fmtNum(lang, sm.peak.g)}°</span></td>
               <td>{fmtNum(lang, sm.dlor, 1)} %</td>
-              <td>{t(`sym.${sm.asC.symmetry}`)}</td>
+              {/* фактическая симметрия данных (после операций сетка полная, а флаг файла — «нет») */}
+              <td>{t(`sym.${sm.asC.symmetry === 'none' ? compactSymmetry(sm.asC).symmetry : sm.asC.symmetry}`)}</td>
               <td>{sm.asC.hAngles.length} × {sm.asC.vAngles.length}{ph.photometryType === 'B' ? ' (B→C)' : ''}</td>
             </>
           ) : (
@@ -553,14 +569,18 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
             {icon(2, 1, 'smooth')}
             {cell(2, 2, null, <NumField value={prm.sWidth} onChange={(x) => set({ sWidth: x })} min={0} max={30} step={1} unit="°" inlineUnit width="100%" aria-label={t('ops.smoothWidth')} />, t('ops.smoothWidth'), 2)}
             <button
-              className={`ctoggle${prm.keepFlux ? ' on' : ''}`}
+              className={`ctoggle cflux${prm.keepFlux ? ' on' : ''}`}
               style={at(2, 4)}
               aria-pressed={prm.keepFlux}
               onClick={() => set({ keepFlux: !prm.keepFlux })}
               title={t('ops.keepFlux')}
               aria-label={t('ops.keepFlux')}
             >
-              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              {/* лампочка — световой поток, замок — сохранять при сглаживании */}
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.7.5 1 1.3 1 2.1v1h5v-1c0-.8.3-1.6 1-2.1A6 6 0 0 0 12 3z" />
+              </svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="5" y="11" width="14" height="9" rx="2" />
                 <path d={prm.keepFlux ? 'M8 11V8a4 4 0 0 1 8 0v3' : 'M8 11V8a4 4 0 0 1 7.5-2'} />
               </svg>
@@ -611,14 +631,15 @@ export function OpsPanel({ file, files, settings, style, fonts, onLive, onAddFil
 
         <div className="ops-stage">
           <div className="ops-pair">
-            {([['before', before, work.dense, housingBefore, s, p], ['after', after, shown.work.dense, housingAfter, shown.summary, shown.p]] as const).map(([k, svg, dense, housing, sm, ph]) => (
+            {/* итоговый вид — слева, исходный — справа */}
+            {([['after', after, shown.work.dense, housingAfter, shown.summary, shown.p, gridAfter], ['before', before, work.dense, housingBefore, s, p, gridBefore]] as const).map(([k, svg, dense, housing, sm, ph, grid]) => (
               <figure key={k}>
                 <figcaption>{t(`ops.${k}`)}</figcaption>
-                <div className="paper b3d-wrap ops-3d" ref={k === 'before' ? sq : undefined}>
+                <div className="paper b3d-wrap ops-3d" ref={k === 'after' ? sq : undefined}>
                   <ViewButtons view={view} custom={custom} onView={(v) => { setView(v); setCustom(false); setNonce(nonce + 1); }} />
                   <HousingToggle on={showHousing} available={!!housing} onToggle={setShowHousing} />
                   <Suspense fallback={<Fallback height={h3d} />}>
-                    <Body3D photometry={dense} scale={scale3d} planes={planes} housing={showHousing ? housing : null} view={view} viewNonce={nonce} link={link} height={h3d} onUserMove={() => setCustom(true)} />
+                    <Body3D photometry={dense} scale={scale3d} planes={planes} grid={grid} housing={showHousing ? housing : null} view={view} viewNonce={nonce} link={link} height={h3d} onUserMove={() => setCustom(true)} />
                   </Suspense>
                 </div>
                 <div className="paper ops-polar screen-chart" dangerouslySetInnerHTML={{ __html: svg }} />

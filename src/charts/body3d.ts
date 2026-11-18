@@ -123,7 +123,7 @@ export const VIEWS: View3D[] = ['iso', 'xz', 'yz', 'xy'];
  * Сетка тела (вид «mesh», без условных цветов): меридианы — плоскости C через cEvery°,
  * параллели — конусы γ через gEvery°. Отрезки парами точек (x, y, z), фотометрические оси.
  */
-export function meshLines(p: Photometry, scale: number, cEvery = 15, gEvery = 10): Float32Array {
+export function meshLines(p: Photometry, scale: number, cEvery: number | number[] = 15, gEvery: number | number[] = 10): Float32Array {
   const s = scale > 0 ? scale : 1;
   const pts: number[] = [];
   const point = (c: number, g: number): [number, number, number] => {
@@ -136,7 +136,13 @@ export function meshLines(p: Photometry, scale: number, cEvery = 15, gEvery = 10
     if (Math.hypot(a[0], a[1], a[2]) < 1e-6 && Math.hypot(b[0], b[1], b[2]) < 1e-6) return;
     pts.push(...a, ...b);
   };
-  for (let c = 0; c < 360 - 1e-9; c += cEvery) {
+  const cs: number[] = [];
+  if (Array.isArray(cEvery)) cs.push(...cEvery);
+  else for (let c = 0; c < 360 - 1e-9; c += cEvery) cs.push(c);
+  const gs: number[] = [];
+  if (Array.isArray(gEvery)) gs.push(...gEvery.filter((g) => g > 1e-9 && g < 180 - 1e-9));
+  else for (let g = gEvery; g < 180 - 1e-9; g += gEvery) gs.push(g);
+  for (const c of cs) {
     let prev = point(c, 0);
     for (let g = 1; g <= 180; g += 1) {
       const cur = point(c, g);
@@ -144,7 +150,7 @@ export function meshLines(p: Photometry, scale: number, cEvery = 15, gEvery = 10
       prev = cur;
     }
   }
-  for (let g = gEvery; g < 180 - 1e-9; g += gEvery) {
+  for (const g of gs) {
     let prev = point(0, g);
     for (let c = 2; c <= 360; c += 2) {
       const cur = point(c, g);
@@ -153,6 +159,30 @@ export function meshLines(p: Photometry, scale: number, cEvery = 15, gEvery = 10
     }
   }
   return new Float32Array(pts);
+}
+
+/**
+ * Линии сетки по углам файла (чтобы смена сетки была видна на 3D): плоскости C на полном круге
+ * (с учётом симметрии хранения) и углы γ; слишком частые прореживаются — не чаще maxC / maxG линий.
+ */
+export function gridLines(p: Photometry, maxC = 72, maxG = 90): { c: number[]; g: number[] } {
+  const axial = p.symmetry === 'axial' || p.hAngles.length === 1;
+  const set = new Set<number>();
+  const add = (c: number) => set.add(Math.round((((c % 360) + 360) % 360) * 1e6) / 1e6);
+  if (axial) for (let c = 0; c < 360; c += 15) add(c);
+  else
+    for (const c of p.hAngles) {
+      add(c);
+      if (p.symmetry === 'c0c180' || p.symmetry === 'quadrant') add(-c);
+      if (p.symmetry === 'c90c270' || p.symmetry === 'quadrant') add(180 - c);
+      if (p.symmetry === 'quadrant') add(180 + c);
+    }
+  const thin = (a: number[], max: number) => {
+    if (a.length <= max) return a;
+    const k = Math.ceil(a.length / max);
+    return a.filter((_, i) => i % k === 0);
+  };
+  return { c: thin([...set].sort((a, b) => a - b), maxC), g: thin(p.vAngles, maxG) };
 }
 
 /** Шаг меридианов сетки: шаг плоскостей файла, но не мельче 10° и не крупнее 30°, делитель 360. */

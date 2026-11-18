@@ -16,6 +16,9 @@
   --sel: #000; --on-sel: #fff;
   --err: #eb3d00; --warn: #c98a00; --ok: #1d874d; --ok-soft: #ecffbf;
   --peak: #ecffbf;
+  /* тени: --sh-1 — кнопки и списки, --sh-float — кнопки поверх рисунков (3D, графики) */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.07);
+  --sh-float: 0 1px 4px rgba(0, 0, 0, 0.12);
   --sans: 'Suisse Intl', 'SuisseIntl', 'Suisse', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
@@ -24,6 +27,7 @@
     --paper: #0e0e0f; --card: #161617; --rule: #2c2c2e; --soft: #202022; --soft2: #1a1a1c; --line: #3a3a3d;
     --accent: #9b7dff; --accent-hov: #b39dff; --accent-soft: #2a2340; --on-accent: #000;
     --sel: #fff; --on-sel: #000; --err: #ff6b3d; --warn: #e0a100; --ok: #7fce7f; --ok-soft: #16281a; --peak: #2a3a1a;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5); --sh-float: 0 1px 5px rgba(0, 0, 0, 0.6);
   }
 }
 :root[data-theme='dark'] {
@@ -31,6 +35,7 @@
   --paper: #0e0e0f; --card: #161617; --rule: #2c2c2e; --soft: #202022; --soft2: #1a1a1c; --line: #3a3a3d;
   --accent: #9b7dff; --accent-hov: #b39dff; --accent-soft: #2a2340; --on-accent: #000;
   --sel: #fff; --on-sel: #000; --err: #ff6b3d; --warn: #e0a100; --ok: #7fce7f; --ok-soft: #16281a; --peak: #2a3a1a;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5); --sh-float: 0 1px 5px rgba(0, 0, 0, 0.6);
 }
 
 html, body, #root { height: 100%; margin: 0; }
@@ -1023,3 +1028,14 @@ table.grid.lamps td:nth-child(3) input.pe { width: 190px; }
 table.lamps tr.dup td { background: color-mix(in srgb, var(--warn, #b26a00) 10%, transparent); }
 p.warn { color: var(--warn, #b26a00); }
 .viewbtns button { width: auto; min-width: 30px; padding: 0 9px; font: inherit; font-size: 11.5px; }
+
+/* --- v0.30: единые тени — кнопки и списки (--sh-1), кнопки поверх рисунков (--sh-float) */
+.btn, .sel { box-shadow: var(--sh-1); }
+.btn:disabled, .sel:disabled { box-shadow: none; }
+.seg button.on { box-shadow: 0 0 0 1px var(--rule), var(--sh-1); }
+.viewbtns, .housingbtn { box-shadow: var(--sh-float); }
+.cgrid .sel.cpill.hint { box-shadow: 0 0 0 1.5px var(--accent), var(--sh-1); }
+.ctoggle.cflux { width: 46px; display: flex; gap: 0; justify-content: center; align-items: center; }
+.linkh { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink3); cursor: pointer; box-shadow: var(--sh-1); }
+.linkh:hover { color: var(--ink); background: var(--soft); }
+.linkh.on { color: var(--accent); border-color: var(--accent); }

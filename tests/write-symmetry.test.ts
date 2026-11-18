@@ -1,7 +1,7 @@
 // Запись: фактическая симметрия полной сетки попадает в Isym LDT и в последний угол C IES; размеры LDT/IES.
 import { describe, expect, it } from 'vitest';
 import { parseLDT, parseIES, symmetrize, rotate } from '../src/core/index';
-import { houseIES, houseLDT } from '../src/batch/house';
+import { houseIES, houseLDT, ldtTypeIndicator } from '../src/batch/house';
 import { asym as asymFn, makeC } from './helpers';
 
 const asym = () => makeC((c, g) => asymFn(c, g) + 30 * Math.cos((2 * (c - 10) * Math.PI) / 180) * (g <= 90 ? 1 : 0), { cStep: 15, gStep: 5 });
@@ -49,5 +49,22 @@ describe('запись симметрии и размеров', () => {
     expect(t[7]).toBeCloseTo(1.15, 6); // width (вдоль C90)
     expect(t[8]).toBeCloseTo(0.04, 6); // length (вдоль C0)
     expect(parseIES(ies).photometry.luminous).toMatchObject({ length: 1150, width: 40 });
+  });
+
+  it('Ityp: 2 — длина ≥ 5 × ширины, 1 — осевая, 3 — прочие; таблица важнее; строка 11 — имя файла', () => {
+    const lin = asym();
+    lin.luminaire = { shape: 'rect', length: 1200, width: 60, height: 50 };
+    let l = ldtLines(houseLDT(lin, ctx, 'ART-1.ldt'));
+    expect(l[1].trim()).toBe('2');
+    expect(l[10].trim()).toBe('ART-1.ldt');
+    const sq = asym();
+    sq.luminaire = { shape: 'rect', length: 200, width: 60, height: 50 };
+    expect(ldtLines(houseLDT(sq, ctx, 'a.ldt'))[1].trim()).toBe('3');
+    const ax = symmetrize(asym(), 'axial').photometry;
+    ax.luminaire = { shape: 'circle', length: 100, width: 0, height: 50 };
+    expect(ldtTypeIndicator(ax)).toBe(1);
+    expect(ldtLines(houseLDT(ax, ctx, 'a.ldt'))[1].trim()).toBe('1');
+    l = ldtLines(houseLDT(sq, ctx, 'a.ldt', 2));
+    expect(l[1].trim()).toBe('2');
   });
 });

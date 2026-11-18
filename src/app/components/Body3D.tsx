@@ -42,6 +42,8 @@ interface Props {
   scale?: number;
   /** Плоскости C, которые обводятся линиями (C и C + 180°). */
   planes: number[];
+  /** Линии сетки по углам файла (C на полном круге, γ); без них — равномерная сетка. */
+  grid?: { c: number[]; g: number[] } | null;
   /** Корпус светильника в масштабе тела (null — не показывать). */
   housing?: HousingBox | null;
   view?: View3D;
@@ -53,7 +55,7 @@ interface Props {
   onUserMove?: () => void;
 }
 
-export default function Body3D({ photometry, scale, planes, housing = null, view = 'iso', viewNonce = 0, link, height, onUserMove }: Props) {
+export default function Body3D({ photometry, scale, planes, grid = null, housing = null, view = 'iso', viewNonce = 0, link, height, onUserMove }: Props) {
   const moveRef = useRef(onUserMove);
   moveRef.current = onUserMove;
   const { t } = useTranslation();
@@ -283,7 +285,7 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
     );
     c.body.add(surf);
     const s0 = scale && scale > 0 ? scale : mesh.peak || 1;
-    const lines = meshLines(photometry, s0, meshCStep(photometry), 10);
+    const lines = grid ? meshLines(photometry, s0, grid.c, grid.g) : meshLines(photometry, s0, meshCStep(photometry), 10);
     const lp = new Float32Array(lines.length);
     for (let k = 0; k < lines.length / 3; k++) {
       lp[k * 3] = lines[k * 3];
@@ -338,7 +340,7 @@ export default function Body3D({ photometry, scale, planes, housing = null, view
       c.body.add(line);
     });
     c.render();
-  }, [photometry, scale, planes, housing]);
+  }, [photometry, scale, planes, housing, grid]);
 
   return <div ref={host} className="b3d" style={{ height }} />;
 }

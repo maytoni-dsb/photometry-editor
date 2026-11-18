@@ -6,7 +6,10 @@ import { baseName, type OpenFile } from './doc';
 import { safeFileName, saveFile } from './save-file';
 
 /** Сохраняет открытый файл в IES или LDT (имя по умолчанию — как у исходного). */
-/** Текст файла в формате fmt. */
+/** Имя файла при сохранении: артикул, если он задан, иначе имя открытого файла. */
+export const saveBase = (file: OpenFile): string => file.parse.photometry.meta.article.trim() || baseName(file.name);
+
+/** Текст файла в формате fmt (name — имя файла на диске, для строки 11 LDT). */
 export function fileText(file: OpenFile, fmt: 'ies' | 'ldt', name: string): string {
   const p = file.parse.photometry;
   if (fmt === 'ies') return houseIES(p, houseCtx(), { lineEnding: p.source.lineEnding });
@@ -19,8 +22,8 @@ export const formatOf = (file: OpenFile): 'ies' | 'ldt' =>
 
 /** «Сохранить как»: диалог с именем; новое имя и файл на диске (если браузер их даёт) или null при отмене. */
 export async function saveAs(file: OpenFile, fmt: 'ies' | 'ldt'): Promise<{ name: string; handle?: FileSystemFileHandle } | null> {
-  const name = `${safeFileName(baseName(file.name))}.${fmt}`;
-  const r = await saveFile(name, 'text/plain', fmt, () => fileText(file, fmt, name));
+  const name = `${safeFileName(saveBase(file))}.${fmt}`;
+  const r = await saveFile(name, 'text/plain', fmt, (n) => fileText(file, fmt, n));
   if (!r) return null;
   return r === true ? { name } : { name: r.name, handle: r.handle };
 }

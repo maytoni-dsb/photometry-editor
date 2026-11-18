@@ -476,7 +476,7 @@ export function TableBatch() {
       }
       for (const o of pl.outputs) {
         try {
-          const q = applyRow(p0, table, pl.row, o.set).photometry;
+          const { photometry: q, ityp } = applyRow(p0, table, pl.row, o.set);
           const name = safeFileName(o.base);
           const put = async (sub: 'IES' | 'LDT', file: string, text: string) => {
             if (zip) zip.file(`${sub}/${file}`, text);
@@ -484,7 +484,7 @@ export function TableBatch() {
             written++;
           };
           if (fmt.ies) await put('IES', `${name}.ies`, houseIES(q, ctx));
-          if (fmt.ldt) await put('LDT', `${name}.ldt`, houseLDT(q, ctx, `${name}.ldt`));
+          if (fmt.ldt) await put('LDT', `${name}.ldt`, houseLDT(q, ctx, `${name}.ldt`, ityp));
         } catch (e) {
           errors.push({ file: o.base, msg: (e as Error).message });
         }

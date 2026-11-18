@@ -7,7 +7,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { houseIES, houseLDT } from '../../batch/house';
 import { duplicateSources, savePlan, sourceSuffix, type IesMode, type LdtMode } from '../../batch/sources';
-import { baseName, type OpenFile } from '../doc';
+import { type OpenFile } from '../doc';
+import { saveBase } from '../actions';
 import { canWriteFolders, writeInto } from '../project-folder';
 import { safeFileName, saveFile } from '../save-file';
 import { load, save } from '../storage';
@@ -41,7 +42,7 @@ export function SaveDialog({ file, onClose, onSaved }: { file: OpenFile; onClose
     return () => window.removeEventListener('keydown', esc);
   }, [busy, onClose]);
 
-  const base = safeFileName(baseName(file.name));
+  const base = safeFileName(saveBase(file)); // <артикул>[ @ источник].ldt
   const plan = useMemo(() => savePlan(p, base, { ...fmt, iesMode, ldtMode, source }), [p, base, fmt, iesMode, ldtMode, source]);
   const names = plan.map((x) => `${safeFileName(x.base)}.${x.fmt}`);
   const clash = new Set(names).size < names.length;
@@ -52,10 +53,10 @@ export function SaveDialog({ file, onClose, onSaved }: { file: OpenFile; onClose
     setBusy(true);
     setErr(null);
     const ctx = houseCtx();
-    const text = (i: number) => (plan[i].fmt === 'ies' ? houseIES(plan[i].photometry, ctx, { lineEnding: p.source.lineEnding }) : houseLDT(plan[i].photometry, ctx, names[i]));
+    const text = (i: number, name = names[i]) => (plan[i].fmt === 'ies' ? houseIES(plan[i].photometry, ctx, { lineEnding: p.source.lineEnding }) : houseLDT(plan[i].photometry, ctx, name));
     try {
       if (plan.length === 1) {
-        const r = await saveFile(names[0], 'text/plain', plan[0].fmt, () => text(0));
+        const r = await saveFile(names[0], 'text/plain', plan[0].fmt, (n) => text(0, n));
         if (r) {
           const whole = !many || (plan[0].fmt === 'ldt' && ldtMode === 'all');
           onSaved(r === true ? { name: names[0], whole } : { name: r.name, handle: r.handle, whole });

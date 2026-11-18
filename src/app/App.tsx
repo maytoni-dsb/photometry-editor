@@ -443,6 +443,8 @@ export default function App() {
     updateFile(active.id, (x) => ({ ...x, name: r.handle ? r.name : x.name, handle: r.handle ?? x.handle, folderPath: r.handle ? undefined : x.folderPath, savedLen: x.past.length, derived: r.handle ? false : x.derived }));
   };
   const closeAll = () => {
+    // несохранённые изменения пропадут — спросить
+    if (files.some(isModified) && !window.confirm(t('files.closeAllConfirm', { n: files.filter(isModified).length }))) return;
     setFiles([]);
     setActiveId(null);
   };
@@ -635,6 +637,8 @@ export default function App() {
         ? [
             { label: t('menu.nextFile'), shortcut: 'Alt+↓', disabled: files.length < 2, onClick: () => step(1) },
             { label: t('menu.prevFile'), shortcut: 'Alt+↑', disabled: files.length < 2, onClick: () => step(-1) },
+            'sep',
+            { label: t('files.closeAll'), onClick: closeAll },
             'sep',
             ...files.slice(0, 30).map((f): MenuItem => ({ label: f.name, checked: f.id === activeId, onClick: () => setActiveId(f.id) })),
           ]

@@ -240,7 +240,7 @@ function dims(lengthM: string, widthM: string, heightM: string, prev: Photometry
  * Файл для комплекта set строки: симметрия → нормировка (поток светильника = поток из таблицы,
  * т. е. 1000 лм в кд/клм × Φ) → поля из таблицы.
  */
-export function applyRow(p0: Photometry, t: ImportTable, row: number, set: number): { photometry: Photometry; issues: Issue[] } {
+export function applyRow(p0: Photometry, t: ImportTable, row: number, set: number): { photometry: Photometry; issues: Issue[]; ityp?: number } {
   const plan = planRow(t, row, new Map([[cell(t, row, 'LuminaireNumber').toLowerCase(), { ldt: 'x.ldt' }]]));
   const g = (c: ImportColumn) => cell(t, row, c);
   const n = plan.outputs.length || 1;
@@ -285,9 +285,10 @@ export function applyRow(p0: Photometry, t: ImportTable, row: number, set: numbe
   const h = q.luminous.height;
   q.ldt = {
     ...(q.ldt ?? { luminousHeights: [h, h, h, h], dff: 0, lorl: 100, conversionFactor: 1, measurementTilt: 0, directRatios: [], fileNameField: '', dateUser: '' }),
+    // Ityp: из таблицы, если задан; иначе — по правилу записи (house.ts, ldtTypeIndicator)
     ityp: Number.isInteger(ityp) ? ityp : (q.ldt?.ityp ?? (plan.symmetry === 'axial' ? 1 : 3)),
     // правило пакета «По таблице»: высоты светящей части во всех четырёх плоскостях — 0
     luminousHeights: [0, 0, 0, 0],
   };
-  return { photometry: q, issues };
+  return { photometry: q, issues, ityp: g('TypeIndicator') !== '' && Number.isInteger(ityp) ? ityp : undefined };
 }

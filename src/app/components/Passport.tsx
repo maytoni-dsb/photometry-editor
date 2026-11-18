@@ -150,6 +150,14 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
   const dups = duplicateSources(p);
   const xlsxInput = useRef<HTMLInputElement>(null);
   const [importErr, setImportErr] = useState<string | null>(null);
+  // сцепка высот светового отверстия по сторонам: по умолчанию включена, если все четыре равны
+  const allEqual = (h: readonly number[]) => h.every((x) => x === h[0]);
+  const [hLink, setHLink] = useState(() => !p.ldt || allEqual(p.ldt.luminousHeights));
+  const [hLinkFor, setHLinkFor] = useState(file.id);
+  if (hLinkFor !== file.id) {
+    setHLinkFor(file.id);
+    setHLink(!p.ldt || allEqual(p.ldt.luminousHeights));
+  }
   const importLamps = async (f: File) => {
     setImportErr(null);
     try {
@@ -263,7 +271,34 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
           {dimBlock('luminous')}
           {p.ldt && (
             <div className="pe-block">
-              <div className="pe-head"><span>{t('passport.luminousHeights')}</span></div>
+              <div className="pe-head">
+                <span>{t('passport.luminousHeights')}</span>
+                <button
+                  className={`linkh${hLink ? ' on' : ''}`}
+                  aria-pressed={hLink}
+                  title={t(hLink ? 'passport.heightsLinked' : 'passport.heightsLink')}
+                  aria-label={t('passport.heightsLink')}
+                  onClick={() => {
+                    const next = !hLink;
+                    setHLink(next);
+                    // при сцепке разные высоты выравниваются по C0
+                    if (next && p.ldt && !allEqual(p.ldt.luminousHeights)) {
+                      const v = p.ldt.luminousHeights[0];
+                      onPatch(label(t('passport.luminousHeights')), (q) => {
+                        if (q.ldt) q.ldt.luminousHeights = [v, v, v, v];
+                      });
+                    }
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    {hLink ? (
+                      <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+                    ) : (
+                      <path d="M10 14a4 4 0 0 0 1.5 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66M15.5 8.5l3-3M13 6.3l.5-.5a4 4 0 0 1 5.7 5.7l-.5.5M4 4l16 16" />
+                    )}
+                  </svg>
+                </button>
+              </div>
               <div className="pe-grid22">
                 {p.ldt.luminousHeights.map((h, i) => (
                   <label key={i}>
@@ -272,7 +307,7 @@ export function Passport({ file, onPatch, onOp }: { file: OpenFile; onPatch: Pas
                       value={h}
                       onCommit={(v) =>
                         onPatch(label(t('passport.luminousHeights')), (q) => {
-                          if (q.ldt) q.ldt.luminousHeights = q.ldt.luminousHeights.map((x, j) => (j === i ? v : x)) as [number, number, number, number];
+                          if (q.ldt) q.ldt.luminousHeights = q.ldt.luminousHeights.map((x, j) => (hLink || j === i ? v : x)) as [number, number, number, number];
                         })
                       }
                       unit={t('unit.mm')}
